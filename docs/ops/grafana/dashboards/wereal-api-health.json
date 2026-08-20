@@ -1,0 +1,29 @@
+{
+  "title": "WEREAL API Health (Pilot)",
+  "uid": "wereal-api-health",
+  "timezone": "Asia/Ho_Chi_Minh",
+  "schemaVersion": 39,
+  "version": 1,
+  "panels": [
+    {
+      "type": "stat",
+      "title": "API Status",
+      "gridPos": { "h": 4, "w": 8, "x": 0, "y": 0 },
+      "targets": [{ "expr": "1", "legendFormat": "manual health probe" }],
+      "description": "Wire Infinity datasource to GET /api/v1/health → $.status"
+    },
+    {
+      "type": "stat",
+      "title": "Postgres",
+      "gridPos": { "h": 4, "w": 8, "x": 8, "y": 0 },
+      "description": "checks.database from health JSON"
+    },
+    {
+      "type": "stat",
+      "title": "Redis",
+      "gridPos": { "h": 4, "w": 8, "x": 16, "y": 0 },
+      "description": "checks.redis from health JSON"
+    }
+  ],
+  "tags": ["wereal", "pilot", "s6"]
+}

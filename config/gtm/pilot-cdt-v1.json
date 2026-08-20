@@ -1,0 +1,18 @@
+{
+  "tenantId": "ten_pilot_cdt_01",
+  "legalName": "Công ty CP BĐS Thăng Long",
+  "displayName": "CĐT Thăng Long (Pilot)",
+  "projectId": "prj_thanglong_01",
+  "projectName": "Thăng Long Central",
+  "projectCode": "TL-CENTRAL",
+  "adminEmail": "pilot@thanglong-dev.vn",
+  "adminPassword": "PilotCdt123!",
+  "slaPackVersion": "2026-T5-v1",
+  "trustScoreMin": 80,
+  "crossAnchorProjects": ["prj_sunrise"],
+  "syntheticAnchors": [
+    { "tenantId": "ten_dev_01", "displayName": "Sunrise Dev Anchor", "projectIds": ["prj_sunrise"] },
+    { "tenantId": "ten_anchor_02", "displayName": "Metro Tower Anchor", "projectIds": ["prj_metro_02"] },
+    { "tenantId": "ten_anchor_03", "displayName": "Green Park Anchor", "projectIds": ["prj_green_03"] }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "tenantId": "ten_pilot_cdt_03",
+  "legalName": "Công ty CP GreenCity Pilot",
+  "displayName": "CĐT GreenCity (Pilot #3)",
+  "projectId": "prj_greencity_03",
+  "projectName": "GreenCity Lake",
+  "projectCode": "GC-LAKE",
+  "adminEmail": "pilot3@greencity-dev.vn",
+  "adminPassword": "PilotCdt123!",
+  "slaPackVersion": "2026-T5-v1",
+  "trustScoreMin": 80,
+  "crossAnchorProjects": ["prj_metro_02"]
+}

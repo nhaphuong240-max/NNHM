@@ -1,0 +1,201 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master, develop]
+  pull_request:
+
+jobs:
+  api:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: apps/api/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+      - run: chmod +x ../../scripts/check-migrations.sh ../../scripts/uat-t7-security.sh
+      - run: ../../scripts/check-migrations.sh
+      - run: ../../scripts/uat-t7-security.sh
+        working-directory: apps/api
+
+  web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - run: npm ci
+      - run: npm run build
+
+  mobile:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: apps/mobile/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+
+  observability-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: chmod +x scripts/uat-t7-observability.sh scripts/apply-tier-t7-observability.sh
+      - run: ./scripts/uat-t7-observability.sh
+
+  contract-gate:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: wereal
+          POSTGRES_PASSWORD: wereal
+          POSTGRES_DB: wereal
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U wereal -d wereal"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://wereal:wereal@localhost:5432/wereal
+      REDIS_URL: redis://localhost:6379
+      JWT_SECRET: wereal-ci-jwt-secret-min-32-chars-long
+      WEBHOOK_HMAC_SECRET: wereal-ci-webhook-secret
+      NODE_ENV: development
+      AUTH_LOGIN_RATE_LIMIT_PER_MIN: '1000'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: apps/api/package-lock.json
+      - run: chmod +x scripts/contract/validate-openapi.sh scripts/contract/smoke-api-responses.sh
+      - run: ./scripts/contract/validate-openapi.sh
+      - name: Build & start API for response smoke
+        working-directory: apps/api
+        run: |
+          npm ci
+          npm run build
+          npm run migration:run
+          npm run start:prod &
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:3000/api/v1/health/ready && break
+            sleep 2
+          done
+      - run: ./scripts/contract/smoke-api-responses.sh http://localhost:3000/api/v1
+
+  e2e-pr:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: wereal
+          POSTGRES_PASSWORD: wereal
+          POSTGRES_DB: wereal
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U wereal -d wereal"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://wereal:wereal@localhost:5432/wereal
+      REDIS_URL: redis://localhost:6379
+      WEBHOOK_HMAC_SECRET: wereal-ci-webhook-secret
+      JWT_SECRET: wereal-ci-jwt-secret-min-32-chars-long
+      AUTH_LOGIN_RATE_LIMIT_PER_MIN: '1000'
+      NODE_ENV: development
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: apps/api/package-lock.json
+      - name: Install & build API
+        working-directory: apps/api
+        run: |
+          npm ci
+          npm run build
+          npm run migration:run
+      - name: Start API
+        working-directory: apps/api
+        run: |
+          npm run start:prod &
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:3000/api/v1/health/ready && break
+            sleep 2
+          done
+          curl -sf http://localhost:3000/api/v1/health/ready
+      - name: Build web for E2E
+        working-directory: apps/web
+        env:
+          VITE_API_URL: http://localhost:3000/api/v1
+        run: |
+          npm ci
+          npm run build
+      - name: Install Playwright
+        working-directory: apps/web
+        run: npx playwright install chromium --with-deps
+      - name: Playwright E2E PR gate (T7-S3)
+        working-directory: apps/web
+        env:
+          E2E_API_URL: http://localhost:3000/api/v1
+          E2E_BASE_URL: http://127.0.0.1:4173
+          CI: 'true'
+          E2E_WEBHOOK_SECRET: wereal-ci-webhook-secret
+        run: npm run test:e2e -- e2e/book.spec.ts e2e/search.spec.ts e2e/developer.spec.ts e2e/vnpay-ledger.spec.ts e2e/mfa.spec.ts e2e/ops.spec.ts e2e/s4-inbox.spec.ts e2e/s5-settlement.spec.ts e2e/s6-ops.spec.ts
+
+  enterprise-artifacts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: chmod +x scripts/uat-enterprise-hardening.sh scripts/uat-tier6-smoke.sh scripts/verify-production-flags.sh scripts/apply-tier-b-env.sh scripts/uat-tier-b-rails.sh
+      - run: ./scripts/uat-enterprise-hardening.sh
+      - run: ./scripts/uat-tier6-smoke.sh
+      - run: ./scripts/verify-production-flags.sh --profile staging --strict apps/api/.env.staging.example

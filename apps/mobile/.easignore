@@ -1,0 +1,10 @@
+# EAS upload ignore — keep build context lean
+.git/
+.claude/
+*.md
+!README.md
+coverage/
+**/*.test.ts
+**/*.spec.ts
+jest.config.js
+jest.setup.js

@@ -1,0 +1,62 @@
+{
+  "name": "WEREAL REOS Design Tokens",
+  "version": "2.1.0",
+  "baseline": "WEREAL-BL-2026-002",
+  "source": "prototype/src/config/designTokens.ts",
+  "figmaImport": {
+    "recommendedPlugin": "Variables Import / Export (Figma official sample)",
+    "alternativePlugin": "Tokens Studio for Figma",
+    "docs": "design-tokens/figma/README.md",
+    "note": "Import từng file *.tokens.json — mỗi file = 1 Variable Collection trong Figma."
+  },
+  "collections": [
+    {
+      "id": "01-brand",
+      "name": "Brand",
+      "file": "01-brand.tokens.json",
+      "importHint": "Figma → Plugins → Variables Import / Export (W3C)"
+    },
+    {
+      "id": "02-semantic",
+      "name": "Semantic",
+      "file": "02-semantic.tokens.json",
+      "importHint": "Figma → Plugins → Variables Import / Export (W3C)"
+    },
+    {
+      "id": "03-portal",
+      "name": "Portal",
+      "file": "03-portal.tokens.json",
+      "importHint": "Figma → Plugins → Variables Import / Export (W3C)"
+    },
+    {
+      "id": "04-spacing",
+      "name": "Spacing",
+      "file": "04-spacing.tokens.json",
+      "importHint": "Figma → Plugins → Variables Import / Export (W3C)"
+    },
+    {
+      "id": "05-radius",
+      "name": "Radius",
+      "file": "05-radius.tokens.json",
+      "importHint": "Figma → Plugins → Variables Import / Export (W3C)"
+    },
+    {
+      "id": "06-layout",
+      "name": "Layout",
+      "file": "06-layout.tokens.json",
+      "importHint": "Figma → Plugins → Variables Import / Export (W3C)"
+    },
+    {
+      "id": "07-typography",
+      "name": "Typography",
+      "file": "07-typography.tokens.json",
+      "importHint": "Figma → Plugins → Variables Import / Export (W3C)"
+    },
+    {
+      "id": "08-elevation",
+      "name": "Elevation",
+      "file": "08-elevation.tokens.json",
+      "importHint": "Figma → Plugins → Variables Import / Export (W3C)"
+    }
+  ]
+}

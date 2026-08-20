@@ -1,0 +1,69 @@
+{
+  "$description": "WEREAL REOS Design Tokens — Brand core (v2.1.0)",
+  "color": {
+    "primary": {
+      "$value": "#0F4C81",
+      "$type": "color"
+    },
+    "primary-light": {
+      "$value": "#1a6bb5",
+      "$type": "color"
+    },
+    "primary-dark": {
+      "$value": "#0a3d6b",
+      "$type": "color"
+    },
+    "primary-foreground": {
+      "$value": "#FFFFFF",
+      "$type": "color"
+    },
+    "secondary": {
+      "$value": "#E8F1F8",
+      "$type": "color"
+    },
+    "accent": {
+      "$value": "#C9A227",
+      "$type": "color"
+    },
+    "accent-light": {
+      "$value": "#e8c547",
+      "$type": "color"
+    },
+    "accent-dark": {
+      "$value": "#a8861f",
+      "$type": "color"
+    },
+    "success": {
+      "$value": "#16A34A",
+      "$type": "color"
+    },
+    "warning": {
+      "$value": "#EA580C",
+      "$type": "color"
+    },
+    "destructive": {
+      "$value": "#DC2626",
+      "$type": "color"
+    },
+    "muted": {
+      "$value": "#64748B",
+      "$type": "color"
+    },
+    "background": {
+      "$value": "#FAFBFC",
+      "$type": "color"
+    },
+    "surface": {
+      "$value": "#FFFFFF",
+      "$type": "color"
+    },
+    "border": {
+      "$value": "#E2E8F0",
+      "$type": "color"
+    },
+    "page": {
+      "$value": "#F4F7FA",
+      "$type": "color"
+    }
+  }
+}

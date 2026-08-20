@@ -1,0 +1,570 @@
+# OPS-S6 OpenAPI extensions — append to contract gate (openapi.yaml + this file)
+# Generated scope: OPS S1–S6 modules. Target path count ≥80 toward ~200.
+
+openapi: 3.1.0
+info:
+  title: WEREAL REOS API — OPS S6 extensions
+  version: 1.0.0-s6
+paths:
+  /ops/readiness:
+    get:
+      tags: [Ops]
+      operationId: get_ops_readiness
+      summary: 'OPS-S6-01: GET /ops/readiness'
+      description: Grafana staging URL, on-call roster, incident drill evidence for G-OPS-4.
+      responses:
+        '200':
+          description: Ops readiness snapshot
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ApiResponse'
+      security:
+      - BearerAuth: []
+  /admin/config/rails/resolved:
+    get:
+      tags: [Identity]
+      operationId: get_admin_rails_resolved
+      summary: 'OPS-S1: GET /admin/config/rails/resolved'
+      parameters:
+      - $ref: '../openapi.yaml#/components/parameters/XTenantId'
+      responses:
+        '200':
+          description: Tenant LIVE_RAILS overlay merged with process env
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ApiResponse'
+      security:
+      - BearerAuth: []
+  /commission/settlement/runs:
+    get:
+      tags: [Commission]
+      operationId: get_commission_settlement_runs
+      summary: 'OPS-S5: GET /commission/settlement/runs'
+      parameters:
+      - $ref: '../openapi.yaml#/components/parameters/XTenantId'
+      responses:
+        '200':
+          description: Settlement run history
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ApiResponse'
+      security:
+      - BearerAuth: []
+    post:
+      tags: [Commission]
+      operationId: post_commission_settlement_runs
+      summary: 'OPS-S5: POST /commission/settlement/runs'
+      parameters:
+      - $ref: '../openapi.yaml#/components/parameters/XTenantId'
+      responses:
+        '201':
+          description: Settlement run created (SUBMITTED or COMPLETED)
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ApiResponse'
+      security:
+      - BearerAuth: []
+  /commission/settlement/runs/{runId}/reconcile:
+    post:
+      tags: [Commission]
+      operationId: post_commission_settlement_reconcile
+      summary: 'OPS-S5-05: POST /commission/settlement/runs/{runId}/reconcile'
+      parameters:
+      - $ref: '../openapi.yaml#/components/parameters/XTenantId'
+      - name: runId
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Payout batch vs bank statement reconcile
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ApiResponse'
+      security:
+      - BearerAuth: []
+  /commission/lines:
+    get:
+      tags: [Commission]
+      operationId: get_commission_lines
+      summary: 'UC-COM-03: GET /commission/lines'
+      parameters:
+      - $ref: '../openapi.yaml#/components/parameters/XTenantId'
+      responses:
+        '200':
+          description: Payable commission lines
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ApiResponse'
+      security:
+      - BearerAuth: []
+  /commission/lines/approve:
+    post:
+      tags: [Commission]
+      operationId: post_commission_lines_approve
+      summary: 'UC-COM-03: POST /commission/lines/approve'
+      parameters:
+      - $ref: '../openapi.yaml#/components/parameters/XTenantId'
+      responses:
+        '200':
+          description: Lines approved for settlement
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ApiResponse'
+      security:
+      - BearerAuth: []
+  /integrations/bank/webhook:
+    post:
+      tags: [Integrations]
+      operationId: post_integrations_bank_webhook
+      summary: 'OPS-S5-01: POST /integrations/bank/webhook'
+      parameters:
+      - $ref: '../openapi.yaml#/components/parameters/XTenantId'
+      responses:
+        '200':
+          description: Bank connector webhook accepted
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ApiResponse'
+  /tenants/branding:
+    get:
+      tags: [Identity]
+      operationId: get_tenants_branding
+      summary: 'OPS-S6-02: GET /tenants/branding'
+      parameters:
+      - $ref: '../openapi.yaml#/components/parameters/XTenantId'
+      responses:
+        '200':
+          description: Tenant white-label brand config
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ApiResponse'
+      security:
+      - BearerAuth: []
+    post:
+      tags: [Identity]
+      operationId: post_tenants_branding
+      summary: 'OPS-S6-02: POST /tenants/branding'
+      parameters:
+      - $ref: '../openapi.yaml#/components/parameters/XTenantId'
+      responses:
+        '200':
+          description: Brand updated
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ApiResponse'
+      security:
+      - BearerAuth: []
+  /health/enterprise:
+    get:
+      tags: [Health]
+      operationId: get_health_enterprise
+      summary: 'T7-S8: GET /health/enterprise'
+      responses:
+        '200':
+          description: Enterprise white-label + DR sign-off snapshot
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ApiResponse'
+  /health/observability:
+    get:
+      tags: [Health]
+      operationId: get_health_observability
+      summary: 'T7-S3: GET /health/observability'
+      responses:
+        '200':
+          description: OTEL / Prometheus / SLO metadata
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ApiResponse'
+  /auth/sso/providers:
+    get:
+      tags: [Identity]
+      operationId: get_auth_sso_providers
+      summary: 'OPS-S6-03: GET /auth/sso/providers'
+      parameters:
+      - $ref: '../openapi.yaml#/components/parameters/XTenantId'
+      responses:
+        '200':
+          description: SSO providers (empty when tenant ssoOidcEnabled=false)
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ApiResponse'
+    post:
+      tags: [Identity]
+      operationId: post_auth_sso_providers
+      summary: 'UC-ID-06: POST /auth/sso/providers'
+      parameters:
+      - $ref: '../openapi.yaml#/components/parameters/XTenantId'
+      responses:
+        '200':
+          description: SSO provider upserted
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ApiResponse'
+      security:
+      - BearerAuth: []
+  /auth/sso/authorize:
+    get:
+      tags: [Identity]
+      operationId: get_auth_sso_authorize
+      summary: 'UC-ID-06: GET /auth/sso/authorize'
+      parameters:
+      - $ref: '../openapi.yaml#/components/parameters/XTenantId'
+      responses:
+        '200':
+          description: OIDC authorization redirect URL
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ApiResponse'
+  /auth/sso/login:
+    post:
+      tags: [Identity]
+      operationId: post_auth_sso_login
+      summary: 'UC-ID-06: POST /auth/sso/login'
+      responses:
+        '200':
+          description: SSO session tokens
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ApiResponse'
+  /contracts/{contractId}/sign-session:
+    get:
+      tags: [Booking]
+      operationId: get_contracts_sign_session
+      summary: 'OPS-S5-03: GET /contracts/{contractId}/sign-session'
+      parameters:
+      - $ref: '../openapi.yaml#/components/parameters/XTenantId'
+      - name: contractId
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Buyer e-sign session + OTP
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ApiResponse'
+  /contracts/{contractId}/sign:
+    post:
+      tags: [Booking]
+      operationId: post_contracts_sign
+      summary: 'OPS-S5-03: POST /contracts/{contractId}/sign'
+      parameters:
+      - $ref: '../openapi.yaml#/components/parameters/XTenantId'
+      - name: contractId
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Contract signed
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ApiResponse'
+  /crm/inbox:
+    get:
+      tags: [CRM]
+      operationId: get_crm_inbox
+      summary: 'OPS-S4-03: GET /crm/inbox'
+      parameters:
+      - $ref: '../openapi.yaml#/components/parameters/XTenantId'
+      responses:
+        '200':
+          description: Omnichannel inbox threads
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ApiResponse'
+      security:
+      - BearerAuth: []
+  /kyc/profiles/{subjectType}/{subjectId}/approve:
+    post:
+      tags: [KYC]
+      operationId: post_kyc_approve
+      summary: 'BR-23: POST /kyc/profiles/{subjectType}/{subjectId}/approve'
+      parameters:
+      - $ref: '../openapi.yaml#/components/parameters/XTenantId'
+      - name: subjectType
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: subjectId
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: KYC approved
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ApiResponse'
+      security:
+      - BearerAuth: []
+  /ledger/reconciliation:
+    get:
+      tags: [Ledger]
+      operationId: get_ledger_reconciliation
+      summary: 'OPS-S3: GET /ledger/reconciliation'
+      parameters:
+      - $ref: '../openapi.yaml#/components/parameters/XTenantId'
+      responses:
+        '200':
+          description: Daily reconciliation reports
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ApiResponse'
+      security:
+      - BearerAuth: []
+  /payment-intents/{id}/checkout:
+    post:
+      tags: [Payment]
+      operationId: post_payment_checkout
+      summary: 'OPS-S2: POST /payment-intents/{id}/checkout'
+      parameters:
+      - $ref: '../openapi.yaml#/components/parameters/XTenantId'
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: VNPAY checkout URL
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ApiResponse'
+      security:
+      - BearerAuth: []
+  /webhooks/vnpay:
+    post:
+      tags: [Payment]
+      operationId: post_webhooks_vnpay
+      summary: 'OPS-S2: POST /webhooks/vnpay'
+      responses:
+        '200':
+          description: VNPAY IPN webhook
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ApiResponse'
+  /zalo/webhook:
+    post:
+      tags: [Zalo]
+      operationId: post_zalo_webhook
+      summary: 'OPS-S4-01: POST /zalo/webhook'
+      parameters:
+      - $ref: '../openapi.yaml#/components/parameters/XTenantId'
+      responses:
+        '200':
+          description: Zalo lead webhook
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ApiResponse'
+  /sms/send:
+    post:
+      tags: [SMS]
+      operationId: post_sms_send
+      summary: 'OPS-S4-04: POST /sms/send'
+      parameters:
+      - $ref: '../openapi.yaml#/components/parameters/XTenantId'
+      responses:
+        '200':
+          description: SMS OTP send
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ApiResponse'
+      security:
+      - BearerAuth: []
+  /mobile-agent/push-tokens:
+    post:
+      tags: [Mobile]
+      operationId: post_mobile_push_tokens
+      summary: 'OPS-S4-05: POST /mobile-agent/push-tokens'
+      parameters:
+      - $ref: '../openapi.yaml#/components/parameters/XTenantId'
+      responses:
+        '200':
+          description: Push token registered
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ApiResponse'
+      security:
+      - BearerAuth: []
+  /public/search:
+    get:
+      tags: [Search]
+      operationId: get_public_search
+      summary: 'OPS-S6-02: GET /public/search'
+      responses:
+        '200':
+          description: Public unit search (white-label portal)
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ApiResponse'
+  /public/units/{unitId}:
+    get:
+      tags: [Search]
+      operationId: get_public_unit_detail
+      summary: 'OPS-S6-02: GET /public/units/{unitId}'
+      parameters:
+      - name: unitId
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Public unit detail
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ApiResponse'
+  /developer/units:
+    get:
+      tags: [GoldenRecord]
+      operationId: get_developer_units
+      summary: 'OPS-S6-02: GET /developer/units'
+      parameters:
+      - $ref: '../openapi.yaml#/components/parameters/XTenantId'
+      responses:
+        '200':
+          description: Developer unit list
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ApiResponse'
+      security:
+      - BearerAuth: []
+  /developer/units/import:
+    post:
+      tags: [GoldenRecord]
+      operationId: post_developer_units_import
+      summary: 'OPS-S3-02: POST /developer/units/import'
+      parameters:
+      - $ref: '../openapi.yaml#/components/parameters/XTenantId'
+      responses:
+        '200':
+          description: GR CSV import
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ApiResponse'
+      security:
+      - BearerAuth: []
+  /developer/commission:
+    get:
+      tags: [Commission]
+      operationId: get_developer_commission
+      summary: 'OPS-S6-02: GET /developer/commission'
+      parameters:
+      - $ref: '../openapi.yaml#/components/parameters/XTenantId'
+      responses:
+        '200':
+          description: Developer commission dashboard
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ApiResponse'
+      security:
+      - BearerAuth: []
+  /developer/absorption:
+    get:
+      tags: [Analytics]
+      operationId: get_developer_absorption
+      summary: 'OPS-S6-02: GET /developer/absorption'
+      parameters:
+      - $ref: '../openapi.yaml#/components/parameters/XTenantId'
+      responses:
+        '200':
+          description: Absorption analytics
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ApiResponse'
+      security:
+      - BearerAuth: []
+  /portal/admin/omnichannel:
+    get:
+      tags: [Analytics]
+      operationId: get_portal_admin_omnichannel
+      summary: 'P3-S6-01: GET /portal/admin/omnichannel'
+      parameters:
+      - $ref: '../openapi.yaml#/components/parameters/XTenantId'
+      responses:
+        '200':
+          description: Omnichannel latency dashboard
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ApiResponse'
+      security:
+      - BearerAuth: []
+  /health/slo:
+    get:
+      tags: [Health]
+      operationId: get_health_slo
+      summary: 'T7-S3: GET /health/slo'
+      responses:
+        '200':
+          description: SLO metadata for status page
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ApiResponse'
+  /commission/settlement/status:
+    get:
+      tags: [Commission]
+      operationId: get_commission_settlement_status
+      summary: 'OPS-S5: GET /commission/settlement/status'
+      responses:
+        '200':
+          description: Settlement module status
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ApiResponse'
+  /meta/webhook:
+    post:
+      tags: [Meta]
+      operationId: post_meta_webhook
+      summary: 'OPS-S4: POST /meta/webhook'
+      parameters:
+      - $ref: '../openapi.yaml#/components/parameters/XTenantId'
+      responses:
+        '200':
+          description: Meta lead webhook
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ApiResponse'

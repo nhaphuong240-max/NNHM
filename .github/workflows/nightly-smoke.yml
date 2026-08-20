@@ -1,0 +1,79 @@
+name: Nightly P3 CI Smoke + E2E
+
+on:
+  schedule:
+    - cron: '0 17 * * *' # 00:00 ICT
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: wereal
+          POSTGRES_PASSWORD: wereal
+          POSTGRES_DB: wereal
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U wereal -d wereal"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://wereal:wereal@localhost:5432/wereal
+      REDIS_URL: redis://localhost:6379
+      WEBHOOK_HMAC_SECRET: wereal-ci-webhook-secret
+      WEBHOOK_SKIP_VERIFY: 'false'
+      JWT_SECRET: wereal-ci-jwt-secret-min-32-chars-long
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: apps/api/package-lock.json
+      - name: Install & build API
+        working-directory: apps/api
+        run: |
+          npm ci
+          npm run build
+      - name: Start API
+        working-directory: apps/api
+        run: |
+          npm run start:prod &
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:3000/api/v1/health && break
+            sleep 2
+          done
+          curl -sf http://localhost:3000/api/v1/health
+      - name: P3 CI smoke (P0 + OP-WIN-07)
+        run: chmod +x scripts/smoke-p3-ci.sh && ./scripts/smoke-p3-ci.sh
+      - name: Build web for E2E
+        working-directory: apps/web
+        env:
+          VITE_API_URL: http://localhost:3000/api/v1
+        run: |
+          npm ci
+          npm run build
+      - name: Install Playwright
+        working-directory: apps/web
+        run: npx playwright install chromium --with-deps
+      - name: Playwright E2E (P3-S6-04)
+        working-directory: apps/web
+        env:
+          E2E_API_URL: http://localhost:3000/api/v1
+          E2E_BASE_URL: http://127.0.0.1:4173
+          CI: 'true'
+        run: npm run test:e2e

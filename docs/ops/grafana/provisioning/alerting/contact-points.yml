@@ -1,0 +1,22 @@
+apiVersion: 1
+
+contactPoints:
+  - orgId: 1
+    name: wereal-oncall-slack
+    receivers:
+      - uid: wereal_ops_slack
+        type: slack
+        settings:
+          url: ${GRAFANA_SLACK_WEBHOOK_URL}
+          recipient: '#wereal-ops'
+        disableResolveMessage: false
+
+policies:
+  - orgId: 1
+    receiver: wereal-oncall-slack
+    group_by: ['alertname', 'team']
+    routes:
+      - receiver: wereal-oncall-slack
+        matchers:
+          - team = platform
+        continue: false

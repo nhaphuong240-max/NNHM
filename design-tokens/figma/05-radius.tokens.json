@@ -1,0 +1,30 @@
+{
+  "$description": "WEREAL REOS Design Tokens — Border radius (values in px)",
+  "radius": {
+    "sm": {
+      "$value": 4.0,
+      "$type": "number",
+      "$description": "4px — import as FLOAT variable"
+    },
+    "md": {
+      "$value": 8.0,
+      "$type": "number",
+      "$description": "8px — import as FLOAT variable"
+    },
+    "lg": {
+      "$value": 12.0,
+      "$type": "number",
+      "$description": "12px — import as FLOAT variable"
+    },
+    "xl": {
+      "$value": 16.0,
+      "$type": "number",
+      "$description": "16px — import as FLOAT variable"
+    },
+    "2xl": {
+      "$value": 16.0,
+      "$type": "number",
+      "$description": "16px — import as FLOAT variable"
+    }
+  }
+}

@@ -1,0 +1,40 @@
+{
+  "$description": "WEREAL REOS Design Tokens — Spacing scale (4px base, values in px)",
+  "spacing": {
+    "1": {
+      "$value": 4.0,
+      "$type": "number",
+      "$description": "4px — import as FLOAT variable"
+    },
+    "2": {
+      "$value": 8.0,
+      "$type": "number",
+      "$description": "8px — import as FLOAT variable"
+    },
+    "3": {
+      "$value": 12.0,
+      "$type": "number",
+      "$description": "12px — import as FLOAT variable"
+    },
+    "4": {
+      "$value": 16.0,
+      "$type": "number",
+      "$description": "16px — import as FLOAT variable"
+    },
+    "6": {
+      "$value": 24.0,
+      "$type": "number",
+      "$description": "24px — import as FLOAT variable"
+    },
+    "8": {
+      "$value": 32.0,
+      "$type": "number",
+      "$description": "32px — import as FLOAT variable"
+    },
+    "12": {
+      "$value": 48.0,
+      "$type": "number",
+      "$description": "48px — import as FLOAT variable"
+    }
+  }
+}

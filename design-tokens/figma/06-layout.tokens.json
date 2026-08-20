@@ -1,0 +1,30 @@
+{
+  "$description": "WEREAL REOS Design Tokens — Layout dimensions (values in px)",
+  "layout": {
+    "max-width": {
+      "$value": 1600.0,
+      "$type": "number",
+      "$description": "1600px — import as FLOAT variable"
+    },
+    "header-height": {
+      "$value": 64.0,
+      "$type": "number",
+      "$description": "64px — import as FLOAT variable"
+    },
+    "sidebar-width": {
+      "$value": 256.0,
+      "$type": "number",
+      "$description": "256px — import as FLOAT variable"
+    },
+    "content-padding-mobile": {
+      "$value": 16.0,
+      "$type": "number",
+      "$description": "16px — import as FLOAT variable"
+    },
+    "content-padding-desktop": {
+      "$value": 32.0,
+      "$type": "number",
+      "$description": "32px — import as FLOAT variable"
+    }
+  }
+}

@@ -1,0 +1,34 @@
+import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, PrimaryColumn } from 'typeorm';
+import { TenantEntity } from './tenant.entity';
+
+@Entity({ name: 'users' })
+export class UserEntity {
+  @PrimaryColumn({ type: 'varchar', length: 32 })
+  id!: string;
+
+  @Column({ name: 'tenant_id', type: 'varchar', length: 32 })
+  tenantId!: string;
+
+  @Column({ type: 'varchar', length: 255, unique: true })
+  email!: string;
+
+  @Column({ name: 'password_hash', type: 'varchar', length: 255 })
+  passwordHash!: string;
+
+  @Column({ type: 'varchar', length: 64 })
+  role!: string;
+
+  @Column({ name: 'is_active', type: 'boolean', default: true })
+  isActive!: boolean;
+
+  /** Base32 TOTP secret — UC-ID-03 staging MFA (when MFA_SANDBOX=false) */
+  @Column({ name: 'mfa_secret', type: 'varchar', length: 64, nullable: true })
+  mfaSecret!: string | null;
+
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
+  createdAt!: Date;
+
+  @ManyToOne(() => TenantEntity, (tenant) => tenant.users)
+  @JoinColumn({ name: 'tenant_id' })
+  tenant?: TenantEntity;
+}

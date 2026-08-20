@@ -1,0 +1,13 @@
+{
+  "tenantId": "ten_pilot_cdt_02",
+  "legalName": "Công ty CP NovaLand Pilot",
+  "displayName": "CĐT NovaLand (Pilot #2)",
+  "projectId": "prj_novaland_02",
+  "projectName": "NovaLand Park",
+  "projectCode": "NV-PARK",
+  "adminEmail": "pilot2@novaland-dev.vn",
+  "adminPassword": "PilotCdt123!",
+  "slaPackVersion": "2026-T5-v1",
+  "trustScoreMin": 80,
+  "crossAnchorProjects": ["prj_sunrise"]
+}

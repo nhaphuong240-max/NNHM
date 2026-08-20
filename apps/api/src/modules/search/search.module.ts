@@ -1,0 +1,27 @@
+import { Module } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { ListingEntity } from '../../database/entities/listing.entity';
+import { ProjectEntity } from '../../database/entities/project.entity';
+import { SearchIndexDocEntity } from '../../database/entities/search-index-doc.entity';
+import { SearchOutboxEntity } from '../../database/entities/search-outbox.entity';
+import { UnitEntity } from '../../database/entities/unit.entity';
+import { SearchIndexService } from './search-index.service';
+import { SearchIndexWorker } from './search-index.worker';
+import { SearchController } from './search.controller';
+import { SearchService } from './search.service';
+
+@Module({
+  imports: [
+    TypeOrmModule.forFeature([
+      SearchIndexDocEntity,
+      SearchOutboxEntity,
+      ListingEntity,
+      ProjectEntity,
+      UnitEntity,
+    ]),
+  ],
+  controllers: [SearchController],
+  providers: [SearchService, SearchIndexService, SearchIndexWorker],
+  exports: [SearchIndexService],
+})
+export class SearchModule {}

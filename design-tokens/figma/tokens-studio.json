@@ -1,0 +1,496 @@
+{
+  "WEREAL": {
+    "brand": {
+      "$description": "WEREAL REOS Design Tokens — Brand core (v2.1.0)",
+      "color": {
+        "primary": {
+          "$value": "#0F4C81",
+          "$type": "color"
+        },
+        "primary-light": {
+          "$value": "#1a6bb5",
+          "$type": "color"
+        },
+        "primary-dark": {
+          "$value": "#0a3d6b",
+          "$type": "color"
+        },
+        "primary-foreground": {
+          "$value": "#FFFFFF",
+          "$type": "color"
+        },
+        "secondary": {
+          "$value": "#E8F1F8",
+          "$type": "color"
+        },
+        "accent": {
+          "$value": "#C9A227",
+          "$type": "color"
+        },
+        "accent-light": {
+          "$value": "#e8c547",
+          "$type": "color"
+        },
+        "accent-dark": {
+          "$value": "#a8861f",
+          "$type": "color"
+        },
+        "success": {
+          "$value": "#16A34A",
+          "$type": "color"
+        },
+        "warning": {
+          "$value": "#EA580C",
+          "$type": "color"
+        },
+        "destructive": {
+          "$value": "#DC2626",
+          "$type": "color"
+        },
+        "muted": {
+          "$value": "#64748B",
+          "$type": "color"
+        },
+        "background": {
+          "$value": "#FAFBFC",
+          "$type": "color"
+        },
+        "surface": {
+          "$value": "#FFFFFF",
+          "$type": "color"
+        },
+        "border": {
+          "$value": "#E2E8F0",
+          "$type": "color"
+        },
+        "page": {
+          "$value": "#F4F7FA",
+          "$type": "color"
+        }
+      }
+    },
+    "semantic": {
+      "$description": "WEREAL REOS Design Tokens — Semantic status colors (BĐS)",
+      "color": {
+        "verified": {
+          "bg": {
+            "$value": "#DCFCE7",
+            "$type": "color",
+            "$description": "Semantic verified — bg"
+          },
+          "text": {
+            "$value": "#166534",
+            "$type": "color",
+            "$description": "Semantic verified — text"
+          },
+          "border": {
+            "$value": "#BBF7D0",
+            "$type": "color",
+            "$description": "Semantic verified — border"
+          }
+        },
+        "hot-lead": {
+          "bg": {
+            "$value": "#FFEDD5",
+            "$type": "color",
+            "$description": "Semantic hot-lead — bg"
+          },
+          "text": {
+            "$value": "#C2410C",
+            "$type": "color",
+            "$description": "Semantic hot-lead — text"
+          },
+          "border": {
+            "$value": "#FED7AA",
+            "$type": "color",
+            "$description": "Semantic hot-lead — border"
+          }
+        },
+        "reserved": {
+          "bg": {
+            "$value": "#FEF3C7",
+            "$type": "color",
+            "$description": "Semantic reserved — bg"
+          },
+          "text": {
+            "$value": "#B45309",
+            "$type": "color",
+            "$description": "Semantic reserved — text"
+          },
+          "border": {
+            "$value": "#FDE68A",
+            "$type": "color",
+            "$description": "Semantic reserved — border"
+          }
+        },
+        "available": {
+          "bg": {
+            "$value": "#DCFCE7",
+            "$type": "color",
+            "$description": "Semantic available — bg"
+          },
+          "text": {
+            "$value": "#15803D",
+            "$type": "color",
+            "$description": "Semantic available — text"
+          },
+          "border": {
+            "$value": "#BBF7D0",
+            "$type": "color",
+            "$description": "Semantic available — border"
+          }
+        },
+        "sold": {
+          "bg": {
+            "$value": "#F1F5F9",
+            "$type": "color",
+            "$description": "Semantic sold — bg"
+          },
+          "text": {
+            "$value": "#475569",
+            "$type": "color",
+            "$description": "Semantic sold — text"
+          },
+          "border": {
+            "$value": "#E2E8F0",
+            "$type": "color",
+            "$description": "Semantic sold — border"
+          }
+        },
+        "pending": {
+          "bg": {
+            "$value": "#EFF6FF",
+            "$type": "color",
+            "$description": "Semantic pending — bg"
+          },
+          "text": {
+            "$value": "#1D4ED8",
+            "$type": "color",
+            "$description": "Semantic pending — text"
+          },
+          "border": {
+            "$value": "#BFDBFE",
+            "$type": "color",
+            "$description": "Semantic pending — border"
+          }
+        },
+        "drift-block": {
+          "bg": {
+            "$value": "#FEE2E2",
+            "$type": "color",
+            "$description": "Semantic drift-block — bg"
+          },
+          "text": {
+            "$value": "#B91C1C",
+            "$type": "color",
+            "$description": "Semantic drift-block — text"
+          },
+          "border": {
+            "$value": "#FECACA",
+            "$type": "color",
+            "$description": "Semantic drift-block — border"
+          }
+        }
+      }
+    },
+    "portal": {
+      "$description": "WEREAL REOS Design Tokens — Portal accent per surface",
+      "portal": {
+        "public": {
+          "accent": {
+            "$value": "#0F4C81",
+            "$type": "color",
+            "$description": "Public Portal"
+          },
+          "accent-soft": {
+            "$value": "#0F4C8114",
+            "$type": "color",
+            "$description": "Public Portal — soft tint"
+          }
+        },
+        "agent": {
+          "accent": {
+            "$value": "#0F4C81",
+            "$type": "color",
+            "$description": "Agent Portal"
+          },
+          "accent-soft": {
+            "$value": "#0F4C8114",
+            "$type": "color",
+            "$description": "Agent Portal — soft tint"
+          }
+        },
+        "admin": {
+          "accent": {
+            "$value": "#0a3d6b",
+            "$type": "color",
+            "$description": "Admin / Ops Portal"
+          },
+          "accent-soft": {
+            "$value": "#0a3d6b18",
+            "$type": "color",
+            "$description": "Admin / Ops Portal — soft tint"
+          }
+        },
+        "developer": {
+          "accent": {
+            "$value": "#0F4C81",
+            "$type": "color",
+            "$description": "Portal Chủ đầu tư"
+          },
+          "accent-soft": {
+            "$value": "#0F4C8114",
+            "$type": "color",
+            "$description": "Portal Chủ đầu tư — soft tint"
+          }
+        },
+        "finance": {
+          "accent": {
+            "$value": "#0F766E",
+            "$type": "color",
+            "$description": "Finance Portal"
+          },
+          "accent-soft": {
+            "$value": "#0F766E18",
+            "$type": "color",
+            "$description": "Finance Portal — soft tint"
+          }
+        },
+        "buyer": {
+          "accent": {
+            "$value": "#1a6bb5",
+            "$type": "color",
+            "$description": "Buyer Portal"
+          },
+          "accent-soft": {
+            "$value": "#1a6bb518",
+            "$type": "color",
+            "$description": "Buyer Portal — soft tint"
+          }
+        },
+        "auth": {
+          "accent": {
+            "$value": "#0F4C81",
+            "$type": "color",
+            "$description": "Đăng nhập"
+          },
+          "accent-soft": {
+            "$value": "#0F4C8114",
+            "$type": "color",
+            "$description": "Đăng nhập — soft tint"
+          }
+        },
+        "system": {
+          "accent": {
+            "$value": "#475569",
+            "$type": "color",
+            "$description": "System"
+          },
+          "accent-soft": {
+            "$value": "#47556918",
+            "$type": "color",
+            "$description": "System — soft tint"
+          }
+        }
+      }
+    },
+    "spacing": {
+      "$description": "WEREAL REOS Design Tokens — Spacing scale (4px base, values in px)",
+      "spacing": {
+        "1": {
+          "$value": 4.0,
+          "$type": "number",
+          "$description": "4px — import as FLOAT variable"
+        },
+        "2": {
+          "$value": 8.0,
+          "$type": "number",
+          "$description": "8px — import as FLOAT variable"
+        },
+        "3": {
+          "$value": 12.0,
+          "$type": "number",
+          "$description": "12px — import as FLOAT variable"
+        },
+        "4": {
+          "$value": 16.0,
+          "$type": "number",
+          "$description": "16px — import as FLOAT variable"
+        },
+        "6": {
+          "$value": 24.0,
+          "$type": "number",
+          "$description": "24px — import as FLOAT variable"
+        },
+        "8": {
+          "$value": 32.0,
+          "$type": "number",
+          "$description": "32px — import as FLOAT variable"
+        },
+        "12": {
+          "$value": 48.0,
+          "$type": "number",
+          "$description": "48px — import as FLOAT variable"
+        }
+      }
+    },
+    "radius": {
+      "$description": "WEREAL REOS Design Tokens — Border radius (values in px)",
+      "radius": {
+        "sm": {
+          "$value": 4.0,
+          "$type": "number",
+          "$description": "4px — import as FLOAT variable"
+        },
+        "md": {
+          "$value": 8.0,
+          "$type": "number",
+          "$description": "8px — import as FLOAT variable"
+        },
+        "lg": {
+          "$value": 12.0,
+          "$type": "number",
+          "$description": "12px — import as FLOAT variable"
+        },
+        "xl": {
+          "$value": 16.0,
+          "$type": "number",
+          "$description": "16px — import as FLOAT variable"
+        },
+        "2xl": {
+          "$value": 16.0,
+          "$type": "number",
+          "$description": "16px — import as FLOAT variable"
+        }
+      }
+    },
+    "layout": {
+      "$description": "WEREAL REOS Design Tokens — Layout dimensions (values in px)",
+      "layout": {
+        "max-width": {
+          "$value": 1600.0,
+          "$type": "number",
+          "$description": "1600px — import as FLOAT variable"
+        },
+        "header-height": {
+          "$value": 64.0,
+          "$type": "number",
+          "$description": "64px — import as FLOAT variable"
+        },
+        "sidebar-width": {
+          "$value": 256.0,
+          "$type": "number",
+          "$description": "256px — import as FLOAT variable"
+        },
+        "content-padding-mobile": {
+          "$value": 16.0,
+          "$type": "number",
+          "$description": "16px — import as FLOAT variable"
+        },
+        "content-padding-desktop": {
+          "$value": 32.0,
+          "$type": "number",
+          "$description": "32px — import as FLOAT variable"
+        }
+      }
+    },
+    "typography": {
+      "$description": "WEREAL REOS Design Tokens — Typography scale (font-size in px)",
+      "font-size": {
+        "display-lg": {
+          "$value": 36.0,
+          "$type": "number",
+          "$description": "36px — import as FLOAT variable"
+        },
+        "h1": {
+          "$value": 30.0,
+          "$type": "number",
+          "$description": "30px — import as FLOAT variable"
+        },
+        "h1-lg": {
+          "$value": 32.0,
+          "$type": "number",
+          "$description": "32px — import as FLOAT variable"
+        },
+        "h2": {
+          "$value": 24.0,
+          "$type": "number",
+          "$description": "24px — import as FLOAT variable"
+        },
+        "h2-lg": {
+          "$value": 24.0,
+          "$type": "number",
+          "$description": "24px — import as FLOAT variable"
+        },
+        "h3": {
+          "$value": 18.0,
+          "$type": "number",
+          "$description": "18px — import as FLOAT variable"
+        },
+        "body-lg": {
+          "$value": 16.0,
+          "$type": "number",
+          "$description": "16px — import as FLOAT variable"
+        },
+        "body-sm": {
+          "$value": 14.0,
+          "$type": "number",
+          "$description": "14px — import as FLOAT variable"
+        },
+        "label": {
+          "$value": 12.0,
+          "$type": "number",
+          "$description": "12px — import as FLOAT variable"
+        },
+        "price": {
+          "$value": 24.0,
+          "$type": "number",
+          "$description": "24px — import as FLOAT variable"
+        },
+        "mono": {
+          "$value": 13.0,
+          "$type": "number",
+          "$description": "13px — import as FLOAT variable"
+        }
+      },
+      "font-weight": {
+        "regular": {
+          "$value": 400,
+          "$type": "number"
+        },
+        "medium": {
+          "$value": 500,
+          "$type": "number"
+        },
+        "semibold": {
+          "$value": 600,
+          "$type": "number"
+        },
+        "bold": {
+          "$value": 700,
+          "$type": "number"
+        }
+      }
+    },
+    "elevation": {
+      "$description": "WEREAL REOS Design Tokens — Box shadows (STRING — bind manually in Figma effects)",
+      "shadow": {
+        "sm": {
+          "$value": "0 1px 2px rgba(0, 0, 0, 0.05)",
+          "$type": "string",
+          "$description": "CSS box-shadow — apply as effect style or Dev Mode note"
+        },
+        "md": {
+          "$value": "0 4px 12px rgba(0, 0, 0, 0.08)",
+          "$type": "string",
+          "$description": "CSS box-shadow — apply as effect style or Dev Mode note"
+        },
+        "lg": {
+          "$value": "0 8px 24px rgba(0, 0, 0, 0.12)",
+          "$type": "string",
+          "$description": "CSS box-shadow — apply as effect style or Dev Mode note"
+        }
+      }
+    }
+  }
+}

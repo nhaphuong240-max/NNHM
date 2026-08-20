@@ -1,0 +1,16 @@
+{
+  "name": "@wereal/partner-sdk",
+  "version": "0.1.0",
+  "description": "WEREAL REOS Partner SDK — Tier 3",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "node --test dist/client.test.js"
+  },
+  "files": ["dist", "README.md"],
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "typescript": "^5.7.2"
+  }
+}

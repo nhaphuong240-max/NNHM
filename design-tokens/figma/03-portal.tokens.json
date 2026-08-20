@@ -1,0 +1,101 @@
+{
+  "$description": "WEREAL REOS Design Tokens — Portal accent per surface",
+  "portal": {
+    "public": {
+      "accent": {
+        "$value": "#0F4C81",
+        "$type": "color",
+        "$description": "Public Portal"
+      },
+      "accent-soft": {
+        "$value": "#0F4C8114",
+        "$type": "color",
+        "$description": "Public Portal — soft tint"
+      }
+    },
+    "agent": {
+      "accent": {
+        "$value": "#0F4C81",
+        "$type": "color",
+        "$description": "Agent Portal"
+      },
+      "accent-soft": {
+        "$value": "#0F4C8114",
+        "$type": "color",
+        "$description": "Agent Portal — soft tint"
+      }
+    },
+    "admin": {
+      "accent": {
+        "$value": "#0a3d6b",
+        "$type": "color",
+        "$description": "Admin / Ops Portal"
+      },
+      "accent-soft": {
+        "$value": "#0a3d6b18",
+        "$type": "color",
+        "$description": "Admin / Ops Portal — soft tint"
+      }
+    },
+    "developer": {
+      "accent": {
+        "$value": "#0F4C81",
+        "$type": "color",
+        "$description": "Portal Chủ đầu tư"
+      },
+      "accent-soft": {
+        "$value": "#0F4C8114",
+        "$type": "color",
+        "$description": "Portal Chủ đầu tư — soft tint"
+      }
+    },
+    "finance": {
+      "accent": {
+        "$value": "#0F766E",
+        "$type": "color",
+        "$description": "Finance Portal"
+      },
+      "accent-soft": {
+        "$value": "#0F766E18",
+        "$type": "color",
+        "$description": "Finance Portal — soft tint"
+      }
+    },
+    "buyer": {
+      "accent": {
+        "$value": "#1a6bb5",
+        "$type": "color",
+        "$description": "Buyer Portal"
+      },
+      "accent-soft": {
+        "$value": "#1a6bb518",
+        "$type": "color",
+        "$description": "Buyer Portal — soft tint"
+      }
+    },
+    "auth": {
+      "accent": {
+        "$value": "#0F4C81",
+        "$type": "color",
+        "$description": "Đăng nhập"
+      },
+      "accent-soft": {
+        "$value": "#0F4C8114",
+        "$type": "color",
+        "$description": "Đăng nhập — soft tint"
+      }
+    },
+    "system": {
+      "accent": {
+        "$value": "#475569",
+        "$type": "color",
+        "$description": "System"
+      },
+      "accent-soft": {
+        "$value": "#47556918",
+        "$type": "color",
+        "$description": "System — soft tint"
+      }
+    }
+  }
+}

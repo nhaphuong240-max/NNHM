@@ -1,0 +1,50 @@
+groups:
+  - name: wereal-slo-t7
+    interval: 30s
+    rules:
+      - alert: WerealApiDown
+        expr: up{job="wereal-api"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: WEREAL API scrape target down
+          description: Prometheus cannot reach wereal-api for 2m — check pods and ingress.
+          runbook: docs/runbooks/on-call.md
+
+      - alert: WerealApiP95High
+        expr: |
+          histogram_quantile(
+            0.95,
+            sum(rate(http_request_duration_seconds_bucket[5m])) by (le)
+          ) > 0.2
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: API P95 latency above 200ms SLO
+          description: Staging/prod P95 exceeds API_P95_TARGET_MS — see docs/ops/slo-99-5.md
+          runbook: docs/ops/slo-99-5.md
+
+      - alert: WerealReadinessDegraded
+        expr: wereal_health_ready_status != 1
+        for: 3m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: /health/ready not ok for 3m
+          description: Database, Redis, or migrations check failing — page L1 on-call.
+
+      - alert: WerealErrorBudgetBurn
+        expr: |
+          (1 - avg_over_time(up{job="wereal-api"}[1h])) * 100 > 0.5
+        for: 15m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: Monthly error budget burn (99.5% SLO)
+          description: Freeze feature deploys per error budget policy.

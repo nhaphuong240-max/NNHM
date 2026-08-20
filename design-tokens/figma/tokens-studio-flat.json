@@ -1,0 +1,424 @@
+{
+  "WEREAL/global": {
+    "color.primary": {
+      "value": "#0F4C81",
+      "type": "color"
+    },
+    "color.primary-light": {
+      "value": "#1a6bb5",
+      "type": "color"
+    },
+    "color.primary-dark": {
+      "value": "#0a3d6b",
+      "type": "color"
+    },
+    "color.primary-foreground": {
+      "value": "#FFFFFF",
+      "type": "color"
+    },
+    "color.secondary": {
+      "value": "#E8F1F8",
+      "type": "color"
+    },
+    "color.accent": {
+      "value": "#C9A227",
+      "type": "color"
+    },
+    "color.accent-light": {
+      "value": "#e8c547",
+      "type": "color"
+    },
+    "color.accent-dark": {
+      "value": "#a8861f",
+      "type": "color"
+    },
+    "color.success": {
+      "value": "#16A34A",
+      "type": "color"
+    },
+    "color.warning": {
+      "value": "#EA580C",
+      "type": "color"
+    },
+    "color.destructive": {
+      "value": "#DC2626",
+      "type": "color"
+    },
+    "color.muted": {
+      "value": "#64748B",
+      "type": "color"
+    },
+    "color.background": {
+      "value": "#FAFBFC",
+      "type": "color"
+    },
+    "color.surface": {
+      "value": "#FFFFFF",
+      "type": "color"
+    },
+    "color.border": {
+      "value": "#E2E8F0",
+      "type": "color"
+    },
+    "color.page": {
+      "value": "#F4F7FA",
+      "type": "color"
+    },
+    "color.verified.bg": {
+      "value": "#DCFCE7",
+      "type": "color",
+      "description": "Semantic verified — bg"
+    },
+    "color.verified.text": {
+      "value": "#166534",
+      "type": "color",
+      "description": "Semantic verified — text"
+    },
+    "color.verified.border": {
+      "value": "#BBF7D0",
+      "type": "color",
+      "description": "Semantic verified — border"
+    },
+    "color.hot-lead.bg": {
+      "value": "#FFEDD5",
+      "type": "color",
+      "description": "Semantic hot-lead — bg"
+    },
+    "color.hot-lead.text": {
+      "value": "#C2410C",
+      "type": "color",
+      "description": "Semantic hot-lead — text"
+    },
+    "color.hot-lead.border": {
+      "value": "#FED7AA",
+      "type": "color",
+      "description": "Semantic hot-lead — border"
+    },
+    "color.reserved.bg": {
+      "value": "#FEF3C7",
+      "type": "color",
+      "description": "Semantic reserved — bg"
+    },
+    "color.reserved.text": {
+      "value": "#B45309",
+      "type": "color",
+      "description": "Semantic reserved — text"
+    },
+    "color.reserved.border": {
+      "value": "#FDE68A",
+      "type": "color",
+      "description": "Semantic reserved — border"
+    },
+    "color.available.bg": {
+      "value": "#DCFCE7",
+      "type": "color",
+      "description": "Semantic available — bg"
+    },
+    "color.available.text": {
+      "value": "#15803D",
+      "type": "color",
+      "description": "Semantic available — text"
+    },
+    "color.available.border": {
+      "value": "#BBF7D0",
+      "type": "color",
+      "description": "Semantic available — border"
+    },
+    "color.sold.bg": {
+      "value": "#F1F5F9",
+      "type": "color",
+      "description": "Semantic sold — bg"
+    },
+    "color.sold.text": {
+      "value": "#475569",
+      "type": "color",
+      "description": "Semantic sold — text"
+    },
+    "color.sold.border": {
+      "value": "#E2E8F0",
+      "type": "color",
+      "description": "Semantic sold — border"
+    },
+    "color.pending.bg": {
+      "value": "#EFF6FF",
+      "type": "color",
+      "description": "Semantic pending — bg"
+    },
+    "color.pending.text": {
+      "value": "#1D4ED8",
+      "type": "color",
+      "description": "Semantic pending — text"
+    },
+    "color.pending.border": {
+      "value": "#BFDBFE",
+      "type": "color",
+      "description": "Semantic pending — border"
+    },
+    "color.drift-block.bg": {
+      "value": "#FEE2E2",
+      "type": "color",
+      "description": "Semantic drift-block — bg"
+    },
+    "color.drift-block.text": {
+      "value": "#B91C1C",
+      "type": "color",
+      "description": "Semantic drift-block — text"
+    },
+    "color.drift-block.border": {
+      "value": "#FECACA",
+      "type": "color",
+      "description": "Semantic drift-block — border"
+    },
+    "portal.public.accent": {
+      "value": "#0F4C81",
+      "type": "color",
+      "description": "Public Portal"
+    },
+    "portal.public.accent-soft": {
+      "value": "#0F4C8114",
+      "type": "color",
+      "description": "Public Portal — soft tint"
+    },
+    "portal.agent.accent": {
+      "value": "#0F4C81",
+      "type": "color",
+      "description": "Agent Portal"
+    },
+    "portal.agent.accent-soft": {
+      "value": "#0F4C8114",
+      "type": "color",
+      "description": "Agent Portal — soft tint"
+    },
+    "portal.admin.accent": {
+      "value": "#0a3d6b",
+      "type": "color",
+      "description": "Admin / Ops Portal"
+    },
+    "portal.admin.accent-soft": {
+      "value": "#0a3d6b18",
+      "type": "color",
+      "description": "Admin / Ops Portal — soft tint"
+    },
+    "portal.developer.accent": {
+      "value": "#0F4C81",
+      "type": "color",
+      "description": "Portal Chủ đầu tư"
+    },
+    "portal.developer.accent-soft": {
+      "value": "#0F4C8114",
+      "type": "color",
+      "description": "Portal Chủ đầu tư — soft tint"
+    },
+    "portal.finance.accent": {
+      "value": "#0F766E",
+      "type": "color",
+      "description": "Finance Portal"
+    },
+    "portal.finance.accent-soft": {
+      "value": "#0F766E18",
+      "type": "color",
+      "description": "Finance Portal — soft tint"
+    },
+    "portal.buyer.accent": {
+      "value": "#1a6bb5",
+      "type": "color",
+      "description": "Buyer Portal"
+    },
+    "portal.buyer.accent-soft": {
+      "value": "#1a6bb518",
+      "type": "color",
+      "description": "Buyer Portal — soft tint"
+    },
+    "portal.auth.accent": {
+      "value": "#0F4C81",
+      "type": "color",
+      "description": "Đăng nhập"
+    },
+    "portal.auth.accent-soft": {
+      "value": "#0F4C8114",
+      "type": "color",
+      "description": "Đăng nhập — soft tint"
+    },
+    "portal.system.accent": {
+      "value": "#475569",
+      "type": "color",
+      "description": "System"
+    },
+    "portal.system.accent-soft": {
+      "value": "#47556918",
+      "type": "color",
+      "description": "System — soft tint"
+    },
+    "spacing.1": {
+      "value": 4.0,
+      "type": "number",
+      "description": "4px — import as FLOAT variable"
+    },
+    "spacing.2": {
+      "value": 8.0,
+      "type": "number",
+      "description": "8px — import as FLOAT variable"
+    },
+    "spacing.3": {
+      "value": 12.0,
+      "type": "number",
+      "description": "12px — import as FLOAT variable"
+    },
+    "spacing.4": {
+      "value": 16.0,
+      "type": "number",
+      "description": "16px — import as FLOAT variable"
+    },
+    "spacing.6": {
+      "value": 24.0,
+      "type": "number",
+      "description": "24px — import as FLOAT variable"
+    },
+    "spacing.8": {
+      "value": 32.0,
+      "type": "number",
+      "description": "32px — import as FLOAT variable"
+    },
+    "spacing.12": {
+      "value": 48.0,
+      "type": "number",
+      "description": "48px — import as FLOAT variable"
+    },
+    "radius.sm": {
+      "value": 4.0,
+      "type": "number",
+      "description": "4px — import as FLOAT variable"
+    },
+    "radius.md": {
+      "value": 8.0,
+      "type": "number",
+      "description": "8px — import as FLOAT variable"
+    },
+    "radius.lg": {
+      "value": 12.0,
+      "type": "number",
+      "description": "12px — import as FLOAT variable"
+    },
+    "radius.xl": {
+      "value": 16.0,
+      "type": "number",
+      "description": "16px — import as FLOAT variable"
+    },
+    "radius.2xl": {
+      "value": 16.0,
+      "type": "number",
+      "description": "16px — import as FLOAT variable"
+    },
+    "layout.max-width": {
+      "value": 1600.0,
+      "type": "number",
+      "description": "1600px — import as FLOAT variable"
+    },
+    "layout.header-height": {
+      "value": 64.0,
+      "type": "number",
+      "description": "64px — import as FLOAT variable"
+    },
+    "layout.sidebar-width": {
+      "value": 256.0,
+      "type": "number",
+      "description": "256px — import as FLOAT variable"
+    },
+    "layout.content-padding-mobile": {
+      "value": 16.0,
+      "type": "number",
+      "description": "16px — import as FLOAT variable"
+    },
+    "layout.content-padding-desktop": {
+      "value": 32.0,
+      "type": "number",
+      "description": "32px — import as FLOAT variable"
+    },
+    "font-size.display-lg": {
+      "value": 36.0,
+      "type": "number",
+      "description": "36px — import as FLOAT variable"
+    },
+    "font-size.h1": {
+      "value": 30.0,
+      "type": "number",
+      "description": "30px — import as FLOAT variable"
+    },
+    "font-size.h1-lg": {
+      "value": 32.0,
+      "type": "number",
+      "description": "32px — import as FLOAT variable"
+    },
+    "font-size.h2": {
+      "value": 24.0,
+      "type": "number",
+      "description": "24px — import as FLOAT variable"
+    },
+    "font-size.h2-lg": {
+      "value": 24.0,
+      "type": "number",
+      "description": "24px — import as FLOAT variable"
+    },
+    "font-size.h3": {
+      "value": 18.0,
+      "type": "number",
+      "description": "18px — import as FLOAT variable"
+    },
+    "font-size.body-lg": {
+      "value": 16.0,
+      "type": "number",
+      "description": "16px — import as FLOAT variable"
+    },
+    "font-size.body-sm": {
+      "value": 14.0,
+      "type": "number",
+      "description": "14px — import as FLOAT variable"
+    },
+    "font-size.label": {
+      "value": 12.0,
+      "type": "number",
+      "description": "12px — import as FLOAT variable"
+    },
+    "font-size.price": {
+      "value": 24.0,
+      "type": "number",
+      "description": "24px — import as FLOAT variable"
+    },
+    "font-size.mono": {
+      "value": 13.0,
+      "type": "number",
+      "description": "13px — import as FLOAT variable"
+    },
+    "font-weight.regular": {
+      "value": 400,
+      "type": "number"
+    },
+    "font-weight.medium": {
+      "value": 500,
+      "type": "number"
+    },
+    "font-weight.semibold": {
+      "value": 600,
+      "type": "number"
+    },
+    "font-weight.bold": {
+      "value": 700,
+      "type": "number"
+    },
+    "shadow.sm": {
+      "value": "0 1px 2px rgba(0, 0, 0, 0.05)",
+      "type": "string",
+      "description": "CSS box-shadow — apply as effect style or Dev Mode note"
+    },
+    "shadow.md": {
+      "value": "0 4px 12px rgba(0, 0, 0, 0.08)",
+      "type": "string",
+      "description": "CSS box-shadow — apply as effect style or Dev Mode note"
+    },
+    "shadow.lg": {
+      "value": "0 8px 24px rgba(0, 0, 0, 0.12)",
+      "type": "string",
+      "description": "CSS box-shadow — apply as effect style or Dev Mode note"
+    }
+  }
+}

@@ -1,0 +1,78 @@
+{
+  "$description": "WEREAL REOS Design Tokens — Typography scale (font-size in px)",
+  "font-size": {
+    "display-lg": {
+      "$value": 36.0,
+      "$type": "number",
+      "$description": "36px — import as FLOAT variable"
+    },
+    "h1": {
+      "$value": 30.0,
+      "$type": "number",
+      "$description": "30px — import as FLOAT variable"
+    },
+    "h1-lg": {
+      "$value": 32.0,
+      "$type": "number",
+      "$description": "32px — import as FLOAT variable"
+    },
+    "h2": {
+      "$value": 24.0,
+      "$type": "number",
+      "$description": "24px — import as FLOAT variable"
+    },
+    "h2-lg": {
+      "$value": 24.0,
+      "$type": "number",
+      "$description": "24px — import as FLOAT variable"
+    },
+    "h3": {
+      "$value": 18.0,
+      "$type": "number",
+      "$description": "18px — import as FLOAT variable"
+    },
+    "body-lg": {
+      "$value": 16.0,
+      "$type": "number",
+      "$description": "16px — import as FLOAT variable"
+    },
+    "body-sm": {
+      "$value": 14.0,
+      "$type": "number",
+      "$description": "14px — import as FLOAT variable"
+    },
+    "label": {
+      "$value": 12.0,
+      "$type": "number",
+      "$description": "12px — import as FLOAT variable"
+    },
+    "price": {
+      "$value": 24.0,
+      "$type": "number",
+      "$description": "24px — import as FLOAT variable"
+    },
+    "mono": {
+      "$value": 13.0,
+      "$type": "number",
+      "$description": "13px — import as FLOAT variable"
+    }
+  },
+  "font-weight": {
+    "regular": {
+      "$value": 400,
+      "$type": "number"
+    },
+    "medium": {
+      "$value": 500,
+      "$type": "number"
+    },
+    "semibold": {
+      "$value": 600,
+      "$type": "number"
+    },
+    "bold": {
+      "$value": 700,
+      "$type": "number"
+    }
+  }
+}

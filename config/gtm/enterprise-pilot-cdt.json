@@ -1,0 +1,15 @@
+{
+  "tenantId": "ten_pilot_cdt_01",
+  "legalName": "Công ty CP BĐS Thăng Long",
+  "displayName": "Thăng Long Central Portal",
+  "whiteLabelTier": "ENTERPRISE",
+  "customDomain": "portal.thanglong-dev.vn",
+  "subdomain": "thanglong",
+  "primaryColor": "#1A365D",
+  "accentColor": "#C9A227",
+  "live": true,
+  "projectId": "prj_thanglong_01",
+  "projectName": "Thăng Long Central",
+  "erpProvider": "MISA",
+  "dataProducts": ["HEATMAP", "PRICING_REPORT", "MARKET_BRIEF"]
+}

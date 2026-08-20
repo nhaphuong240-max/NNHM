@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: wereal-api-config
+data:
+  NODE_ENV: production
+  PORT: "3000"
+  CONFIG_PLATFORM_READ: v2
+  CONFIG_PLATFORM_WRITE: v2
+  OTEL_ENABLED: "true"
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+  PROMETHEUS_ENABLED: "true"
+  SCHEDULE_LEADER_ENABLED: "true"
+  SLO_AVAILABILITY_TARGET: "99.5"
+  API_P95_TARGET_MS: "200"
+  JSON_LOGS: "true"

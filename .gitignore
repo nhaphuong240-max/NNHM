@@ -1,0 +1,48 @@
+# Dependencies & build
+node_modules/
+dist/
+build/
+coverage/
+.turbo/
+.cache/
+*.tsbuildinfo
+
+# Local secrets — keep *.example
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+# Backups of local env
+*.backup
+*.bak
+
+# Tooling downloaded only to push this repo
+.tools/
+
+# Logs & OS
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.DS_Store
+Thumbs.db
+
+# Test / e2e artifacts
+playwright-report/
+test-results/
+uploads/
+
+# Mobile
+.expo/
+apps/mobile/ios/
+apps/mobile/android/
+*.jks
+*.p8
+*.p12
+*.mobileprovision
+
+# IDE
+.idea/
+.vscode/
+*.swp

@@ -1,0 +1,75 @@
+name: OpenAPI Contract
+
+on:
+  push:
+    branches: [main, master, develop]
+    paths:
+      - 'openapi.yaml'
+      - 'openapi.ops-s6-extensions.yaml'
+      - 'openapi.json'
+      - '.spectral.yaml'
+      - 'scripts/contract/**'
+      - '.github/workflows/openapi-contract.yml'
+  pull_request:
+    paths:
+      - 'openapi.yaml'
+      - 'openapi.ops-s6-extensions.yaml'
+      - 'openapi.json'
+      - '.spectral.yaml'
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: chmod +x scripts/contract/validate-openapi.sh
+      - run: ./scripts/contract/validate-openapi.sh
+
+  contract-smoke:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: wereal
+          POSTGRES_PASSWORD: wereal
+          POSTGRES_DB: wereal
+        ports:
+          - 5432:5432
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+    defaults:
+      run:
+        working-directory: apps/api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: apps/api/package-lock.json
+      - run: npm ci
+      - run: npm run build
+      - run: npm test
+      - name: Start API
+        env:
+          DATABASE_URL: postgresql://wereal:wereal@localhost:5432/wereal
+          REDIS_URL: redis://localhost:6379
+          JWT_SECRET: ci-test-secret-min-32-characters-long
+          NODE_ENV: development
+          AUTH_LOGIN_RATE_LIMIT_PER_MIN: '1000'
+        run: |
+          node dist/main.js &
+          sleep 8
+          curl -sf http://localhost:3000/api/v1/health/ready
+          curl -sf http://localhost:3000/api/v1/health/live
+          curl -sf http://localhost:3000/api/v1/metrics | head -5
+      - name: Response shape smoke
+        run: |
+          chmod +x scripts/contract/smoke-api-responses.sh
+          ./scripts/contract/smoke-api-responses.sh http://localhost:3000/api/v1

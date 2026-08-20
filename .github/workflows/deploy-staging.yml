@@ -1,0 +1,43 @@
+name: Deploy Staging
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry-run kubectl apply only'
+        required: false
+        default: 'true'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+  push:
+    branches: [develop]
+    paths:
+      - 'infra/k8s/staging/**'
+      - 'scripts/deploy-staging.sh'
+      - '.github/workflows/deploy-staging.yml'
+
+jobs:
+  deploy-staging:
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate manifests + dry-run deploy
+        env:
+          DEPLOY_DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run || 'true' }}
+          K8S_NAMESPACE: wereal-staging
+        run: |
+          chmod +x scripts/deploy-staging.sh scripts/uat-t7-observability.sh
+          ./scripts/uat-t7-observability.sh
+          ./scripts/deploy-staging.sh
+
+      - name: Post-deploy smoke (live only)
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run == 'false'
+        env:
+          STAGING_API_URL: ${{ vars.STAGING_API_URL || 'https://staging-api.wereal.vn/api/v1' }}
+        run: |
+          chmod +x scripts/contract/smoke-api-responses.sh
+          ./scripts/contract/smoke-api-responses.sh "$STAGING_API_URL"

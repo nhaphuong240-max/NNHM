@@ -1,0 +1,81 @@
+@import "tailwindcss";
+
+:root {
+  --brand-primary: #0b3a5b;
+  --brand-primary-dark: #072a42;
+  --brand-accent: #c4a35a;
+  --brand-muted: #5c6570;
+  --brand-border: #e4e0d8;
+  --brand-bg: #f6f3ee;
+  --brand-surface: #fffcf8;
+  --brand-success: #1b7a4a;
+  --brand-warning: #c45c12;
+  --brand-destructive: #c0392b;
+  --brand-ink: #12141a;
+  --lcp-target-ms: 2500;
+  --radius-lg: 1rem;
+  --shadow-soft: 0 1px 0 rgba(18, 20, 26, 0.04);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  background: var(--brand-bg);
+  color: var(--brand-ink);
+  -webkit-font-smoothing: antialiased;
+  letter-spacing: -0.011em;
+}
+
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+}
+
+a {
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--brand-accent);
+  outline-offset: 2px;
+}
+
+.wereal-card {
+  background: var(--brand-surface);
+  border: 1px solid var(--brand-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-soft);
+}
+
+.wereal-kpi-value {
+  color: var(--brand-primary);
+  font-size: 1.5rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em;
+}
+
+.wereal-input {
+  width: 100%;
+  border-radius: 0.75rem;
+  border: 1px solid var(--brand-border);
+  background: #fff;
+  padding: 0.65rem 0.85rem;
+  font-size: 0.875rem;
+}
+
+.wereal-input:focus {
+  border-color: var(--brand-primary);
+  box-shadow: 0 0 0 3px rgba(11, 58, 91, 0.12);
+  outline: none;
+}
