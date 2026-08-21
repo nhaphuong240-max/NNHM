@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { usePublicBrand } from '../../context/PublicBrandContext';
 import { ContactLeadModal } from '../../components/public/ContactLeadModal';
 import { EmiCalculator } from '../../components/public/EmiCalculator';
+import { HeroProjectStage } from '../../components/public/HeroProjectStage';
 import { ListingCard } from '../../components/public/ListingCard';
 import { PostPropertyCta } from '../../components/public/PostPropertyCta';
 import { PublicFooter } from '../../components/public/PublicFooter';
@@ -11,7 +12,8 @@ import { TrustStrip } from '../../components/public/TrustStrip';
 import { PublicTopBar } from '../../components/PublicTopBar';
 import { usePageMeta } from '../../hooks/usePageMeta';
 import { NEWS_PLACEHOLDERS, districtPath, DISTRICTS } from '../../lib/districts';
-import { fetchSearchStats, searchUnits, type SearchHit } from '../../lib/api';
+import { FEATURED_PROJECT_IDS, slideFromProject, type HeroSlide } from '../../lib/featured-projects';
+import { fetchProjectDetail, searchUnits, type SearchHit } from '../../lib/api';
 import { brand } from '../../theme/tokens';
 
 const INTENTS = [
@@ -35,7 +37,8 @@ export function PublicHomePage() {
   const [picks, setPicks] = useState<SearchHit[]>([]);
   const [picksError, setPicksError] = useState<string | null>(null);
   const [contactHit, setContactHit] = useState<SearchHit | null>(null);
-  const [stats, setStats] = useState<{ total: number; verified: number } | null>(null);
+  const [slides, setSlides] = useState<HeroSlide[]>([]);
+  const [heroIndex, setHeroIndex] = useState(0);
 
   usePageMeta({
     title: `${brandName} — Tìm căn hộ, dự án, giữ chỗ minh bạch`,
@@ -45,11 +48,16 @@ export function PublicHomePage() {
 
   useEffect(() => {
     let active = true;
-    Promise.all([searchUnits({ limit: 6 }), fetchSearchStats()])
-      .then(([res, statRes]) => {
+    Promise.all([
+      searchUnits({ limit: 6 }),
+      Promise.all(
+        FEATURED_PROJECT_IDS.map((id) => fetchProjectDetail(id).then(slideFromProject).catch(() => null)),
+      ),
+    ])
+      .then(([res, featured]) => {
         if (!active) return;
         setPicks(res.data.slice(0, 6));
-        setStats({ total: statRes.data.totalListings, verified: statRes.data.verifiedListings });
+        setSlides(featured.filter((s): s is HeroSlide => s !== null && s.unitCount > 0));
       })
       .catch((e) => {
         if (active) setPicksError(e instanceof Error ? e.message : 'Không tải được gợi ý');
@@ -58,6 +66,16 @@ export function PublicHomePage() {
       active = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (slides.length < 2) return;
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduce) return;
+    const id = window.setInterval(() => {
+      setHeroIndex((i) => (i + 1) % slides.length);
+    }, 5500);
+    return () => window.clearInterval(id);
+  }, [slides.length]);
 
   function goSearch(query: string) {
     const params = new URLSearchParams();
@@ -75,79 +93,65 @@ export function PublicHomePage() {
     <div className="min-h-screen flex flex-col nnhn-paper">
       <PublicTopBar />
 
-      <section className="px-4 pt-12 pb-16 lg:pt-16 lg:pb-20">
-        <div className="max-w-6xl mx-auto grid lg:grid-cols-[1.15fr_0.85fr] gap-10 lg:gap-16 items-end">
-          <div>
-            <SectionKicker>Marketplace · Golden Record</SectionKicker>
-            <h1 className="nnhn-display text-[2.6rem] sm:text-5xl lg:text-[3.6rem] mt-3 max-w-xl" style={{ color: brand.ink }}>
-              {brandName}
-            </h1>
-            <p className="mt-5 max-w-md text-base leading-relaxed" style={{ color: brand.muted }}>
-              Tìm căn đã duyệt, so sánh giá thật, giữ chỗ trong 30 giây — không cổng ops trên mặt tiền.
-            </p>
-            {stats && stats.total > 0 && (
-              <p className="mt-4 text-sm font-semibold" style={{ color: brand.primary }}>
-                {stats.verified}+ căn Verified · {stats.total} listing trên bảng hàng
-              </p>
-            )}
-          </div>
-
-          <div className="nnhn-search-pill nnhn-card p-2 sm:p-3">
-            <div className="flex gap-1 p-1">
-              {INTENTS.map((tab) => {
-                const active = intent === tab.id;
-                return (
-                  <button
-                    key={tab.id}
-                    type="button"
-                    className="flex-1 rounded-full px-3 py-2 text-sm font-semibold"
-                    style={{
-                      background: active ? brand.primary : 'transparent',
-                      color: active ? '#fff' : brand.ink,
-                    }}
-                    onClick={() => setIntent(tab.id)}
-                  >
-                    {tab.label}
-                  </button>
-                );
-              })}
-            </div>
-            <form onSubmit={onSubmit} className="flex flex-col sm:flex-row gap-2 p-2 pt-1">
-              <label className="sr-only" htmlFor="home-search">
-                Tìm khu vực, dự án
-              </label>
-              <input
-                id="home-search"
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
-                placeholder="Khu vực, dự án, chủ đầu tư"
-                className="flex-1 px-4 py-3 text-sm outline-none rounded-full"
-                style={{ color: brand.ink, background: brand.background }}
-              />
+      <HeroProjectStage
+        slides={slides}
+        index={heroIndex}
+        onIndex={setHeroIndex}
+        brandName={brandName}
+      >
+        <div className="flex gap-1 p-1">
+          {INTENTS.map((tab) => {
+            const active = intent === tab.id;
+            return (
               <button
-                type="submit"
-                className="px-6 py-3 text-sm font-bold text-white rounded-full"
-                style={{ background: brand.clay }}
+                key={tab.id}
+                type="button"
+                className="flex-1 rounded-full px-3 py-2 text-sm font-semibold"
+                style={{
+                  background: active ? brand.primary : 'transparent',
+                  color: active ? '#fff' : brand.ink,
+                }}
+                onClick={() => setIntent(tab.id)}
               >
-                Tìm kiếm
+                {tab.label}
               </button>
-            </form>
-            <div className="flex flex-wrap gap-2 px-3 pb-3">
-              {CITIES.map((city) => (
-                <button
-                  key={city.label}
-                  type="button"
-                  className="rounded-full px-3 py-1 text-xs font-medium"
-                  style={{ background: brand.hover, color: brand.primaryDark }}
-                  onClick={() => goSearch(city.q)}
-                >
-                  {city.label}
-                </button>
-              ))}
-            </div>
-          </div>
+            );
+          })}
         </div>
-      </section>
+        <form onSubmit={onSubmit} className="flex flex-col sm:flex-row gap-2 p-2 pt-1">
+          <label className="sr-only" htmlFor="home-search">
+            Tìm khu vực, dự án
+          </label>
+          <input
+            id="home-search"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Khu vực, dự án, chủ đầu tư"
+            className="flex-1 px-4 py-3 text-sm outline-none rounded-full"
+            style={{ color: brand.ink, background: brand.background }}
+          />
+          <button
+            type="submit"
+            className="px-6 py-3 text-sm font-bold text-white rounded-full"
+            style={{ background: brand.clay }}
+          >
+            Tìm kiếm
+          </button>
+        </form>
+        <div className="flex flex-wrap gap-2 px-3 pb-3">
+          {CITIES.map((city) => (
+            <button
+              key={city.label}
+              type="button"
+              className="rounded-full px-3 py-1 text-xs font-medium"
+              style={{ background: brand.hover, color: brand.primaryDark }}
+              onClick={() => goSearch(city.q)}
+            >
+              {city.label}
+            </button>
+          ))}
+        </div>
+      </HeroProjectStage>
 
       <TrustStrip />
 
