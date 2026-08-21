@@ -84,20 +84,24 @@ export function PublicDistrictPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ background: brand.background }}>
+    <div className="min-h-screen flex flex-col nnhn-paper">
       {jsonLd && <JsonLd data={jsonLd} />}
       <PublicTopBar />
       <TrustStrip />
 
-      <header className="px-4 py-10" style={{ background: brand.primary, color: '#fff' }}>
+      <header className="px-4 py-12">
         <div className="max-w-6xl mx-auto">
-          <p className="text-xs uppercase tracking-widest opacity-80">{district.city}</p>
-          <h1 className="text-3xl lg:text-4xl font-extrabold mt-2">{district.seoTitle}</h1>
-          <p className="mt-3 max-w-2xl text-sm opacity-90">{district.seoDescription}</p>
+          <p className="nnhn-kicker">{district.city}</p>
+          <h1 className="nnhn-display text-3xl lg:text-5xl mt-3 max-w-3xl" style={{ color: brand.ink }}>
+            {district.seoTitle}
+          </h1>
+          <p className="mt-4 max-w-2xl text-sm leading-relaxed" style={{ color: brand.muted }}>
+            {district.seoDescription}
+          </p>
           <Link
             to={`/public/search?district=${encodeURIComponent(district.label)}`}
-            className="inline-block mt-4 rounded-full px-4 py-2 text-sm font-bold no-underline"
-            style={{ background: '#fff', color: brand.primaryDark }}
+            className="inline-block mt-6 rounded-full px-5 py-2.5 text-sm font-bold no-underline text-white"
+            style={{ background: brand.primary }}
           >
             Lọc SERP {district.label}
           </Link>

@@ -17,7 +17,7 @@ export function PublicEmiPage() {
   });
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ background: brand.background }}>
+    <div className="min-h-screen flex flex-col nnhn-paper">
       <JsonLd
         data={{
           '@context': 'https://schema.org',

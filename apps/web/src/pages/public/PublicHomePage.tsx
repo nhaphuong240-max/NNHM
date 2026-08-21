@@ -6,10 +6,10 @@ import { EmiCalculator } from '../../components/public/EmiCalculator';
 import { ListingCard } from '../../components/public/ListingCard';
 import { PostPropertyCta } from '../../components/public/PostPropertyCta';
 import { PublicFooter } from '../../components/public/PublicFooter';
+import { SectionKicker } from '../../components/public/SectionKicker';
 import { TrustStrip } from '../../components/public/TrustStrip';
 import { PublicTopBar } from '../../components/PublicTopBar';
 import { usePageMeta } from '../../hooks/usePageMeta';
-import { brandPrimary, brandPrimaryDark } from '../../lib/apply-brand-theme';
 import { NEWS_PLACEHOLDERS, districtPath, DISTRICTS } from '../../lib/districts';
 import { fetchSearchStats, searchUnits, type SearchHit } from '../../lib/api';
 import { brand } from '../../theme/tokens';
@@ -29,8 +29,6 @@ const CITIES = [
 export function PublicHomePage() {
   const navigate = useNavigate();
   const publicBrand = usePublicBrand();
-  const heroBg = brandPrimary(publicBrand);
-  const heroDark = brandPrimaryDark(publicBrand);
   const brandName = publicBrand?.displayName ?? 'Ngôi Nhà Hôm Nay';
   const [intent, setIntent] = useState<(typeof INTENTS)[number]['id']>('buy');
   const [q, setQ] = useState('');
@@ -74,35 +72,38 @@ export function PublicHomePage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ background: brand.background }}>
+    <div className="min-h-screen flex flex-col nnhn-paper">
       <PublicTopBar />
 
-      <section className="px-4 py-12 lg:py-16" style={{ background: heroBg, color: '#fff' }}>
-        <div className="max-w-6xl mx-auto">
-          <h1 className="text-3xl lg:text-5xl font-extrabold tracking-tight max-w-2xl">
-            {brandName}
-          </h1>
-          <p className="mt-3 max-w-xl text-sm opacity-85">
-            Giá Golden Record · so sánh căn · giữ chỗ. Bắt đầu bằng khu vực hoặc dự án.
-          </p>
-          {stats && stats.total > 0 && (
-            <p className="mt-2 text-sm font-semibold" style={{ color: brand.hover }}>
-              {stats.verified}+ căn Verified · {stats.total} listing trên bảng hàng
+      <section className="px-4 pt-12 pb-16 lg:pt-16 lg:pb-20">
+        <div className="max-w-6xl mx-auto grid lg:grid-cols-[1.15fr_0.85fr] gap-10 lg:gap-16 items-end">
+          <div>
+            <SectionKicker>Marketplace · Golden Record</SectionKicker>
+            <h1 className="nnhn-display text-[2.6rem] sm:text-5xl lg:text-[3.6rem] mt-3 max-w-xl" style={{ color: brand.ink }}>
+              {brandName}
+            </h1>
+            <p className="mt-5 max-w-md text-base leading-relaxed" style={{ color: brand.muted }}>
+              Tìm căn đã duyệt, so sánh giá thật, giữ chỗ trong 30 giây — không cổng ops trên mặt tiền.
             </p>
-          )}
+            {stats && stats.total > 0 && (
+              <p className="mt-4 text-sm font-semibold" style={{ color: brand.primary }}>
+                {stats.verified}+ căn Verified · {stats.total} listing trên bảng hàng
+              </p>
+            )}
+          </div>
 
-          <div className="mt-8 max-w-3xl">
-            <div className="flex gap-1 mb-0">
+          <div className="nnhn-search-pill nnhn-card p-2 sm:p-3">
+            <div className="flex gap-1 p-1">
               {INTENTS.map((tab) => {
                 const active = intent === tab.id;
                 return (
                   <button
                     key={tab.id}
                     type="button"
-                    className="rounded-t-xl px-4 py-2 text-sm font-semibold"
+                    className="flex-1 rounded-full px-3 py-2 text-sm font-semibold"
                     style={{
-                      background: active ? '#fff' : 'rgba(255,255,255,0.16)',
-                      color: active ? brand.primaryDark : '#fff',
+                      background: active ? brand.primary : 'transparent',
+                      color: active ? '#fff' : brand.ink,
                     }}
                     onClick={() => setIntent(tab.id)}
                   >
@@ -111,11 +112,7 @@ export function PublicHomePage() {
                 );
               })}
             </div>
-            <form
-              onSubmit={onSubmit}
-              className="flex flex-col sm:flex-row overflow-hidden rounded-b-xl rounded-tr-xl"
-              style={{ background: '#fff' }}
-            >
+            <form onSubmit={onSubmit} className="flex flex-col sm:flex-row gap-2 p-2 pt-1">
               <label className="sr-only" htmlFor="home-search">
                 Tìm khu vực, dự án
               </label>
@@ -124,24 +121,24 @@ export function PublicHomePage() {
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
                 placeholder="Khu vực, dự án, chủ đầu tư"
-                className="flex-1 px-4 py-3.5 text-sm outline-none"
-                style={{ color: brand.ink }}
+                className="flex-1 px-4 py-3 text-sm outline-none rounded-full"
+                style={{ color: brand.ink, background: brand.background }}
               />
               <button
                 type="submit"
-                className="px-6 py-3.5 text-sm font-bold text-white"
-                style={{ background: heroDark }}
+                className="px-6 py-3 text-sm font-bold text-white rounded-full"
+                style={{ background: brand.clay }}
               >
                 Tìm kiếm
               </button>
             </form>
-            <div className="mt-3 flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2 px-3 pb-3">
               {CITIES.map((city) => (
                 <button
                   key={city.label}
                   type="button"
-                  className="rounded-full px-3 py-1.5 text-sm font-medium"
-                  style={{ background: 'rgba(255,255,255,0.16)' }}
+                  className="rounded-full px-3 py-1 text-xs font-medium"
+                  style={{ background: brand.hover, color: brand.primaryDark }}
                   onClick={() => goSearch(city.q)}
                 >
                   {city.label}
@@ -154,14 +151,15 @@ export function PublicHomePage() {
 
       <TrustStrip />
 
-      <main className="flex-1 max-w-6xl mx-auto px-4 py-10 w-full">
-        <div className="flex items-end justify-between gap-4 mb-5">
+      <main className="flex-1 max-w-6xl mx-auto px-4 py-14 w-full">
+        <div className="flex items-end justify-between gap-4 mb-7">
           <div>
-            <h2 className="text-xl font-bold" style={{ color: brand.ink }}>
+            <SectionKicker>Bảng hàng</SectionKicker>
+            <h2 className="nnhn-display text-3xl mt-2" style={{ color: brand.ink }}>
               Gợi ý hôm nay
             </h2>
-            <p className="text-sm mt-1" style={{ color: brand.muted }}>
-              Listing đã duyệt trên bảng hàng · có ảnh & Verified
+            <p className="text-sm mt-2" style={{ color: brand.muted }}>
+              Listing đã duyệt · có ảnh & Verified
             </p>
           </div>
           <Link to="/public/search" className="text-sm font-semibold" style={{ color: brand.primary }}>
@@ -176,12 +174,12 @@ export function PublicHomePage() {
         )}
 
         {!picksError && picks.length === 0 && (
-          <p className="text-sm rounded-xl p-6" style={{ background: brand.surface, border: `1px solid ${brand.border}` }}>
+          <p className="text-sm rounded-xl p-6 nnhn-card">
             Chưa có căn hiển thị. Thử Tìm kiếm hoặc đăng nhập cổng đối tác.
           </p>
         )}
 
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {picks.map((hit) => (
             <ListingCard
               key={hit.listingId ?? hit.id}
@@ -192,61 +190,73 @@ export function PublicHomePage() {
           ))}
         </div>
 
-        <section className="mt-14">
+        <section className="mt-16">
           <PostPropertyCta />
         </section>
 
-        <section className="mt-14">
-          <h2 className="text-xl font-bold mb-2" style={{ color: brand.ink }}>
-            Công cụ mua nhà
-          </h2>
-          <p className="text-sm mb-5" style={{ color: brand.muted }}>
-            Ước tính trả góp trước khi liên hệ tư vấn — lãi suất và thời hạn điều chỉnh được.
-          </p>
-          <EmiCalculator compact initialPrice={picks[0]?.attributes.basePrice} />
+        <section className="mt-16 grid lg:grid-cols-[1fr_1.1fr] gap-10 items-start">
+          <div>
+            <SectionKicker>Công cụ</SectionKicker>
+            <h2 className="nnhn-display text-3xl mt-2" style={{ color: brand.ink }}>
+              Công cụ mua nhà
+            </h2>
+            <p className="text-sm mt-3 leading-relaxed" style={{ color: brand.muted }}>
+              Ước tính trả góp trước khi liên hệ tư vấn — lãi suất và thời hạn điều chỉnh được.
+            </p>
+          </div>
+          <div className="nnhn-card p-5 sm:p-6">
+            <EmiCalculator compact initialPrice={picks[0]?.attributes.basePrice} />
+          </div>
         </section>
 
-        <section className="mt-14">
-          <div className="flex items-end justify-between gap-4 mb-5">
-            <h2 className="text-xl font-bold" style={{ color: brand.ink }}>
-              Mua theo quận
-            </h2>
+        <section className="mt-16">
+          <div className="flex items-end justify-between gap-4 mb-6">
+            <div>
+              <SectionKicker>SEO quận</SectionKicker>
+              <h2 className="nnhn-display text-3xl mt-2" style={{ color: brand.ink }}>
+                Mua theo quận
+              </h2>
+            </div>
             <Link to="/public/search" className="text-sm font-semibold" style={{ color: brand.primary }}>
               SERP đầy đủ
             </Link>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             {DISTRICTS.map((d) => (
               <Link
                 key={d.slug}
                 to={districtPath(d.slug)}
-                className="rounded-full px-4 py-2 text-sm font-medium no-underline"
-                style={{ background: brand.surface, border: `1px solid ${brand.border}`, color: brand.primaryDark }}
+                className="nnhn-card px-4 py-4 text-sm font-medium no-underline hover:border-[var(--brand-primary)]"
+                style={{ color: brand.primaryDark }}
               >
-                {d.label}, {d.city}
+                <span className="block nnhn-kicker mb-1" style={{ color: brand.clay }}>
+                  {d.city}
+                </span>
+                {d.label}
               </Link>
             ))}
           </div>
         </section>
 
-        <section className="mt-14">
-          <h2 className="text-xl font-bold mb-5" style={{ color: brand.ink }}>
+        <section className="mt-16">
+          <SectionKicker>Góc nhìn</SectionKicker>
+          <h2 className="nnhn-display text-3xl mt-2 mb-7" style={{ color: brand.ink }}>
             Tin & gợi ý
           </h2>
           <div className="grid sm:grid-cols-2 gap-4">
-            {NEWS_PLACEHOLDERS.map((item) => (
+            {NEWS_PLACEHOLDERS.map((item, i) => (
               <article
                 key={item.id}
-                className="rounded-xl p-5"
-                style={{ background: brand.surface, border: `1px solid ${brand.border}` }}
+                className="rounded-[1.5rem] p-6"
+                style={{
+                  background: i % 2 === 0 ? brand.surface : brand.primaryDark,
+                  color: i % 2 === 0 ? brand.ink : '#F4EFE6',
+                  border: i % 2 === 0 ? `1px solid ${brand.border}` : 'none',
+                }}
               >
-                <time className="text-xs" style={{ color: brand.muted }}>
-                  {new Date(item.date).toLocaleDateString('vi-VN')}
-                </time>
-                <h3 className="font-bold mt-2 leading-snug">{item.title}</h3>
-                <p className="text-sm mt-2 leading-relaxed" style={{ color: brand.muted }}>
-                  {item.excerpt}
-                </p>
+                <time className="text-xs opacity-70">{new Date(item.date).toLocaleDateString('vi-VN')}</time>
+                <h3 className="nnhn-display text-xl mt-3 leading-snug">{item.title}</h3>
+                <p className="text-sm mt-3 leading-relaxed opacity-80">{item.excerpt}</p>
               </article>
             ))}
           </div>

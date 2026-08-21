@@ -1,30 +1,32 @@
-/** Ngôi Nhà Hôm Nay — green / paper */
+/** Ngôi Nhà Hôm Nay — forest, clay, rice paper */
 export const brand = {
-  primary: '#17692F',
-  primaryLight: '#2A8644',
-  primaryDark: '#0F4D22',
+  primary: '#1B5E3B',
+  primaryLight: '#2E7A4F',
+  primaryDark: '#123D27',
   primaryForeground: '#FFFFFF',
-  hover: '#C7D9C9',
-  secondary: '#C7D9C9',
-  accent: '#C7D9C9',
-  accentSoft: '#C7D9C9',
-  muted: '#5C6570',
-  border: '#D5DBD6',
-  background: '#ECEFEA',
-  surface: '#FFFFFF',
-  pageBg: '#ECEFEA',
-  success: '#17692F',
+  hover: '#D8E5D4',
+  secondary: '#D8E5D4',
+  accent: '#C45C2A',
+  accentSoft: '#F3E0D2',
+  clay: '#C45C2A',
+  claySoft: '#F3E0D2',
+  muted: '#5A615C',
+  border: '#DDD6C8',
+  background: '#F4EFE6',
+  surface: '#FFFcf7',
+  pageBg: '#F4EFE6',
+  success: '#1B5E3B',
   warning: '#C45C12',
   destructive: '#C0392B',
-  ink: '#12141A',
+  ink: '#1A1814',
 } as const;
 
 export const semantic = {
-  verified: { bg: '#C7D9C9', text: '#17692F', border: '#C7D9C9' },
-  hotLead: { bg: '#FBE8D8', text: '#9A3412', border: '#F2C9A8' },
-  available: { bg: '#C7D9C9', text: '#17692F', border: '#C7D9C9' },
-  sold: { bg: '#ECEFEA', text: '#475569', border: '#D5DBD6' },
-  pending: { bg: '#C7D9C9', text: '#17692F', border: '#C7D9C9' },
+  verified: { bg: '#D8E5D4', text: '#1B5E3B', border: '#D8E5D4' },
+  hotLead: { bg: '#F3E0D2', text: '#9A3412', border: '#E8C4A8' },
+  available: { bg: '#D8E5D4', text: '#1B5E3B', border: '#D8E5D4' },
+  sold: { bg: '#F4EFE6', text: '#5A615C', border: '#DDD6C8' },
+  pending: { bg: '#F3E0D2', text: '#C45C2A', border: '#E8C4A8' },
 } as const;
 
 export const layout = {

@@ -21,19 +21,30 @@ export function ListingCard({ hit, onContact, compareSlot, layout = 'serp' }: Pr
 
   if (layout === 'grid') {
     return (
-      <article
-        className="rounded-2xl overflow-hidden flex flex-col"
-        style={{ background: brand.surface, border: `1px solid ${brand.border}` }}
-      >
-        <Link to={`/public/units/${hit.id}`} className="block">
-          <div className="h-36">
-            <ListingThumbnail url={a.thumbnailUrl} alt={a.title} className="h-36 w-full" />
+      <article className="nnhn-card overflow-hidden flex flex-col group">
+        <Link to={`/public/units/${hit.id}`} className="block relative">
+          <div className="h-44 overflow-hidden">
+            <ListingThumbnail
+              url={a.thumbnailUrl}
+              alt={a.title}
+              className="h-44 w-full transition-transform duration-500 group-hover:scale-[1.04]"
+            />
           </div>
+          <span
+            className="absolute bottom-3 left-3 nnhn-display text-lg px-2.5 py-1 rounded-md"
+            style={{ background: brand.surface, color: brand.primaryDark }}
+          >
+            {formatPrice(a.basePrice)}
+          </span>
         </Link>
         <div className="p-4 flex-1 flex flex-col gap-2">
           <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: brand.muted }}>
             {a.projectId ? (
-              <Link to={`/public/projects/${a.projectId}`} className="no-underline hover:underline" style={{ color: brand.primary }}>
+              <Link
+                to={`/public/projects/${a.projectId}`}
+                className="no-underline hover:underline"
+                style={{ color: brand.primary }}
+              >
                 {a.projectName}
               </Link>
             ) : (
@@ -48,13 +59,10 @@ export function ListingCard({ hit, onContact, compareSlot, layout = 'serp' }: Pr
           <p className="text-sm" style={{ color: brand.muted }}>
             {a.bedrooms} PN · {a.area}m²
           </p>
-          <p className="text-lg font-extrabold mt-auto" style={{ color: brand.primary }}>
-            {formatPrice(a.basePrice)}
-          </p>
-          <div className="flex gap-2 mt-2">
+          <div className="flex gap-2 mt-auto pt-2">
             <button
               type="button"
-              className="flex-1 rounded-xl py-2.5 text-center text-sm font-bold text-white"
+              className="flex-1 rounded-full py-2.5 text-center text-sm font-bold text-white"
               style={{ background: brand.primary }}
               onClick={onContact}
             >
@@ -62,8 +70,8 @@ export function ListingCard({ hit, onContact, compareSlot, layout = 'serp' }: Pr
             </button>
             <Link
               to={`/auth/login?portal=agent&unitId=${hit.id}`}
-              className="flex-1 rounded-xl py-2.5 text-center text-sm font-bold no-underline"
-              style={{ background: brand.hover, color: brand.primaryDark }}
+              className="flex-1 rounded-full py-2.5 text-center text-sm font-bold no-underline"
+              style={{ background: brand.claySoft, color: brand.clay }}
             >
               Giữ chỗ
             </Link>
@@ -74,39 +82,45 @@ export function ListingCard({ hit, onContact, compareSlot, layout = 'serp' }: Pr
   }
 
   return (
-    <article
-      className="rounded-xl transition-shadow hover:shadow-md overflow-hidden"
-      style={{ background: brand.surface, border: `1px solid ${brand.border}` }}
-    >
-      <div className="grid sm:grid-cols-[200px_1fr] gap-4 p-4">
-        <Link to={`/public/units/${hit.id}`} className="block">
-          <ListingThumbnail url={a.thumbnailUrl} alt={a.title} />
+    <article className="nnhn-card overflow-hidden">
+      <div className="grid sm:grid-cols-[220px_1fr] gap-4 p-3 sm:p-4">
+        <Link to={`/public/units/${hit.id}`} className="block relative">
+          <ListingThumbnail url={a.thumbnailUrl} alt={a.title} className="aspect-video sm:aspect-[4/3] rounded-xl" />
         </Link>
         <div className="flex flex-col gap-2">
           <div className="flex flex-wrap items-center gap-2">
-            <Link to={`/public/units/${hit.id}`} className="font-semibold text-lg no-underline" style={{ color: brand.ink }}>
+            <Link
+              to={`/public/units/${hit.id}`}
+              className="font-semibold text-lg no-underline"
+              style={{ color: brand.ink }}
+            >
               {a.title}
             </Link>
             {a.verified && <VerifiedBadge />}
           </div>
           <p className="text-sm" style={{ color: brand.muted }}>
             {a.projectId ? (
-              <Link to={`/public/projects/${a.projectId}`} className="no-underline hover:underline" style={{ color: brand.primary }}>
+              <Link
+                to={`/public/projects/${a.projectId}`}
+                className="no-underline hover:underline"
+                style={{ color: brand.primary }}
+              >
                 {a.projectName}
               </Link>
             ) : (
               a.projectName
             )}
-            {' · '}{a.code} · {a.bedrooms} PN · {a.area}m²
+            {' · '}
+            {a.code} · {a.bedrooms} PN · {a.area}m²
             {location ? ` · ${location}` : ''}
           </p>
-          <p className="text-xl font-bold" style={{ color: brand.primary }}>
+          <p className="nnhn-display text-2xl" style={{ color: brand.primaryDark }}>
             {formatPrice(a.basePrice)}
           </p>
-          <div className="flex flex-wrap gap-2 mt-auto pt-2">
+          <div className="flex flex-wrap gap-2 mt-auto pt-1">
             <button
               type="button"
-              className="rounded-lg px-4 py-2 text-sm font-bold text-white"
+              className="rounded-full px-4 py-2 text-sm font-bold text-white"
               style={{ background: brand.primary }}
               onClick={onContact}
             >
@@ -114,8 +128,8 @@ export function ListingCard({ hit, onContact, compareSlot, layout = 'serp' }: Pr
             </button>
             <Link
               to={`/auth/login?portal=agent&unitId=${hit.id}`}
-              className="rounded-lg px-4 py-2 text-sm font-bold no-underline"
-              style={{ background: brand.hover, color: brand.primaryDark }}
+              className="rounded-full px-4 py-2 text-sm font-bold no-underline"
+              style={{ background: brand.claySoft, color: brand.clay }}
             >
               Giữ chỗ
             </Link>

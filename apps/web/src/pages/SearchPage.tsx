@@ -76,14 +76,12 @@ export function SearchPage() {
   const intentLabel = intent === 'rent' ? 'Thuê' : intent === 'project' ? 'Dự án' : 'Mua';
 
   return (
-    <div className="min-h-screen" style={{ background: brand.background }}>
+    <div className="min-h-screen nnhn-paper">
       <PublicTopBar />
-      <header className="px-4 py-5" style={{ background: brand.surface, borderBottom: `1px solid ${brand.border}` }}>
+      <header className="px-4 py-8" style={{ borderBottom: `1px solid ${brand.border}` }}>
         <div className="max-w-6xl mx-auto">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.18em]" style={{ color: brand.muted }}>
-            {intentLabel}
-          </p>
-          <h1 className="text-2xl font-extrabold tracking-tight mt-1" style={{ color: brand.ink }}>
+          <p className="nnhn-kicker">{intentLabel}</p>
+          <h1 className="nnhn-display text-4xl mt-2" style={{ color: brand.ink }}>
             Tìm căn hộ
           </h1>
           <p className="text-sm mt-1" style={{ color: brand.muted }}>
@@ -100,7 +98,7 @@ export function SearchPage() {
       <main className="max-w-6xl mx-auto p-4 flex flex-col lg:flex-row gap-6">
         <aside className="lg:w-64 shrink-0">
           <div
-            className="rounded-xl p-4 space-y-4 sticky top-4"
+            className="nnhn-card p-4 space-y-4 sticky top-20"
             style={{ background: brand.surface, border: `1px solid ${brand.border}` }}
           >
             <h2 className="font-semibold text-sm">Bộ lọc</h2>

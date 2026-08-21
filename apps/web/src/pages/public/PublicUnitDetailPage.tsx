@@ -166,34 +166,36 @@ export function PublicUnitDetailPage() {
   }, [detail, siteOrigin]);
 
   return (
-    <div className="min-h-screen flex flex-col pb-24 lg:pb-0" style={{ background: brand.background }}>
+    <div className="min-h-screen flex flex-col pb-24 lg:pb-0 nnhn-paper">
       {productSchema && <JsonLd data={productSchema} />}
       <PublicTopBar />
       <TrustStrip />
 
-      <header className="text-white px-4 py-4" style={{ background: brand.primary }}>
+      <header className="px-4 py-6" style={{ borderBottom: `1px solid ${brand.border}` }}>
         <div className="max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-4">
           <div>
-            <h1 className="text-xl font-bold">{attrs?.title ?? 'Chi tiết sản phẩm'}</h1>
+            <h1 className="nnhn-display text-2xl lg:text-3xl" style={{ color: brand.ink }}>
+              {attrs?.title ?? 'Chi tiết sản phẩm'}
+            </h1>
             {attrs?.projectId && (
               <Link
                 to={`/public/projects/${attrs.projectId}`}
-                className="text-sm underline opacity-90 mt-1 inline-block"
+                className="text-sm font-semibold mt-1 inline-block"
+                style={{ color: brand.clay }}
               >
                 {attrs.projectName} →
               </Link>
             )}
           </div>
-          <div className="flex gap-4 text-sm">
-            <Link to="/public/search" className="underline opacity-90">
+          <div className="flex gap-4 text-sm font-semibold" style={{ color: brand.primary }}>
+            <Link to="/public/search">
               Tìm kiếm
             </Link>
-            <Link to="/public/map" className="underline opacity-90">
+            <Link to="/public/map">
               Bản đồ
             </Link>
             <Link
               to={compareCount > 0 ? `/public/compare?ids=${compareIds.join(',')}` : '/public/compare'}
-              className="underline opacity-90"
             >
               So sánh{compareCount > 0 ? ` (${compareCount})` : ''}
             </Link>

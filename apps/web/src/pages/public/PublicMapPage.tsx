@@ -37,12 +37,12 @@ export function PublicMapPage() {
   }, [load]);
 
   return (
-    <div className="min-h-screen" style={{ background: brand.background }}>
+    <div className="min-h-screen nnhn-paper">
       <PublicTopBar />
 
-      <header className="px-4 py-5" style={{ background: brand.surface, borderBottom: `1px solid ${brand.border}` }}>
+      <header className="px-4 py-8">
         <div className="max-w-6xl mx-auto">
-          <h1 className="text-xl font-bold" style={{ color: brand.ink }}>
+          <h1 className="nnhn-display text-3xl" style={{ color: brand.ink }}>
             Bản đồ listing
           </h1>
           {center && (
@@ -64,7 +64,7 @@ export function PublicMapPage() {
               <section
                 className="rounded-xl p-6 overflow-hidden"
                 style={{
-                  background: 'linear-gradient(180deg, #dbeafe 0%, #eff6ff 40%, #f8fafc 100%)',
+                  background: 'linear-gradient(180deg, #d8e5d4 0%, #f4efe6 45%, #fffcf7 100%)',
                   border: `1px solid ${brand.border}`,
                 }}
               >

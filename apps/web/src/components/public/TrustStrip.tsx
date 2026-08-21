@@ -26,26 +26,29 @@ export function TrustStrip() {
 
   if (!stats || stats.total === 0) return null;
 
+  const items = [
+    { value: `${stats.verified}+`, label: 'căn Verified' },
+    { value: String(stats.total), label: 'listing bảng hàng' },
+    { value: 'GR', label: 'Giá Golden Record' },
+  ];
+
   return (
     <div
-      className="border-y px-4 py-3 text-sm"
-      style={{ background: brand.surface, borderColor: brand.border, color: brand.ink }}
+      className="px-4 py-6"
+      style={{ borderBottom: `1px solid ${brand.border}` }}
       data-testid="trust-strip"
     >
-      <div className="max-w-6xl mx-auto flex flex-wrap items-center justify-center gap-x-6 gap-y-1 text-center">
-        <span>
-          <strong style={{ color: brand.primary }}>{stats.verified}+</strong> căn Verified
-        </span>
-        <span className="hidden sm:inline" style={{ color: brand.border }}>
-          ·
-        </span>
-        <span>
-          <strong>{stats.total}</strong> listing trên bảng hàng
-        </span>
-        <span className="hidden sm:inline" style={{ color: brand.border }}>
-          ·
-        </span>
-        <span style={{ color: brand.muted }}>Giá Golden Record · Anti-drift</span>
+      <div className="max-w-6xl mx-auto grid grid-cols-3 gap-4 text-center">
+        {items.map((item) => (
+          <div key={item.label}>
+            <p className="nnhn-display text-2xl sm:text-3xl" style={{ color: brand.primaryDark }}>
+              {item.value}
+            </p>
+            <p className="text-xs sm:text-sm mt-1" style={{ color: brand.muted }}>
+              {item.label}
+            </p>
+          </div>
+        ))}
       </div>
     </div>
   );

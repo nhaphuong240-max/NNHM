@@ -1,21 +1,24 @@
 @import "tailwindcss";
 
 :root {
-  --brand-primary: #17692f;
-  --brand-primary-dark: #0f4d22;
-  --brand-hover: #c7d9c9;
-  --brand-accent: #c7d9c9;
-  --brand-muted: #5c6570;
-  --brand-border: #d5dbd6;
-  --brand-bg: #ecefea;
-  --brand-surface: #ffffff;
-  --brand-success: #17692f;
+  --brand-primary: #1b5e3b;
+  --brand-primary-dark: #123d27;
+  --brand-hover: #d8e5d4;
+  --brand-accent: #c45c2a;
+  --brand-accent-soft: #f3e0d2;
+  --brand-muted: #5a615c;
+  --brand-border: #ddd6c8;
+  --brand-bg: #f4efe6;
+  --brand-surface: #fffcf7;
+  --brand-success: #1b5e3b;
   --brand-warning: #c45c12;
   --brand-destructive: #c0392b;
-  --brand-ink: #12141a;
+  --brand-ink: #1a1814;
   --lcp-target-ms: 2500;
-  --radius-lg: 1rem;
-  --shadow-soft: 0 1px 0 rgba(18, 20, 26, 0.04);
+  --radius-lg: 1.25rem;
+  --shadow-soft: 0 1px 0 rgba(26, 24, 20, 0.05);
+  --font-display: 'Fraunces', 'Times New Roman', serif;
+  --font-ui: 'Plus Jakarta Sans', system-ui, sans-serif;
 }
 
 * {
@@ -28,7 +31,7 @@ html {
 
 body {
   margin: 0;
-  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font-family: var(--font-ui);
   background: var(--brand-bg);
   color: var(--brand-ink);
   -webkit-font-smoothing: antialiased;
@@ -49,6 +52,25 @@ a {
 :focus-visible {
   outline: 2px solid var(--brand-primary);
   outline-offset: 2px;
+}
+
+.font-display {
+  font-family: var(--font-display);
+  font-optical-sizing: auto;
+}
+
+.nnhn-paper {
+  background-color: var(--brand-bg);
+  background-image:
+    radial-gradient(ellipse 80% 50% at 10% -10%, rgba(27, 94, 59, 0.07), transparent 55%),
+    radial-gradient(ellipse 50% 40% at 100% 0%, rgba(196, 92, 42, 0.06), transparent 50%);
+}
+
+.nnhn-card {
+  background: var(--brand-surface);
+  border: 1px solid var(--brand-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-soft);
 }
 
 .wereal-card {
@@ -77,10 +99,30 @@ a {
 
 .wereal-input:focus {
   border-color: var(--brand-primary);
-  box-shadow: 0 0 0 3px rgba(23, 105, 47, 0.16);
+  box-shadow: 0 0 0 3px rgba(27, 94, 59, 0.16);
   outline: none;
 }
 
 .nnhn-nav-idle:hover {
   background: var(--brand-hover);
+}
+
+.nnhn-kicker {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--brand-accent);
+}
+
+.nnhn-display {
+  font-family: var(--font-display);
+  font-optical-sizing: auto;
+  font-weight: 650;
+  letter-spacing: -0.03em;
+  line-height: 1.08;
+}
+
+.nnhn-search-pill {
+  box-shadow: 0 18px 50px -24px rgba(18, 61, 39, 0.45);
 }

@@ -35,21 +35,23 @@ export function PublicProjectPage() {
   const listings = data?.data.listings ?? [];
 
   return (
-    <div className="min-h-screen pb-8" style={{ background: brand.background }}>
+    <div className="min-h-screen nnhn-paper pb-8">
       <PublicTopBar />
 
-      <header className="px-4 py-8" style={{ background: brand.primary, color: '#fff' }}>
+      <header className="px-4 py-12">
         <div className="max-w-6xl mx-auto">
-          {loading && <p className="text-sm opacity-80">Đang tải…</p>}
-          {error && <p className="text-sm">{error}</p>}
+          {loading && <p className="text-sm" style={{ color: brand.muted }}>Đang tải…</p>}
+          {error && <p className="text-sm" style={{ color: brand.warning }}>{error}</p>}
           {attrs && (
             <>
-              <p className="text-xs uppercase tracking-widest opacity-75">{attrs.code}</p>
-              <h1 className="text-2xl lg:text-4xl font-extrabold mt-1">{attrs.name}</h1>
-              <p className="mt-2 text-sm opacity-90">
+              <p className="nnhn-kicker">{attrs.code}</p>
+              <h1 className="nnhn-display text-3xl lg:text-5xl mt-2" style={{ color: brand.ink }}>
+                {attrs.name}
+              </h1>
+              <p className="mt-3 text-sm" style={{ color: brand.muted }}>
                 {[attrs.district, attrs.city].filter(Boolean).join(', ')}
               </p>
-              <div className="mt-4 flex flex-wrap gap-4 text-sm font-semibold">
+              <div className="mt-5 flex flex-wrap gap-4 text-sm font-semibold" style={{ color: brand.primaryDark }}>
                 <span>
                   {attrs.unitCount} căn · {attrs.verifiedCount} Verified
                 </span>
@@ -62,7 +64,8 @@ export function PublicProjectPage() {
               </div>
               <Link
                 to={`/public/map?projectId=${encodeURIComponent(projectId)}`}
-                className="inline-block mt-4 text-sm underline opacity-90"
+                className="inline-block mt-5 text-sm font-semibold"
+                style={{ color: brand.clay }}
               >
                 Xem trên bản đồ →
               </Link>

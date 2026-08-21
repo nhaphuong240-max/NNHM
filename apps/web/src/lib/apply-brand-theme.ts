@@ -9,7 +9,7 @@ export type PublicBrand = Pick<
 export const FALLBACK_PUBLIC_BRAND: PublicBrand = {
   displayName: 'Ngôi Nhà Hôm Nay',
   primaryColor: brand.primary,
-  accentColor: brand.hover,
+  accentColor: brand.accent,
   live: true,
 };
 
@@ -36,7 +36,7 @@ export function brandPrimary(config?: { primaryColor?: string } | null) {
 }
 
 export function brandAccent(config?: { accentColor?: string } | null) {
-  return config?.accentColor ?? brand.hover;
+  return config?.accentColor ?? brand.accent;
 }
 
 export function brandPrimaryDark(config?: { primaryColor?: string } | null) {
