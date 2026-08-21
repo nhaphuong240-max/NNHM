@@ -1,6 +1,7 @@
 import { Body, Controller, Get, Headers, HttpCode, Post } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { resolveTenantId } from '../../common/resolve-tenant-id';
+import { Public } from './decorators/public.decorator';
 import { CurrentUser } from './decorators/current-user.decorator';
 import type { AuthUser } from './identity.types';
 import { TenantBrandingService } from './tenant-branding.service';
@@ -11,6 +12,13 @@ export class TenantBrandingController {
     private readonly branding: TenantBrandingService,
     private readonly config: ConfigService,
   ) {}
+
+  /** P4 — public marketplace white-label (no auth) */
+  @Public()
+  @Get('public')
+  getPublic(@Headers('x-tenant-id') tenantHeader: string | undefined) {
+    return this.branding.getBrand(resolveTenantId(this.config, undefined, tenantHeader));
+  }
 
   @Get()
   get(

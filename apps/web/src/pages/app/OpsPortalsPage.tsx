@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { useOpsNoIndex } from '../../hooks/useOpsNoIndex';
 import { brand, finance } from '../../theme/tokens';
 
 const portals = [
@@ -35,6 +36,8 @@ const portals = [
 ];
 
 export function OpsPortalsPage() {
+  useOpsNoIndex('Cổng vận hành · Đối tác');
+
   return (
     <div className="min-h-screen" style={{ background: brand.background }}>
       <header className="px-6 py-10 lg:px-16 lg:py-12" style={{ background: brand.primaryDark, color: '#fff' }}>

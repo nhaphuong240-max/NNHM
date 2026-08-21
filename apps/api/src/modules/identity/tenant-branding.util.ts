@@ -13,11 +13,11 @@ export type TenantBrandConfig = {
 };
 
 export const DEFAULT_BRAND: Omit<TenantBrandConfig, 'tenantId' | 'updatedAt'> = {
-  displayName: 'WEREAL Portal',
-  subdomain: 'app',
-  primaryColor: '#0F4C81',
-  accentColor: '#C9A227',
-  live: false,
+  displayName: 'Ngôi Nhà Hôm Nay',
+  subdomain: 'nnhn',
+  primaryColor: '#17692F',
+  accentColor: '#C7D9C9',
+  live: true,
 };
 
 export function normalizeSubdomain(value: string): string {

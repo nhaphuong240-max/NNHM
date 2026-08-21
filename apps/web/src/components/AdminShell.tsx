@@ -1,4 +1,5 @@
 import { AppChrome } from './AppChrome';
+import { useOpsNoIndex } from '../hooks/useOpsNoIndex';
 import { portalThemes } from '../theme/tokens';
 
 const P0 = [
@@ -44,6 +45,7 @@ export function AdminShell({
   screenTag?: string;
   children: React.ReactNode;
 }) {
+  useOpsNoIndex(`${title} · Admin`);
   return (
     <AppChrome
       portalLabel={portalThemes.admin.label}

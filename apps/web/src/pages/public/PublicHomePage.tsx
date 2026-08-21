@@ -1,12 +1,15 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { usePublicBrand } from '../../context/PublicBrandContext';
 import { ContactLeadModal } from '../../components/public/ContactLeadModal';
 import { EmiCalculator } from '../../components/public/EmiCalculator';
 import { ListingCard } from '../../components/public/ListingCard';
+import { PostPropertyCta } from '../../components/public/PostPropertyCta';
 import { PublicFooter } from '../../components/public/PublicFooter';
 import { TrustStrip } from '../../components/public/TrustStrip';
 import { PublicTopBar } from '../../components/PublicTopBar';
 import { usePageMeta } from '../../hooks/usePageMeta';
+import { brandPrimary, brandPrimaryDark } from '../../lib/apply-brand-theme';
 import { NEWS_PLACEHOLDERS, districtPath, DISTRICTS } from '../../lib/districts';
 import { fetchSearchStats, searchUnits, type SearchHit } from '../../lib/api';
 import { brand } from '../../theme/tokens';
@@ -25,6 +28,10 @@ const CITIES = [
 
 export function PublicHomePage() {
   const navigate = useNavigate();
+  const publicBrand = usePublicBrand();
+  const heroBg = brandPrimary(publicBrand);
+  const heroDark = brandPrimaryDark(publicBrand);
+  const brandName = publicBrand?.displayName ?? 'Ngôi Nhà Hôm Nay';
   const [intent, setIntent] = useState<(typeof INTENTS)[number]['id']>('buy');
   const [q, setQ] = useState('');
   const [picks, setPicks] = useState<SearchHit[]>([]);
@@ -33,7 +40,7 @@ export function PublicHomePage() {
   const [stats, setStats] = useState<{ total: number; verified: number } | null>(null);
 
   usePageMeta({
-    title: 'Ngôi Nhà Hôm Nay — Tìm căn hộ, dự án, giữ chỗ minh bạch',
+    title: `${brandName} — Tìm căn hộ, dự án, giữ chỗ minh bạch`,
     description:
       'Marketplace bất động sản Việt Nam: tìm nhà theo quận, so sánh căn Verified, liên hệ tư vấn và giữ chỗ online.',
   });
@@ -70,10 +77,10 @@ export function PublicHomePage() {
     <div className="min-h-screen flex flex-col" style={{ background: brand.background }}>
       <PublicTopBar />
 
-      <section className="px-4 py-12 lg:py-16" style={{ background: brand.primary, color: '#fff' }}>
+      <section className="px-4 py-12 lg:py-16" style={{ background: heroBg, color: '#fff' }}>
         <div className="max-w-6xl mx-auto">
           <h1 className="text-3xl lg:text-5xl font-extrabold tracking-tight max-w-2xl">
-            Ngôi Nhà Hôm Nay
+            {brandName}
           </h1>
           <p className="mt-3 max-w-xl text-sm opacity-85">
             Giá Golden Record · so sánh căn · giữ chỗ. Bắt đầu bằng khu vực hoặc dự án.
@@ -123,7 +130,7 @@ export function PublicHomePage() {
               <button
                 type="submit"
                 className="px-6 py-3.5 text-sm font-bold text-white"
-                style={{ background: brand.primaryDark }}
+                style={{ background: heroDark }}
               >
                 Tìm kiếm
               </button>
@@ -184,6 +191,10 @@ export function PublicHomePage() {
             />
           ))}
         </div>
+
+        <section className="mt-14">
+          <PostPropertyCta />
+        </section>
 
         <section className="mt-14">
           <h2 className="text-xl font-bold mb-2" style={{ color: brand.ink }}>

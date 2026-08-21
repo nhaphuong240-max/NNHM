@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { PostPropertyLink } from './PostPropertyCta';
 import { CITY_GROUPS, DISTRICTS, districtPath, findDistrictBySlug } from '../../lib/districts';
 import { brand } from '../../theme/tokens';
 
@@ -41,7 +42,18 @@ export function PublicFooter() {
         ))}
 
         <div>
-          <p className="font-bold mb-2">Công cụ</p>
+          <p className="font-bold mb-2">Đối tác</p>
+          <ul className="space-y-1.5">
+            <li>
+              <PostPropertyLink className="opacity-85 hover:opacity-100" />
+            </li>
+            <li>
+              <Link to="/app" className="opacity-85 hover:opacity-100 no-underline hover:underline" style={{ color: '#fff' }}>
+                Cổng vận hành (đăng nhập)
+              </Link>
+            </li>
+          </ul>
+          <p className="font-bold mt-4 mb-2">Công cụ</p>
           <ul className="space-y-1.5">
             <li>
               <Link to="/public/tools/emi" className="opacity-85 hover:opacity-100 no-underline hover:underline" style={{ color: '#fff' }}>

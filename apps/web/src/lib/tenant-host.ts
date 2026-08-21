@@ -2,6 +2,8 @@
 const HOST_TENANT_MAP: Record<string, string> = {
   'portal.thanglong-dev.vn': 'ten_pilot_cdt_01',
   'thanglong.wereal.vn': 'ten_pilot_cdt_01',
+  'ngoinhahomnay.vn': 'ten_dev_01',
+  'www.ngoinhahomnay.vn': 'ten_dev_01',
 };
 
 export function resolveTenantFromHost(hostname?: string | null): string | null {

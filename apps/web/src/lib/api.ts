@@ -1373,6 +1373,15 @@ export async function fetchTenantBrand() {
   return res.json() as Promise<{ data: TenantBrandConfig }>;
 }
 
+/** P4 — public marketplace brand (no auth) */
+export async function fetchPublicBrand(tenantId: string = DEFAULT_TENANT_ID) {
+  const res = await fetch(`${API_BASE}/tenants/branding/public`, {
+    headers: { 'X-Tenant-Id': tenantId },
+  });
+  if (!res.ok) throw new Error(`Public brand failed: ${res.status}`);
+  return res.json() as Promise<{ data: TenantBrandConfig }>;
+}
+
 export async function updateTenantBrand(patch: Partial<TenantBrandConfig>) {
   const res = await authFetch('/tenants/branding', {
     method: 'POST',

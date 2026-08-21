@@ -1,4 +1,5 @@
 import { brand } from '../../theme/tokens';
+import { resolveMediaUrl } from '../../lib/media-cdn';
 
 type Props = {
   url: string | null | undefined;
@@ -7,10 +8,11 @@ type Props = {
 };
 
 export function ListingThumbnail({ url, alt, className = 'aspect-video rounded-lg' }: Props) {
-  if (url) {
+  const resolved = resolveMediaUrl(url);
+  if (resolved) {
     return (
       <img
-        src={url}
+        src={resolved}
         alt={alt}
         className={`${className} object-cover w-full h-full bg-neutral-100`}
         loading="lazy"

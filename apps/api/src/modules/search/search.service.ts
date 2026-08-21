@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { mediaCdnBaseFromEnv, resolveMediaPublicUrl } from '../../common/media-cdn.util';
 import { ListingMediaEntity } from '../../database/entities/listing-media.entity';
 import { ProjectEntity } from '../../database/entities/project.entity';
 import { SearchIndexDocEntity } from '../../database/entities/search-index-doc.entity';
@@ -45,6 +46,16 @@ export class SearchService {
     private readonly searchIndex: SearchIndexService,
   ) {}
 
+  private cdnMediaUrl(url: string | null | undefined) {
+    return resolveMediaPublicUrl(url, mediaCdnBaseFromEnv(process.env));
+  }
+
+  private mapHit(doc: SearchIndexDocEntity) {
+    const hit = mapDocToSearchHit(doc);
+    hit.attributes.thumbnailUrl = this.cdnMediaUrl(hit.attributes.thumbnailUrl);
+    return hit;
+  }
+
   /** API-039 GET /search/units — UC-LS-01 via search index (UC-LS-07) */
   async searchUnits(query: SearchUnitsQuery) {
     const limit = Math.min(query.limit ?? 50, 100);
@@ -87,7 +98,7 @@ export class SearchService {
 
     const status = await this.searchIndex.getStatus(query.tenantId);
 
-    const data = rows.map((doc) => mapDocToSearchHit(doc));
+    const data = rows.map((doc) => this.mapHit(doc));
 
     return {
       data,
@@ -148,7 +159,7 @@ export class SearchService {
           unitStatus: doc.detail.unitStatus,
           verified: doc.verified,
           antiDriftStatus: doc.detail.antiDriftStatus,
-          thumbnailUrl: doc.thumbnailUrl,
+          thumbnailUrl: this.cdnMediaUrl(doc.thumbnailUrl),
           city: doc.city,
           district: doc.district,
         },
@@ -199,7 +210,7 @@ export class SearchService {
           maxPrice,
           mapCenter: center,
         },
-        listings: docs.map((doc) => mapDocToSearchHit(doc)),
+        listings: docs.map((doc) => this.mapHit(doc)),
       },
       meta: { tenantId, source: 'search-index', screen: 'SCR-PUBLIC-007' },
     };
@@ -229,7 +240,7 @@ export class SearchService {
           area: Number(doc.area),
           floor: doc.detail.floor,
           projectId: doc.detail.projectId,
-          thumbnailUrl: doc.thumbnailUrl,
+          thumbnailUrl: this.cdnMediaUrl(doc.thumbnailUrl),
           verified: doc.verified,
           listingId: doc.listingId,
         },
@@ -267,7 +278,7 @@ export class SearchService {
       data: rows.map((row) => ({
         id: row.id,
         attributes: {
-          url: `/api/v1/listings/${doc.listingId}/media/${row.id}/file`,
+          url: this.cdnMediaUrl(`/api/v1/listings/${doc.listingId}/media/${row.id}/file`)!,
           isCover: row.isCover,
           mimeType: row.mimeType,
         },

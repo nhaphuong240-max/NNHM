@@ -4,6 +4,7 @@ export type PageMeta = {
   title: string;
   description?: string;
   canonical?: string;
+  robots?: string;
 };
 
 function upsertMeta(name: string, content: string, attr: 'name' | 'property' = 'name') {
@@ -34,6 +35,7 @@ export function usePageMeta(meta: PageMeta) {
       upsertMeta('og:description', meta.description, 'property');
     }
     upsertMeta('og:title', meta.title, 'property');
+    if (meta.robots) upsertMeta('robots', meta.robots);
     if (meta.canonical) upsertCanonical(meta.canonical);
-  }, [meta.title, meta.description, meta.canonical]);
+  }, [meta.title, meta.description, meta.canonical, meta.robots]);
 }

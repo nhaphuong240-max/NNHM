@@ -221,6 +221,7 @@ export class DatabaseSeedService implements OnModuleInit {
     await this.ensureCommissionSettlementDemo();
     await this.ensurePublishedListings();
     await this.ensureMarketplaceSerpSeed();
+    await this.ensureNnhnMarketplaceBrand();
     await this.ensureDuplicateListingSeed();
     await this.ensureAnomalyListingSeed();
     await this.ensureContractEsignDemo();
@@ -857,6 +858,38 @@ Ngày lập: 20/08/2026
     });
 
     this.logger.log('T7-S8 enterprise seed — ENTERPRISE white-label ten_pilot_cdt_01');
+  }
+
+  /** P4 — NNHN marketplace white-label on ten_dev_01 */
+  private async ensureNnhnMarketplaceBrand() {
+    const tenantId = SEED_TENANT_ID;
+    const existing = await this.auditEvents.findOne({
+      where: { tenantId, entityType: 'tenant_brand', action: 'UPDATE' },
+    });
+    if (existing) return;
+
+    const brand = {
+      tenantId,
+      displayName: 'Ngôi Nhà Hôm Nay',
+      subdomain: 'nnhn',
+      customDomain: 'ngoinhahomnay.vn',
+      primaryColor: '#17692F',
+      accentColor: '#C7D9C9',
+      live: true,
+      whiteLabelTier: 'STANDARD' as const,
+      updatedAt: new Date().toISOString(),
+    };
+
+    await this.auditEvents.save({
+      tenantId,
+      entityType: 'tenant_brand',
+      entityId: tenantId,
+      action: 'UPDATE',
+      payload: { brand, customDomain: brand.customDomain },
+      actorId: 'usr_dev_admin',
+    });
+
+    this.logger.log('P4 marketplace seed — NNHN white-label ten_dev_01');
   }
 
   private async ensurePublishedListings() {

@@ -1,4 +1,5 @@
 import { AppChrome } from './AppChrome';
+import { useOpsNoIndex } from '../hooks/useOpsNoIndex';
 import { finance, portalThemes } from '../theme/tokens';
 
 const P0 = [
@@ -25,6 +26,7 @@ export function FinanceShell({
   screenTag?: string;
   children: React.ReactNode;
 }) {
+  useOpsNoIndex(`${title} · Finance`);
   return (
     <AppChrome
       portalLabel={portalThemes.finance.label}
