@@ -1,8 +1,13 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ContactLeadModal } from '../../components/public/ContactLeadModal';
+import { EmiCalculator } from '../../components/public/EmiCalculator';
 import { ListingCard } from '../../components/public/ListingCard';
+import { PublicFooter } from '../../components/public/PublicFooter';
+import { TrustStrip } from '../../components/public/TrustStrip';
 import { PublicTopBar } from '../../components/PublicTopBar';
+import { usePageMeta } from '../../hooks/usePageMeta';
+import { NEWS_PLACEHOLDERS, districtPath, DISTRICTS } from '../../lib/districts';
 import { fetchSearchStats, searchUnits, type SearchHit } from '../../lib/api';
 import { brand } from '../../theme/tokens';
 
@@ -26,6 +31,12 @@ export function PublicHomePage() {
   const [picksError, setPicksError] = useState<string | null>(null);
   const [contactHit, setContactHit] = useState<SearchHit | null>(null);
   const [stats, setStats] = useState<{ total: number; verified: number } | null>(null);
+
+  usePageMeta({
+    title: 'Ngôi Nhà Hôm Nay — Tìm căn hộ, dự án, giữ chỗ minh bạch',
+    description:
+      'Marketplace bất động sản Việt Nam: tìm nhà theo quận, so sánh căn Verified, liên hệ tư vấn và giữ chỗ online.',
+  });
 
   useEffect(() => {
     let active = true;
@@ -56,7 +67,7 @@ export function PublicHomePage() {
   }
 
   return (
-    <div className="min-h-screen" style={{ background: brand.background }}>
+    <div className="min-h-screen flex flex-col" style={{ background: brand.background }}>
       <PublicTopBar />
 
       <section className="px-4 py-12 lg:py-16" style={{ background: brand.primary, color: '#fff' }}>
@@ -134,7 +145,9 @@ export function PublicHomePage() {
         </div>
       </section>
 
-      <main className="max-w-6xl mx-auto px-4 py-10">
+      <TrustStrip />
+
+      <main className="flex-1 max-w-6xl mx-auto px-4 py-10 w-full">
         <div className="flex items-end justify-between gap-4 mb-5">
           <div>
             <h2 className="text-xl font-bold" style={{ color: brand.ink }}>
@@ -171,7 +184,65 @@ export function PublicHomePage() {
             />
           ))}
         </div>
+
+        <section className="mt-14">
+          <h2 className="text-xl font-bold mb-2" style={{ color: brand.ink }}>
+            Công cụ mua nhà
+          </h2>
+          <p className="text-sm mb-5" style={{ color: brand.muted }}>
+            Ước tính trả góp trước khi liên hệ tư vấn — lãi suất và thời hạn điều chỉnh được.
+          </p>
+          <EmiCalculator compact initialPrice={picks[0]?.attributes.basePrice} />
+        </section>
+
+        <section className="mt-14">
+          <div className="flex items-end justify-between gap-4 mb-5">
+            <h2 className="text-xl font-bold" style={{ color: brand.ink }}>
+              Mua theo quận
+            </h2>
+            <Link to="/public/search" className="text-sm font-semibold" style={{ color: brand.primary }}>
+              SERP đầy đủ
+            </Link>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {DISTRICTS.map((d) => (
+              <Link
+                key={d.slug}
+                to={districtPath(d.slug)}
+                className="rounded-full px-4 py-2 text-sm font-medium no-underline"
+                style={{ background: brand.surface, border: `1px solid ${brand.border}`, color: brand.primaryDark }}
+              >
+                {d.label}, {d.city}
+              </Link>
+            ))}
+          </div>
+        </section>
+
+        <section className="mt-14">
+          <h2 className="text-xl font-bold mb-5" style={{ color: brand.ink }}>
+            Tin & gợi ý
+          </h2>
+          <div className="grid sm:grid-cols-2 gap-4">
+            {NEWS_PLACEHOLDERS.map((item) => (
+              <article
+                key={item.id}
+                className="rounded-xl p-5"
+                style={{ background: brand.surface, border: `1px solid ${brand.border}` }}
+              >
+                <time className="text-xs" style={{ color: brand.muted }}>
+                  {new Date(item.date).toLocaleDateString('vi-VN')}
+                </time>
+                <h3 className="font-bold mt-2 leading-snug">{item.title}</h3>
+                <p className="text-sm mt-2 leading-relaxed" style={{ color: brand.muted }}>
+                  {item.excerpt}
+                </p>
+              </article>
+            ))}
+          </div>
+        </section>
       </main>
+
+      <PublicFooter />
 
       {contactHit && (
         <ContactLeadModal

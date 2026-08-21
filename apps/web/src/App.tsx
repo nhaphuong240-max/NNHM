@@ -48,6 +48,8 @@ import { AgentInboxPage } from './pages/agent/AgentInboxPage';
 import { PublicChatPage } from './pages/public/PublicChatPage';
 import { PublicMapPage } from './pages/public/PublicMapPage';
 import { PublicProjectPage } from './pages/public/PublicProjectPage';
+import { PublicDistrictPage } from './pages/public/PublicDistrictPage';
+import { PublicEmiPage } from './pages/public/PublicEmiPage';
 import { AuthSsoPage } from './pages/auth/AuthSsoPage';
 import { AuthSsoCallbackPage } from './pages/auth/AuthSsoCallbackPage';
 import { AdminWhitelabelPage } from './pages/admin/AdminWhitelabelPage';
@@ -88,6 +90,8 @@ export default function App() {
     <Routes>
       <Route path="/" element={<PublicHomePage />} />
       <Route path="/app" element={<OpsPortalsPage />} />
+      <Route path="/mua/:districtSlug" element={<PublicDistrictPage />} />
+      <Route path="/public/tools/emi" element={<PublicEmiPage />} />
       <Route path="/public/search" element={<SearchPage />} />
       <Route path="/public/recommendations" element={<PublicRecommendationsPage />} />
       <Route path="/public/chat" element={<PublicChatPage />} />

@@ -1,0 +1,149 @@
+import { useEffect, useMemo, useState } from 'react';
+import { Link, useParams } from 'react-router-dom';
+import { ContactLeadModal } from '../../components/public/ContactLeadModal';
+import { JsonLd } from '../../components/public/JsonLd';
+import { ListingCard } from '../../components/public/ListingCard';
+import { PublicFooter } from '../../components/public/PublicFooter';
+import { TrustStrip } from '../../components/public/TrustStrip';
+import { PublicTopBar } from '../../components/PublicTopBar';
+import { usePageMeta } from '../../hooks/usePageMeta';
+import { findDistrictBySlug } from '../../lib/districts';
+import { searchUnits, type SearchHit } from '../../lib/api';
+import { brand } from '../../theme/tokens';
+import { EmiCalculator } from '../../components/public/EmiCalculator';
+
+export function PublicDistrictPage() {
+  const { districtSlug = '' } = useParams<{ districtSlug: string }>();
+  const district = findDistrictBySlug(districtSlug);
+  const [hits, setHits] = useState<SearchHit[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [contactHit, setContactHit] = useState<SearchHit | null>(null);
+
+  const siteOrigin = typeof window !== 'undefined' ? window.location.origin : 'https://ngoinhahomnay.vn';
+
+  usePageMeta(
+    district
+      ? {
+          title: `${district.seoTitle} | Ngôi Nhà Hôm Nay`,
+          description: district.seoDescription,
+          canonical: `${siteOrigin}/mua/${district.slug}`,
+        }
+      : { title: 'Không tìm thấy khu vực | Ngôi Nhà Hôm Nay' },
+  );
+
+  useEffect(() => {
+    if (!district) return;
+    let active = true;
+    setLoading(true);
+    searchUnits({ district: district.label, city: district.city, limit: 50 })
+      .then((res) => {
+        if (active) setHits(res.data);
+      })
+      .catch((e) => {
+        if (active) setError(e instanceof Error ? e.message : 'Lỗi tải listing');
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [district]);
+
+  const jsonLd = useMemo(() => {
+    if (!district) return null;
+    return {
+      '@context': 'https://schema.org',
+      '@type': 'ItemList',
+      name: district.seoTitle,
+      description: district.seoDescription,
+      numberOfItems: hits.length,
+      itemListElement: hits.slice(0, 20).map((hit, i) => ({
+        '@type': 'ListItem',
+        position: i + 1,
+        url: `${siteOrigin}/public/units/${hit.id}`,
+        name: hit.attributes.title,
+      })),
+    };
+  }, [district, hits, siteOrigin]);
+
+  if (!district) {
+    return (
+      <div className="min-h-screen flex flex-col" style={{ background: brand.background }}>
+        <PublicTopBar />
+        <main className="flex-1 max-w-6xl mx-auto px-4 py-16">
+          <h1 className="text-2xl font-bold">Không tìm thấy khu vực</h1>
+          <Link to="/public/search" className="text-sm mt-4 inline-block" style={{ color: brand.primary }}>
+            ← Quay lại tìm kiếm
+          </Link>
+        </main>
+        <PublicFooter />
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen flex flex-col" style={{ background: brand.background }}>
+      {jsonLd && <JsonLd data={jsonLd} />}
+      <PublicTopBar />
+      <TrustStrip />
+
+      <header className="px-4 py-10" style={{ background: brand.primary, color: '#fff' }}>
+        <div className="max-w-6xl mx-auto">
+          <p className="text-xs uppercase tracking-widest opacity-80">{district.city}</p>
+          <h1 className="text-3xl lg:text-4xl font-extrabold mt-2">{district.seoTitle}</h1>
+          <p className="mt-3 max-w-2xl text-sm opacity-90">{district.seoDescription}</p>
+          <Link
+            to={`/public/search?district=${encodeURIComponent(district.label)}`}
+            className="inline-block mt-4 rounded-full px-4 py-2 text-sm font-bold no-underline"
+            style={{ background: '#fff', color: brand.primaryDark }}
+          >
+            Lọc SERP {district.label}
+          </Link>
+        </div>
+      </header>
+
+      <main className="flex-1 max-w-6xl mx-auto px-4 py-10 w-full">
+        {loading && <p className="text-sm" style={{ color: brand.muted }}>Đang tải listing…</p>}
+        {error && (
+          <p className="text-sm rounded-xl p-4" style={{ background: brand.surface, color: brand.warning }}>
+            {error}
+          </p>
+        )}
+
+        {!loading && !error && hits.length === 0 && (
+          <p className="text-sm rounded-xl p-6" style={{ background: brand.surface, border: `1px solid ${brand.border}` }}>
+            Chưa có căn tại {district.label}. Thử{' '}
+            <Link to="/public/search" style={{ color: brand.primary }}>tìm kiếm toàn bộ</Link>.
+          </p>
+        )}
+
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {hits.map((hit) => (
+            <ListingCard
+              key={hit.listingId ?? hit.id}
+              hit={hit}
+              layout="grid"
+              onContact={() => setContactHit(hit)}
+            />
+          ))}
+        </div>
+
+        <section className="mt-12">
+          <EmiCalculator compact initialPrice={hits[0]?.attributes.basePrice} />
+        </section>
+      </main>
+
+      <PublicFooter />
+
+      {contactHit && (
+        <ContactLeadModal
+          hit={contactHit}
+          onClose={() => setContactHit(null)}
+          onSuccess={() => setContactHit(null)}
+        />
+      )}
+    </div>
+  );
+}

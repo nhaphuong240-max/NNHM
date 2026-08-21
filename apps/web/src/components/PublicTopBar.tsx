@@ -18,6 +18,9 @@ export function PublicTopBar() {
           <Link to="/public/map" className="rounded-full px-3 py-1.5" style={{ background: 'rgba(255,255,255,0.12)' }}>
             Bản đồ
           </Link>
+          <Link to="/public/tools/emi" className="rounded-full px-3 py-1.5" style={{ background: 'rgba(255,255,255,0.12)' }}>
+            Trả góp
+          </Link>
           <Link to="/auth/login" className="rounded-full px-3 py-1.5" style={{ background: 'rgba(255,255,255,0.12)' }}>
             Đăng nhập
           </Link>

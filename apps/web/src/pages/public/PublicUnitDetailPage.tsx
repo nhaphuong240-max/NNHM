@@ -1,6 +1,7 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useCompareBasket } from '../../hooks/useCompareBasket';
+import { usePageMeta } from '../../hooks/usePageMeta';
 import { useUnitStatusStream } from '../../hooks/useUnitStatusStream';
 import {
   fetchUnitDetail,
@@ -9,10 +10,14 @@ import {
   submitLead,
   type UnitDetail,
 } from '../../lib/api';
+import { buildProductSchema } from '../../lib/seo';
 import { brand, formatPrice } from '../../theme/tokens';
 import { ContactLeadModal } from '../../components/public/ContactLeadModal';
+import { JsonLd } from '../../components/public/JsonLd';
+import { PublicFooter } from '../../components/public/PublicFooter';
 import { PublicTopBar } from '../../components/PublicTopBar';
 import { StickyContactBar } from '../../components/public/StickyContactBar';
+import { TrustStrip } from '../../components/public/TrustStrip';
 import { UnitGallery } from '../../components/public/UnitGallery';
 import { VerifiedBadge } from '../../components/public/VerifiedBadge';
 
@@ -143,9 +148,28 @@ export function PublicUnitDetailPage() {
   const displayStatus = liveStatus ?? attrs?.unitStatus ?? '';
   const live = displayStatus ? statusLabel(displayStatus) : null;
 
+  const siteOrigin = typeof window !== 'undefined' ? window.location.origin : 'https://ngoinhahomnay.vn';
+
+  usePageMeta(
+    attrs
+      ? {
+          title: `${attrs.title} · ${formatPrice(attrs.basePrice)} | Ngôi Nhà Hôm Nay`,
+          description: `${attrs.projectName} · ${attrs.bedrooms}PN · ${attrs.area}m² · Golden Record`,
+          canonical: `${siteOrigin}/public/units/${unitId}`,
+        }
+      : { title: 'Chi tiết căn | Ngôi Nhà Hôm Nay' },
+  );
+
+  const productSchema = useMemo(() => {
+    if (!detail) return null;
+    return buildProductSchema(detail, siteOrigin);
+  }, [detail, siteOrigin]);
+
   return (
-    <div className="min-h-screen pb-24 lg:pb-0" style={{ background: brand.background }}>
+    <div className="min-h-screen flex flex-col pb-24 lg:pb-0" style={{ background: brand.background }}>
+      {productSchema && <JsonLd data={productSchema} />}
       <PublicTopBar />
+      <TrustStrip />
 
       <header className="text-white px-4 py-4" style={{ background: brand.primary }}>
         <div className="max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-4">
@@ -473,6 +497,8 @@ export function PublicUnitDetailPage() {
           onSuccess={() => setShowContactModal(false)}
         />
       )}
+
+      <PublicFooter />
     </div>
   );
 }

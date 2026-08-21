@@ -1,18 +1,12 @@
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import type { SearchHit } from '../../lib/api';
+import { DISTRICT_FILTERS } from '../../lib/districts';
 import { brand, formatPrice } from '../../theme/tokens';
 import { ListingThumbnail } from './ListingThumbnail';
 import { VerifiedBadge } from './VerifiedBadge';
 
-export const DISTRICT_FILTERS = [
-  { label: 'Cầu Giấy', city: 'Hà Nội' },
-  { label: 'Ba Đình', city: 'Hà Nội' },
-  { label: 'Quận 2', city: 'TP.HCM' },
-  { label: 'Quận 7', city: 'TP.HCM' },
-  { label: 'Hải Châu', city: 'Đà Nẵng' },
-  { label: 'Ngũ Hành Sơn', city: 'Đà Nẵng' },
-] as const;
+export { DISTRICT_FILTERS };
 
 type Props = {
   hit: SearchHit;
