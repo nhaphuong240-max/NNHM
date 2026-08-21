@@ -128,6 +128,22 @@ export async function ensureMarketplaceSerpSeed(deps: SeedDeps): Promise<number>
       status: 'AVAILABLE',
     });
 
+    await deps.listings.save({
+      id: listingId,
+      tenantId: deps.tenantId,
+      unitId,
+      title: `${tpl.bedrooms}PN ${project.name} — tầng ${5 + (i % 20)}`,
+      description: `Căn ${tpl.bedrooms} phòng ngủ tại ${project.district}, ${project.city}. Golden Record verified, có ảnh thật.`,
+      highlights: ['View đẹp', 'Gần tiện ích', project.district],
+      mediaIds: [],
+      priceDisplay: basePrice,
+      status: 'PUBLISHED',
+      antiDriftStatus: 'PASS',
+      driftReport: null,
+      verified: i % 4 !== 0,
+      rejectReason: null,
+    });
+
     const storageKey = `${listingId}/${mediaId}.jpg`;
     writePlaceholderMedia(deps.mediaRoot, deps.tenantId, storageKey);
 
@@ -144,21 +160,7 @@ export async function ensureMarketplaceSerpSeed(deps: SeedDeps): Promise<number>
       scanStatus: 'CLEAN',
     });
 
-    await deps.listings.save({
-      id: listingId,
-      tenantId: deps.tenantId,
-      unitId,
-      title: `${tpl.bedrooms}PN ${project.name} — tầng ${5 + (i % 20)}`,
-      description: `Căn ${tpl.bedrooms} phòng ngủ tại ${project.district}, ${project.city}. Golden Record verified, có ảnh thật.`,
-      highlights: ['View đẹp', 'Gần tiện ích', project.district],
-      mediaIds: [mediaId],
-      priceDisplay: basePrice,
-      status: 'PUBLISHED',
-      antiDriftStatus: 'PASS',
-      driftReport: null,
-      verified: i % 4 !== 0,
-      rejectReason: null,
-    });
+    await deps.listings.update({ id: listingId, tenantId: deps.tenantId }, { mediaIds: [mediaId] });
 
     created += 1;
   }
