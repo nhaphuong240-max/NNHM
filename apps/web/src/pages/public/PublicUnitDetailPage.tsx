@@ -4,12 +4,16 @@ import { useCompareBasket } from '../../hooks/useCompareBasket';
 import { useUnitStatusStream } from '../../hooks/useUnitStatusStream';
 import {
   fetchUnitDetail,
+  fetchUnitMedia,
   PRIVACY_POLICY_VERSION,
   submitLead,
   type UnitDetail,
 } from '../../lib/api';
 import { brand, formatPrice } from '../../theme/tokens';
-import { ListingThumbnail } from '../../components/public/ListingThumbnail';
+import { ContactLeadModal } from '../../components/public/ContactLeadModal';
+import { PublicTopBar } from '../../components/PublicTopBar';
+import { StickyContactBar } from '../../components/public/StickyContactBar';
+import { UnitGallery } from '../../components/public/UnitGallery';
 import { VerifiedBadge } from '../../components/public/VerifiedBadge';
 
 function statusLabel(status: string) {
@@ -43,6 +47,7 @@ export function PublicUnitDetailPage() {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [thankYou, setThankYou] = useState<{ leadId: string; tier: string } | null>(null);
+  const [showContactModal, setShowContactModal] = useState(false);
   const [liveStatus, setLiveStatus] = useState<string | null>(null);
   const [statusFlash, setStatusFlash] = useState(false);
 
@@ -139,28 +144,36 @@ export function PublicUnitDetailPage() {
   const live = displayStatus ? statusLabel(displayStatus) : null;
 
   return (
-    <div className="min-h-screen" style={{ background: brand.background }}>
+    <div className="min-h-screen pb-24 lg:pb-0" style={{ background: brand.background }}>
+      <PublicTopBar />
+
       <header className="text-white px-4 py-4" style={{ background: brand.primary }}>
-        <div className="max-w-6xl mx-auto flex items-center justify-between gap-4">
+        <div className="max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-4">
           <div>
-            <p className="text-xs opacity-80">UC-LS-05 · UC-GR-07 SSE · SCR-PUBLIC-006</p>
             <h1 className="text-xl font-bold">{attrs?.title ?? 'Chi tiết sản phẩm'}</h1>
+            {attrs?.projectId && (
+              <Link
+                to={`/public/projects/${attrs.projectId}`}
+                className="text-sm underline opacity-90 mt-1 inline-block"
+              >
+                {attrs.projectName} →
+              </Link>
+            )}
           </div>
-          <Link to="/public/search" className="text-sm underline opacity-90">
-            ← Tìm kiếm
-          </Link>
-          <Link
-            to={`/public/recommendations?unitId=${encodeURIComponent(unitId)}`}
-            className="text-sm underline opacity-90"
-          >
-            Gợi ý AI
-          </Link>
-          <Link
-            to={compareCount > 0 ? `/public/compare?ids=${compareIds.join(',')}` : '/public/compare'}
-            className="text-sm underline opacity-90"
-          >
-            So sánh{compareCount > 0 ? ` (${compareCount})` : ''}
-          </Link>
+          <div className="flex gap-4 text-sm">
+            <Link to="/public/search" className="underline opacity-90">
+              Tìm kiếm
+            </Link>
+            <Link to="/public/map" className="underline opacity-90">
+              Bản đồ
+            </Link>
+            <Link
+              to={compareCount > 0 ? `/public/compare?ids=${compareIds.join(',')}` : '/public/compare'}
+              className="underline opacity-90"
+            >
+              So sánh{compareCount > 0 ? ` (${compareCount})` : ''}
+            </Link>
+          </div>
         </div>
       </header>
 
@@ -173,13 +186,12 @@ export function PublicUnitDetailPage() {
         {attrs && (
           <div className="grid lg:grid-cols-[1fr_340px] gap-8 items-start">
             <div className="space-y-6">
-              <div className="aspect-video rounded-2xl overflow-hidden">
-                <ListingThumbnail
-                  url={attrs.thumbnailUrl}
-                  alt={attrs.title}
-                  className="aspect-video rounded-2xl w-full h-full"
-                />
-              </div>
+              <UnitGallery
+                unitId={unitId}
+                fallbackUrl={attrs.thumbnailUrl}
+                alt={attrs.title}
+                loadMedia={fetchUnitMedia}
+              />
 
               <div className="flex flex-wrap gap-2 items-center">
                 {attrs.verified && <VerifiedBadge />}
@@ -297,7 +309,7 @@ export function PublicUnitDetailPage() {
               </table>
             </div>
 
-            <aside className="lg:sticky lg:top-6">
+            <aside className="lg:sticky lg:top-6" id="contact-form">
               {thankYou ? (
                 <div
                   className="rounded-2xl p-6 space-y-3 text-center"
@@ -429,6 +441,38 @@ export function PublicUnitDetailPage() {
           </div>
         )}
       </main>
+
+      {attrs && !thankYou && (
+        <StickyContactBar
+          price={attrs.priceDisplay ?? attrs.basePrice}
+          onContact={() => setShowContactModal(true)}
+          holdHref={`/auth/login?portal=agent&unitId=${unitId}`}
+        />
+      )}
+
+      {showContactModal && detail && (
+        <ContactLeadModal
+          hit={{
+            id: detail.data.id,
+            listingId: detail.data.listingId,
+            attributes: {
+              code: attrs!.code,
+              projectName: attrs!.projectName,
+              projectId: attrs!.projectId,
+              basePrice: attrs!.basePrice,
+              bedrooms: attrs!.bedrooms,
+              area: attrs!.area,
+              title: attrs!.title,
+              verified: attrs!.verified,
+              thumbnailUrl: attrs!.thumbnailUrl ?? null,
+              city: attrs!.city,
+              district: attrs!.district,
+            },
+          }}
+          onClose={() => setShowContactModal(false)}
+          onSuccess={() => setShowContactModal(false)}
+        />
+      )}
     </div>
   );
 }

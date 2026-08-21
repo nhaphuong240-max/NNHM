@@ -11,13 +11,13 @@ describe('public-map.util', () => {
         bedrooms: 2,
         area: 72,
         floor: 12,
-        projectId: 'proj_sunrise',
+        projectId: 'prj_sunrise',
       },
       0,
     );
     expect(pin.unitId).toBe('un_01');
     expect(pin.heightM).toBeGreaterThan(10);
-    expect(pin.lat).toBeGreaterThan(10.7);
+    expect(pin.lat).toBeGreaterThan(20);
   });
 
   it('groups pins into buildings', () => {

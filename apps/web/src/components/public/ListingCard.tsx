@@ -38,7 +38,13 @@ export function ListingCard({ hit, onContact, compareSlot, layout = 'serp' }: Pr
         </Link>
         <div className="p-4 flex-1 flex flex-col gap-2">
           <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: brand.muted }}>
-            {a.projectName}
+            {a.projectId ? (
+              <Link to={`/public/projects/${a.projectId}`} className="no-underline hover:underline" style={{ color: brand.primary }}>
+                {a.projectName}
+              </Link>
+            ) : (
+              a.projectName
+            )}
             {location ? ` · ${location}` : ''}
           </p>
           <div className="flex flex-wrap items-center gap-2">
@@ -90,7 +96,14 @@ export function ListingCard({ hit, onContact, compareSlot, layout = 'serp' }: Pr
             {a.verified && <VerifiedBadge />}
           </div>
           <p className="text-sm" style={{ color: brand.muted }}>
-            {a.projectName} · {a.code} · {a.bedrooms} PN · {a.area}m²
+            {a.projectId ? (
+              <Link to={`/public/projects/${a.projectId}`} className="no-underline hover:underline" style={{ color: brand.primary }}>
+                {a.projectName}
+              </Link>
+            ) : (
+              a.projectName
+            )}
+            {' · '}{a.code} · {a.bedrooms} PN · {a.area}m²
             {location ? ` · ${location}` : ''}
           </p>
           <p className="text-xl font-bold" style={{ color: brand.primary }}>

@@ -11,6 +11,7 @@ export type SearchHit = {
   attributes: {
     code: string;
     projectName: string;
+    projectId?: string;
     basePrice: number;
     bedrooms: number;
     area: number;
@@ -65,6 +66,58 @@ export async function fetchSearchStats() {
   if (!res.ok) throw new Error(`Stats failed: ${res.status}`);
   return res.json() as Promise<{
     data: { totalListings: number; verifiedListings: number; lastIndexedAt: string | null };
+  }>;
+}
+
+export type ProjectDetailResponse = {
+  data: {
+    id: string;
+    attributes: {
+      name: string;
+      code: string;
+      city: string | null;
+      district: string | null;
+      unitCount: number;
+      verifiedCount: number;
+      minPrice: number;
+      maxPrice: number;
+      mapCenter: { lat: number; lng: number; label: string };
+    };
+    listings: SearchHit[];
+  };
+};
+
+export async function fetchProjectDetail(projectId: string) {
+  const res = await fetch(`${API_BASE}/search/projects/${encodeURIComponent(projectId)}`, {
+    headers: { 'X-Tenant-Id': DEFAULT_TENANT_ID },
+  });
+  if (!res.ok) throw new Error(`Project failed: ${res.status}`);
+  return res.json() as Promise<ProjectDetailResponse>;
+}
+
+export async function fetchSearchMap(projectId?: string) {
+  const qs = projectId ? `?projectId=${encodeURIComponent(projectId)}` : '';
+  const res = await fetch(`${API_BASE}/search/map${qs}`, {
+    headers: { 'X-Tenant-Id': DEFAULT_TENANT_ID },
+  });
+  if (!res.ok) throw new Error(`Map failed: ${res.status}`);
+  return res.json() as Promise<{
+    data: {
+      center: { lat: number; lng: number; label: string };
+      pins: (MapPin & { thumbnailUrl?: string | null; verified?: boolean; listingId?: string })[];
+      buildings?: MapBuilding[];
+      mode: string;
+    };
+  }>;
+}
+
+export async function fetchUnitMedia(unitId: string) {
+  const res = await fetch(`${API_BASE}/search/units/${encodeURIComponent(unitId)}/media`, {
+    headers: { 'X-Tenant-Id': DEFAULT_TENANT_ID },
+  });
+  if (!res.ok) throw new Error(`Media failed: ${res.status}`);
+  return res.json() as Promise<{
+    data: { id: string; attributes: { url: string; isCover: boolean; mimeType: string } }[];
   }>;
 }
 
@@ -1460,6 +1513,7 @@ export async function simulateBnplPartnerWebhook(input: {
 
 export type MapPin = {
   unitId: string;
+  listingId?: string;
   code: string;
   label: string;
   lat: number;
@@ -1471,6 +1525,9 @@ export type MapPin = {
   tower: string;
   floor: number;
   heightM?: number;
+  thumbnailUrl?: string | null;
+  verified?: boolean;
+  projectId?: string | null;
 };
 
 export type MapBuilding = {
@@ -2343,6 +2400,7 @@ export type UnitDetail = {
     attributes: {
       code: string;
       projectName: string;
+      projectId?: string;
       title: string;
       description: string;
       highlights: string[];

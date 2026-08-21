@@ -1,5 +1,8 @@
+import { mapCenterForProject } from './project-centers';
+
 export type MapPin = {
   unitId: string;
+  listingId?: string;
   code: string;
   label: string;
   lat: number;
@@ -11,6 +14,9 @@ export type MapPin = {
   tower: string;
   floor: number;
   heightM: number;
+  thumbnailUrl?: string | null;
+  verified?: boolean;
+  projectId?: string | null;
 };
 
 export type MapBuilding = {
@@ -23,15 +29,7 @@ export type MapBuilding = {
   maxHeightM: number;
 };
 
-export const PROJECT_CENTERS: Record<
-  string,
-  { lat: number; lng: number; label: string }
-> = {
-  proj_sunrise: { lat: 10.7769, lng: 106.7009, label: 'Sunrise Tower · Q2 HCMC' },
-  default: { lat: 10.7769, lng: 106.7009, label: 'Sunrise Tower · Q2 HCMC' },
-};
-
-/** Geo placement from project center + floor/tower grid (production coords registry). */
+/** Geo placement from project center + floor/tower grid. */
 export function unitToMapPin(
   input: {
     id: string;
@@ -43,15 +41,19 @@ export function unitToMapPin(
     floor: number | null;
     buildingId?: string | null;
     projectId?: string | null;
+    thumbnailUrl?: string | null;
+    verified?: boolean;
+    listingId?: string;
   },
   index: number,
 ): MapPin {
-  const center = PROJECT_CENTERS[input.projectId ?? 'default'] ?? PROJECT_CENTERS.default;
-  const tower = input.buildingId ?? 'tower_a';
+  const center = mapCenterForProject(input.projectId);
+  const tower = input.buildingId ?? input.projectId ?? 'tower_a';
   const towerOffset = tower.charCodeAt(tower.length - 1) % 5;
   const floor = input.floor ?? 1;
   return {
     unitId: input.id,
+    listingId: input.listingId,
     code: input.code,
     label: `${input.code} · ${input.bedrooms}PN · F${floor}`,
     lat: center.lat + towerOffset * 0.0014 + (index % 4) * 0.0003,
@@ -63,6 +65,9 @@ export function unitToMapPin(
     tower,
     floor,
     heightM: Math.max(12, floor * 3.2),
+    thumbnailUrl: input.thumbnailUrl,
+    verified: input.verified,
+    projectId: input.projectId,
   };
 }
 
@@ -89,6 +94,4 @@ export function groupBuildingsFromPins(pins: MapPin[]): MapBuilding[] {
   return [...map.values()];
 }
 
-export function mapCenterForProject(projectId?: string | null) {
-  return PROJECT_CENTERS[projectId ?? 'default'] ?? PROJECT_CENTERS.default;
-}
+export { mapCenterForProject, PROJECT_CENTERS } from './project-centers';

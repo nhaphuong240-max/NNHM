@@ -1,7 +1,15 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { ListingMediaEntity } from '../../database/entities/listing-media.entity';
+import { ProjectEntity } from '../../database/entities/project.entity';
 import { SearchIndexDocEntity } from '../../database/entities/search-index-doc.entity';
+import {
+  groupBuildingsFromPins,
+  mapCenterForProject,
+  unitToMapPin,
+} from '../portal/public-map.util';
+import { mapDocToSearchHit } from './search-doc.mapper';
 import { SearchIndexService } from './search-index.service';
 import { rankRecommendations } from './search-recommend.util';
 
@@ -30,6 +38,10 @@ export class SearchService {
   constructor(
     @InjectRepository(SearchIndexDocEntity)
     private readonly indexDocs: Repository<SearchIndexDocEntity>,
+    @InjectRepository(ProjectEntity)
+    private readonly projects: Repository<ProjectEntity>,
+    @InjectRepository(ListingMediaEntity)
+    private readonly listingMedia: Repository<ListingMediaEntity>,
     private readonly searchIndex: SearchIndexService,
   ) {}
 
@@ -75,22 +87,7 @@ export class SearchService {
 
     const status = await this.searchIndex.getStatus(query.tenantId);
 
-    const data = rows.map((doc) => ({
-      id: doc.id,
-      listingId: doc.listingId,
-      attributes: {
-        code: doc.code,
-        projectName: doc.projectName,
-        basePrice: Number(doc.basePrice),
-        bedrooms: doc.bedrooms,
-        area: Number(doc.area),
-        title: doc.title,
-        verified: doc.verified,
-        thumbnailUrl: doc.thumbnailUrl,
-        city: doc.city,
-        district: doc.district,
-      },
-    }));
+    const data = rows.map((doc) => mapDocToSearchHit(doc));
 
     return {
       data,
@@ -167,6 +164,116 @@ export class SearchService {
 
   indexStatus(tenantId: string) {
     return this.searchIndex.getStatus(tenantId);
+  }
+
+  /** P2 — public project page: listings + price range */
+  async getProjectDetail(tenantId: string, projectId: string) {
+    const project = await this.projects.findOne({ where: { id: projectId, tenantId } });
+    if (!project) {
+      throw new NotFoundException({ detail: `Project ${projectId} not found` });
+    }
+
+    const docs = await this.indexDocs
+      .createQueryBuilder('doc')
+      .where('doc.tenant_id = :tenantId', { tenantId })
+      .andWhere("doc.detail->>'projectId' = :projectId", { projectId })
+      .orderBy('CAST(doc.base_price AS BIGINT)', 'ASC')
+      .getMany();
+
+    const prices = docs.map((d) => Number(d.basePrice));
+    const minPrice = prices.length ? Math.min(...prices) : 0;
+    const maxPrice = prices.length ? Math.max(...prices) : 0;
+    const center = mapCenterForProject(projectId);
+
+    return {
+      data: {
+        id: project.id,
+        attributes: {
+          name: project.name,
+          code: project.code,
+          city: project.city,
+          district: project.district,
+          unitCount: docs.length,
+          verifiedCount: docs.filter((d) => d.verified).length,
+          minPrice,
+          maxPrice,
+          mapCenter: center,
+        },
+        listings: docs.map((doc) => mapDocToSearchHit(doc)),
+      },
+      meta: { tenantId, source: 'search-index', screen: 'SCR-PUBLIC-007' },
+    };
+  }
+
+  /** P2 — map pins from published search index */
+  async getMapFromIndex(tenantId: string, projectId?: string) {
+    const qb = this.indexDocs
+      .createQueryBuilder('doc')
+      .where('doc.tenant_id = :tenantId', { tenantId })
+      .orderBy('doc.code', 'ASC')
+      .take(60);
+
+    if (projectId?.trim()) {
+      qb.andWhere("doc.detail->>'projectId' = :projectId", { projectId: projectId.trim() });
+    }
+
+    const docs = await qb.getMany();
+    const pins = docs.map((doc, idx) =>
+      unitToMapPin(
+        {
+          id: doc.id,
+          code: doc.code,
+          basePrice: Number(doc.basePrice),
+          status: doc.detail.unitStatus,
+          bedrooms: doc.bedrooms,
+          area: Number(doc.area),
+          floor: doc.detail.floor,
+          projectId: doc.detail.projectId,
+          thumbnailUrl: doc.thumbnailUrl,
+          verified: doc.verified,
+          listingId: doc.listingId,
+        },
+        idx,
+      ),
+    );
+
+    const center = mapCenterForProject(projectId ?? docs[0]?.detail.projectId);
+
+    return {
+      data: {
+        projectId: projectId ?? null,
+        center: { lat: center.lat, lng: center.lng, label: center.label },
+        pins,
+        buildings: groupBuildingsFromPins(pins),
+        mode: 'search-index-listings',
+      },
+      meta: { tenantId, count: pins.length, uc: ['UC-UX-06'], screen: 'SCR-PUBLIC-003' },
+    };
+  }
+
+  /** P2 — gallery media for published unit listing */
+  async getUnitMedia(tenantId: string, unitId: string) {
+    const doc = await this.indexDocs.findOne({ where: { id: unitId, tenantId } });
+    if (!doc) {
+      throw new NotFoundException({ detail: `Published listing for unit ${unitId} not found` });
+    }
+
+    const rows = await this.listingMedia.find({
+      where: { tenantId, listingId: doc.listingId },
+      order: { sortOrder: 'ASC', createdAt: 'ASC' },
+    });
+
+    return {
+      data: rows.map((row) => ({
+        id: row.id,
+        attributes: {
+          url: `/api/v1/listings/${doc.listingId}/media/${row.id}/file`,
+          isCover: row.isCover,
+          mimeType: row.mimeType,
+        },
+      })),
+      meta: { unitId, listingId: doc.listingId, count: rows.length },
+    };
   }
 
   /** UC-AI-06 · GET /search/recommendations — buyer-product matching stub */

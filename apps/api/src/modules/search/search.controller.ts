@@ -56,6 +56,45 @@ export class SearchController {
     return this.search.searchStats(resolveTenantId(this.config, undefined, tenantHeader));
   }
 
+  /** P2 — map pins from search index listings */
+  @Public()
+  @Get('map')
+  searchMap(
+    @Headers('x-tenant-id') tenantHeader: string | undefined,
+    @Query('projectId') projectId?: string,
+  ) {
+    return this.search.getMapFromIndex(
+      resolveTenantId(this.config, undefined, tenantHeader),
+      projectId,
+    );
+  }
+
+  /** P2 — developer project page aggregate */
+  @Public()
+  @Get('projects/:projectId')
+  getProjectDetail(
+    @Headers('x-tenant-id') tenantHeader: string | undefined,
+    @Param('projectId') projectId: string,
+  ) {
+    return this.search.getProjectDetail(
+      resolveTenantId(this.config, undefined, tenantHeader),
+      projectId,
+    );
+  }
+
+  /** P2 — unit listing gallery */
+  @Public()
+  @Get('units/:unitId/media')
+  getUnitMedia(
+    @Headers('x-tenant-id') tenantHeader: string | undefined,
+    @Param('unitId') unitId: string,
+  ) {
+    return this.search.getUnitMedia(
+      resolveTenantId(this.config, undefined, tenantHeader),
+      unitId,
+    );
+  }
+
   /** UC-AI-06 · SCR-PUBLIC-003 buyer-product matching */
   @Public()
   @Get('recommendations')

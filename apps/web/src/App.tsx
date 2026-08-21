@@ -47,6 +47,7 @@ import { AgentAiReplyPage } from './pages/agent/AgentAiReplyPage';
 import { AgentInboxPage } from './pages/agent/AgentInboxPage';
 import { PublicChatPage } from './pages/public/PublicChatPage';
 import { PublicMapPage } from './pages/public/PublicMapPage';
+import { PublicProjectPage } from './pages/public/PublicProjectPage';
 import { AuthSsoPage } from './pages/auth/AuthSsoPage';
 import { AuthSsoCallbackPage } from './pages/auth/AuthSsoCallbackPage';
 import { AdminWhitelabelPage } from './pages/admin/AdminWhitelabelPage';
@@ -91,6 +92,7 @@ export default function App() {
       <Route path="/public/recommendations" element={<PublicRecommendationsPage />} />
       <Route path="/public/chat" element={<PublicChatPage />} />
       <Route path="/public/map" element={<PublicMapPage />} />
+      <Route path="/public/projects/:projectId" element={<PublicProjectPage />} />
       <Route path="/public/compare" element={<PublicComparePage />} />
       <Route path="/public/units/:unitId" element={<PublicUnitDetailPage />} />
       <Route path="/finance/login" element={<FinanceLoginPage />} />
