@@ -55,11 +55,8 @@ export function PublicHomePage() {
 
       <section className="px-4 py-12 lg:py-16" style={{ background: brand.primary, color: '#fff' }}>
         <div className="max-w-6xl mx-auto">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.18em]" style={{ color: brand.hover }}>
+          <h1 className="text-3xl lg:text-5xl font-extrabold tracking-tight max-w-2xl">
             Ngôi Nhà Hôm Nay
-          </p>
-          <h1 className="mt-3 text-3xl lg:text-5xl font-extrabold tracking-tight max-w-2xl">
-            Tìm nhà đáng tin
           </h1>
           <p className="mt-3 max-w-xl text-sm opacity-85">
             Giá Golden Record · so sánh căn · giữ chỗ. Bắt đầu bằng khu vực hoặc dự án.
