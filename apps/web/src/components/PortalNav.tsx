@@ -12,7 +12,7 @@ function NavItem({ to, label, onNavigate }: PortalNavLink & { onNavigate?: () =>
       onClick={onNavigate}
       className={({ isActive }) =>
         `block rounded-xl px-3 py-2 text-sm font-medium transition-colors ${
-          isActive ? 'text-white' : 'opacity-90 hover:opacity-100'
+          isActive ? 'text-white' : 'nnhn-nav-idle opacity-90 hover:opacity-100'
         }`
       }
       style={({ isActive }) =>

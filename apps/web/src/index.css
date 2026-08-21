@@ -1,14 +1,15 @@
 @import "tailwindcss";
 
 :root {
-  --brand-primary: #0b3a5b;
-  --brand-primary-dark: #072a42;
-  --brand-accent: #c4a35a;
+  --brand-primary: #17692f;
+  --brand-primary-dark: #0f4d22;
+  --brand-hover: #c7d9c9;
+  --brand-accent: #c7d9c9;
   --brand-muted: #5c6570;
-  --brand-border: #e4e0d8;
-  --brand-bg: #f6f3ee;
-  --brand-surface: #fffcf8;
-  --brand-success: #1b7a4a;
+  --brand-border: #d5dbd6;
+  --brand-bg: #ecefea;
+  --brand-surface: #ffffff;
+  --brand-success: #17692f;
   --brand-warning: #c45c12;
   --brand-destructive: #c0392b;
   --brand-ink: #12141a;
@@ -46,7 +47,7 @@ a {
 }
 
 :focus-visible {
-  outline: 2px solid var(--brand-accent);
+  outline: 2px solid var(--brand-primary);
   outline-offset: 2px;
 }
 
@@ -76,6 +77,10 @@ a {
 
 .wereal-input:focus {
   border-color: var(--brand-primary);
-  box-shadow: 0 0 0 3px rgba(11, 58, 91, 0.12);
+  box-shadow: 0 0 0 3px rgba(23, 105, 47, 0.16);
   outline: none;
+}
+
+.nnhn-nav-idle:hover {
+  background: var(--brand-hover);
 }

@@ -57,8 +57,8 @@ function portalTheme(portal: string | null): PortalTheme {
       };
     case 'admin':
       return {
-        accent: '#334155',
-        accentDark: '#334155',
+        accent: brand.primaryDark,
+        accentDark: brand.primaryDark,
         title: 'Admin / Ops Portal',
         subtitle: 'Moderation · IAM stub',
       };

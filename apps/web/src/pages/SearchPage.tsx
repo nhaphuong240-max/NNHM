@@ -1,15 +1,19 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
+import { PublicTopBar } from '../components/PublicTopBar';
 import { useCompareBasket } from '../hooks/useCompareBasket';
 import { searchUnits, type SearchHit } from '../lib/api';
 import { brand, formatPrice } from '../theme/tokens';
 
 export function SearchPage() {
+  const [params] = useSearchParams();
+  const q = params.get('q')?.trim() || undefined;
+  const intent = params.get('intent') || 'buy';
   const { ids: compareIds, add: addCompare, count: compareCount, max: compareMax } = useCompareBasket();
   const [compareMsg, setCompareMsg] = useState<string | null>(null);
-  const [bedrooms, setBedrooms] = useState<number | undefined>(2);
-  const [minPrice, setMinPrice] = useState<number | undefined>(3_000_000_000);
-  const [maxPrice, setMaxPrice] = useState<number | undefined>(4_500_000_000);
+  const [bedrooms, setBedrooms] = useState<number | undefined>(undefined);
+  const [minPrice, setMinPrice] = useState<number | undefined>(undefined);
+  const [maxPrice, setMaxPrice] = useState<number | undefined>(undefined);
   const [hits, setHits] = useState<SearchHit[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -18,7 +22,7 @@ export function SearchPage() {
     let active = true;
     setLoading(true);
     setError(null);
-    searchUnits({ bedrooms, minPrice, maxPrice })
+    searchUnits({ q, bedrooms, minPrice, maxPrice })
       .then((res) => {
         if (active) setHits(res.data);
       })
@@ -31,34 +35,24 @@ export function SearchPage() {
     return () => {
       active = false;
     };
-  }, [bedrooms, minPrice, maxPrice]);
+  }, [q, bedrooms, minPrice, maxPrice]);
+
+  const intentLabel = intent === 'rent' ? 'Thuê' : intent === 'project' ? 'Dự án' : 'Mua';
 
   return (
     <div className="min-h-screen" style={{ background: brand.background }}>
-      <header className="text-white px-4 py-5" style={{ background: brand.primaryDark }}>
-        <div className="max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em]" style={{ color: brand.accent }}>
-              WEREAL
-            </p>
-            <h1 className="text-2xl font-extrabold tracking-tight mt-1">Tìm căn hộ</h1>
-            <p className="text-sm opacity-75 mt-1">Giá Golden Record · so sánh · giữ chỗ</p>
-          </div>
-          <nav className="flex flex-wrap gap-2 text-sm">
-          <Link to="/" className="rounded-full px-3 py-1.5" style={{ background: 'rgba(255,255,255,0.12)' }}>
-            Trang chủ
-          </Link>
-          <Link to="/public/recommendations" className="rounded-full px-3 py-1.5" style={{ background: 'rgba(255,255,255,0.12)' }}>
-            Gợi ý AI
-          </Link>
-          <Link
-            to={compareCount > 0 ? `/public/compare?ids=${compareIds.join(',')}` : '/public/compare'}
-            className="rounded-full px-3 py-1.5 relative"
-            style={{ background: 'rgba(255,255,255,0.12)' }}
-          >
-            So sánh{compareCount > 0 ? ` (${compareCount})` : ''}
-          </Link>
-          </nav>
+      <PublicTopBar />
+      <header className="px-4 py-5" style={{ background: brand.surface, borderBottom: `1px solid ${brand.border}` }}>
+        <div className="max-w-6xl mx-auto">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em]" style={{ color: brand.muted }}>
+            {intentLabel}
+          </p>
+          <h1 className="text-2xl font-extrabold tracking-tight mt-1" style={{ color: brand.ink }}>
+            Tìm căn hộ
+          </h1>
+          <p className="text-sm mt-1" style={{ color: brand.muted }}>
+            {q ? `Kết quả cho “${q}”` : 'Giá Golden Record · so sánh · giữ chỗ'}
+          </p>
         </div>
       </header>
 
@@ -127,11 +121,17 @@ export function SearchPage() {
         </aside>
 
         <section className="flex-1 space-y-4">
-          <div className="flex justify-between text-sm" style={{ color: brand.muted }}>
+          <div className="flex justify-between text-sm gap-3" style={{ color: brand.muted }}>
             <span>
               {loading ? 'Đang tải…' : `${hits.length} căn · Verified Listing`}
             </span>
-            <span>API: GET /search/units</span>
+            <Link
+              to={compareCount > 0 ? `/public/compare?ids=${compareIds.join(',')}` : '/public/compare'}
+              className="font-medium"
+              style={{ color: brand.primary }}
+            >
+              So sánh{compareCount > 0 ? ` (${compareCount})` : ''}
+            </Link>
           </div>
 
           {error && (
@@ -161,7 +161,7 @@ export function SearchPage() {
               <Link to={`/public/units/${hit.id}`} className="grid sm:grid-cols-[180px_1fr] gap-4 p-4">
               <div
                 className="aspect-video rounded-lg flex items-center justify-center text-4xl"
-                style={{ background: '#E8F1F8' }}
+                style={{ background: brand.hover }}
               >
                 🏠
               </div>
@@ -171,7 +171,7 @@ export function SearchPage() {
                   {hit.attributes.verified && (
                     <span
                       className="text-xs font-bold px-2 py-0.5 rounded"
-                      style={{ background: '#DCFCE7', color: brand.success }}
+                      style={{ background: brand.hover, color: brand.success }}
                     >
                       Verified
                     </span>

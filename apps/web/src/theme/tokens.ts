@@ -1,29 +1,30 @@
-/** WEREAL design tokens v3 — luxury ops chrome */
+/** Ngôi Nhà Hôm Nay — green / paper */
 export const brand = {
-  primary: '#0B3A5B',
-  primaryLight: '#1A5A86',
-  primaryDark: '#072A42',
+  primary: '#17692F',
+  primaryLight: '#2A8644',
+  primaryDark: '#0F4D22',
   primaryForeground: '#FFFFFF',
-  secondary: '#E8F0F6',
-  accent: '#C4A35A',
-  accentSoft: '#F4EBD6',
+  hover: '#C7D9C9',
+  secondary: '#C7D9C9',
+  accent: '#C7D9C9',
+  accentSoft: '#C7D9C9',
   muted: '#5C6570',
-  border: '#E4E0D8',
-  background: '#F6F3EE',
-  surface: '#FFFcf8',
-  pageBg: '#F6F3EE',
-  success: '#1B7A4A',
+  border: '#D5DBD6',
+  background: '#ECEFEA',
+  surface: '#FFFFFF',
+  pageBg: '#ECEFEA',
+  success: '#17692F',
   warning: '#C45C12',
   destructive: '#C0392B',
   ink: '#12141A',
 } as const;
 
 export const semantic = {
-  verified: { bg: '#E4F5EA', text: '#166534', border: '#B7E0C4' },
+  verified: { bg: '#C7D9C9', text: '#17692F', border: '#C7D9C9' },
   hotLead: { bg: '#FBE8D8', text: '#9A3412', border: '#F2C9A8' },
-  available: { bg: '#E4F5EA', text: '#15803D', border: '#B7E0C4' },
-  sold: { bg: '#EEEBE6', text: '#475569', border: '#E4E0D8' },
-  pending: { bg: '#E4EEF6', text: '#1D4ED8', border: '#C5D8EA' },
+  available: { bg: '#C7D9C9', text: '#17692F', border: '#C7D9C9' },
+  sold: { bg: '#ECEFEA', text: '#475569', border: '#D5DBD6' },
+  pending: { bg: '#C7D9C9', text: '#17692F', border: '#C7D9C9' },
 } as const;
 
 export const layout = {
@@ -41,7 +42,7 @@ export const finance = {
 export const portalThemes = {
   developer: { header: brand.primaryDark, label: 'CĐT', mark: 'CĐT' },
   agent: { header: brand.primary, label: 'Agent', mark: 'AG' },
-  admin: { header: '#1A2330', label: 'Admin', mark: 'OPS' },
+  admin: { header: brand.primaryDark, label: 'Admin', mark: 'OPS' },
   finance: { header: finance.accentDark, label: 'Finance', mark: 'FIN' },
   buyer: { header: brand.primaryLight, label: 'Buyer', mark: 'KH' },
 } as const;

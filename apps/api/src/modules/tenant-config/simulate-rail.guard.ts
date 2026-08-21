@@ -4,7 +4,7 @@ import { resolveTenantId } from '../../common/resolve-tenant-id';
 import type { AuthUser } from '../identity/identity.types';
 import { RailResolverService } from './rail-resolver.service';
 
-/** Blocks POST */simulate* when tenant LIVE_RAILS.simulateEndpoints=false. */
+/** Blocks POST /simulate* when tenant LIVE_RAILS.simulateEndpoints=false. */
 @Injectable()
 export class SimulateRailGuard implements CanActivate {
   constructor(

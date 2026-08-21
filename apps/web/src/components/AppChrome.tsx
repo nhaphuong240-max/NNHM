@@ -83,7 +83,7 @@ export function AppChrome({
           </span>
           <span>
             <span className="block text-sm font-extrabold tracking-tight" style={{ color: brand.ink }}>
-              WEREAL
+              NNHN
             </span>
             <span className="block text-[11px]" style={{ color: brand.muted }}>
               {portalLabel}
