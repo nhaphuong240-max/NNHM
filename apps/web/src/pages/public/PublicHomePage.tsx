@@ -4,6 +4,7 @@ import { usePublicBrand } from '../../context/PublicBrandContext';
 import { ContactLeadModal } from '../../components/public/ContactLeadModal';
 import { EmiCalculator } from '../../components/public/EmiCalculator';
 import { HeroProjectStage } from '../../components/public/HeroProjectStage';
+import { HomeSearchDock, type SearchIntent } from '../../components/public/HomeSearchDock';
 import { ListingCard } from '../../components/public/ListingCard';
 import { PostPropertyCta } from '../../components/public/PostPropertyCta';
 import { PublicFooter } from '../../components/public/PublicFooter';
@@ -16,23 +17,11 @@ import { FEATURED_PROJECT_IDS, slideFromProject, type HeroSlide } from '../../li
 import { fetchProjectDetail, searchUnits, type SearchHit } from '../../lib/api';
 import { brand } from '../../theme/tokens';
 
-const INTENTS = [
-  { id: 'buy', label: 'Mua' },
-  { id: 'rent', label: 'Thuê' },
-  { id: 'project', label: 'Dự án' },
-] as const;
-
-const CITIES = [
-  { label: 'Hà Nội', q: 'Hà Nội' },
-  { label: 'TP.HCM', q: 'HCM' },
-  { label: 'Đà Nẵng', q: 'Đà Nẵng' },
-] as const;
-
 export function PublicHomePage() {
   const navigate = useNavigate();
   const publicBrand = usePublicBrand();
   const brandName = publicBrand?.displayName ?? 'Ngôi Nhà Hôm Nay';
-  const [intent, setIntent] = useState<(typeof INTENTS)[number]['id']>('buy');
+  const [intent, setIntent] = useState<SearchIntent>('buy');
   const [q, setQ] = useState('');
   const [picks, setPicks] = useState<SearchHit[]>([]);
   const [picksError, setPicksError] = useState<string | null>(null);
@@ -98,60 +87,15 @@ export function PublicHomePage() {
         index={heroIndex}
         onIndex={setHeroIndex}
         brandName={brandName}
-      >
-        <div className="flex gap-1 p-1">
-          {INTENTS.map((tab) => {
-            const active = intent === tab.id;
-            return (
-              <button
-                key={tab.id}
-                type="button"
-                className="flex-1 rounded-full px-3 py-2 text-sm font-semibold"
-                style={{
-                  background: active ? brand.primary : 'transparent',
-                  color: active ? '#fff' : brand.ink,
-                }}
-                onClick={() => setIntent(tab.id)}
-              >
-                {tab.label}
-              </button>
-            );
-          })}
-        </div>
-        <form onSubmit={onSubmit} className="flex flex-col sm:flex-row gap-2 p-2 pt-1">
-          <label className="sr-only" htmlFor="home-search">
-            Tìm khu vực, dự án
-          </label>
-          <input
-            id="home-search"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="Khu vực, dự án, chủ đầu tư"
-            className="flex-1 px-4 py-3 text-sm outline-none rounded-full"
-            style={{ color: brand.ink, background: brand.background }}
-          />
-          <button
-            type="submit"
-            className="px-6 py-3 text-sm font-bold text-white rounded-full"
-            style={{ background: brand.clay }}
-          >
-            Tìm kiếm
-          </button>
-        </form>
-        <div className="flex flex-wrap gap-2 px-3 pb-3">
-          {CITIES.map((city) => (
-            <button
-              key={city.label}
-              type="button"
-              className="rounded-full px-3 py-1 text-xs font-medium"
-              style={{ background: brand.hover, color: brand.primaryDark }}
-              onClick={() => goSearch(city.q)}
-            >
-              {city.label}
-            </button>
-          ))}
-        </div>
-      </HeroProjectStage>
+      />
+      <HomeSearchDock
+        intent={intent}
+        onIntent={setIntent}
+        q={q}
+        onQ={setQ}
+        onSubmit={onSubmit}
+        onCity={goSearch}
+      />
 
       <TrustStrip />
 

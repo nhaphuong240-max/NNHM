@@ -1,5 +1,4 @@
 import { Link } from 'react-router-dom';
-import type { ReactNode } from 'react';
 import { resolveMediaUrl } from '../../lib/media-cdn';
 import type { HeroSlide } from '../../lib/featured-projects';
 import { brand, formatPrice } from '../../theme/tokens';
@@ -9,7 +8,6 @@ type Props = {
   index: number;
   onIndex: (i: number) => void;
   brandName: string;
-  children: ReactNode;
 };
 
 function Skyline({ art }: { art: HeroSlide['art'] }) {
@@ -66,11 +64,11 @@ function Skyline({ art }: { art: HeroSlide['art'] }) {
   );
 }
 
-export function HeroProjectStage({ slides, index, onIndex, brandName, children }: Props) {
+export function HeroProjectStage({ slides, index, onIndex, brandName }: Props) {
   const slide = slides[index];
 
   return (
-    <section className="relative min-h-[78vh] overflow-hidden" data-testid="hero-project-stage">
+    <section className="relative min-h-[62vh] lg:min-h-[68vh] overflow-hidden pb-16" data-testid="hero-project-stage">
       {slides.length === 0 && (
         <>
           <Skyline art="tower" />
@@ -99,53 +97,53 @@ export function HeroProjectStage({ slides, index, onIndex, brandName, children }
         );
       })}
 
-      <div className="relative z-10 max-w-6xl mx-auto px-4 pt-10 pb-8 lg:pt-16 lg:pb-12 flex flex-col min-h-[78vh]">
+      <div className="relative z-10 max-w-6xl mx-auto px-4 pt-10 pb-6 lg:pt-14 flex flex-col min-h-[62vh] lg:min-h-[68vh]">
         <p className="nnhn-kicker" style={{ color: '#E8C4A8' }}>
           Dự án chủ đầu tư
         </p>
         <h1 className="nnhn-display text-3xl sm:text-4xl mt-3 text-white max-w-xl">{brandName}</h1>
 
-        {slide ? (
-          <div key={index} className="mt-8 max-w-xl text-white nnhn-hero-copy">
-            <p className="text-xs font-bold uppercase tracking-[0.18em] opacity-80">
-              {slide.developer} · {slide.code}
-            </p>
-            <p className="nnhn-display text-4xl sm:text-5xl lg:text-6xl mt-2">{slide.name}</p>
-            <p className="mt-4 text-sm sm:text-base leading-relaxed opacity-90 max-w-md">{slide.tagline}</p>
-            <p className="mt-3 text-sm opacity-80">
-              {[slide.district, slide.city].filter(Boolean).join(', ')}
-              {slide.unitCount > 0 ? ` · ${slide.unitCount} căn` : ''}
-              {slide.verifiedCount > 0 ? ` · ${slide.verifiedCount} Verified` : ''}
-            </p>
-            {slide.minPrice > 0 && (
-              <p className="nnhn-display text-2xl mt-4" style={{ color: '#E8C4A8' }}>
-                {formatPrice(slide.minPrice)}
-                {slide.maxPrice > slide.minPrice ? ` – ${formatPrice(slide.maxPrice)}` : ''}
+        <div className="mt-8 flex-1 grid lg:grid-cols-[1fr_auto] gap-8 items-end">
+          {slide ? (
+            <div key={index} className="max-w-xl text-white nnhn-hero-copy">
+              <p className="text-xs font-bold uppercase tracking-[0.18em] opacity-80">
+                {slide.developer} · {slide.code}
               </p>
-            )}
-            <Link
-              to={`/public/projects/${slide.id}`}
-              className="inline-flex mt-6 rounded-full px-5 py-2.5 text-sm font-bold no-underline"
-              style={{ background: brand.clay, color: '#fff' }}
-            >
-              Giới thiệu dự án
-            </Link>
-          </div>
-        ) : (
-          <p className="mt-8 max-w-md text-white/85 text-base leading-relaxed">
-            Tìm căn đã duyệt, so sánh giá thật, giữ chỗ trong 30 giây.
-          </p>
-        )}
+              <p className="nnhn-display text-4xl sm:text-5xl lg:text-[3.25rem] mt-2">{slide.name}</p>
+              <p className="mt-4 text-sm sm:text-base leading-relaxed opacity-90 max-w-md">{slide.tagline}</p>
+              <p className="mt-3 text-sm opacity-80">
+                {[slide.district, slide.city].filter(Boolean).join(', ')}
+                {slide.unitCount > 0 ? ` · ${slide.unitCount} căn` : ''}
+                {slide.verifiedCount > 0 ? ` · ${slide.verifiedCount} Verified` : ''}
+              </p>
+              {slide.minPrice > 0 && (
+                <p className="nnhn-display text-2xl mt-4" style={{ color: '#E8C4A8' }}>
+                  {formatPrice(slide.minPrice)}
+                  {slide.maxPrice > slide.minPrice ? ` – ${formatPrice(slide.maxPrice)}` : ''}
+                </p>
+              )}
+              <Link
+                to={`/public/projects/${slide.id}`}
+                className="inline-flex mt-6 rounded-full px-5 py-2.5 text-sm font-bold no-underline"
+                style={{ background: brand.clay, color: '#fff' }}
+              >
+                Giới thiệu dự án
+              </Link>
+            </div>
+          ) : (
+            <p className="max-w-md text-white/85 text-base leading-relaxed">
+              Tìm căn đã duyệt, so sánh giá thật, giữ chỗ trong 30 giây.
+            </p>
+          )}
 
-        <div className="mt-auto pt-10">
           {slides.length > 1 && (
-            <div className="flex flex-wrap gap-2 mb-4">
+            <div className="flex lg:flex-col flex-wrap gap-2">
               {slides.map((s, i) => (
                 <button
                   key={s.id}
                   type="button"
                   onClick={() => onIndex(i)}
-                  className="rounded-full px-3 py-1.5 text-xs font-semibold"
+                  className="rounded-full px-3 py-1.5 text-xs font-semibold text-left"
                   style={{
                     background: i === index ? 'rgba(255,252,247,0.95)' : 'rgba(255,252,247,0.14)',
                     color: i === index ? brand.primaryDark : '#F4EFE6',
@@ -156,7 +154,6 @@ export function HeroProjectStage({ slides, index, onIndex, brandName, children }
               ))}
             </div>
           )}
-          <div className="nnhn-search-pill nnhn-card p-2 sm:p-3 max-w-3xl">{children}</div>
         </div>
       </div>
     </section>
