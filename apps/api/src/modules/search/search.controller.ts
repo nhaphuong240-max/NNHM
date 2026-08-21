@@ -17,6 +17,8 @@ export class SearchController {
   searchUnits(
     @Headers('x-tenant-id') tenantHeader: string | undefined,
     @Query('q') q?: string,
+    @Query('district') district?: string,
+    @Query('city') city?: string,
     @Query('bedrooms') bedroomsRaw?: string,
     @Query('minPrice') minPriceRaw?: string,
     @Query('maxPrice') maxPriceRaw?: string,
@@ -31,6 +33,8 @@ export class SearchController {
     return this.search.searchUnits({
       tenantId: resolveTenantId(this.config, undefined, tenantHeader),
       q,
+      district,
+      city,
       bedrooms: parseNum(bedroomsRaw),
       minPrice: parseNum(minPriceRaw),
       maxPrice: parseNum(maxPriceRaw),
@@ -43,6 +47,13 @@ export class SearchController {
   @Get('index/status')
   indexStatus(@Headers('x-tenant-id') tenantHeader: string | undefined) {
     return this.search.indexStatus(resolveTenantId(this.config, undefined, tenantHeader));
+  }
+
+  /** P1 — verified listing counts for public trust strip */
+  @Public()
+  @Get('stats')
+  searchStats(@Headers('x-tenant-id') tenantHeader: string | undefined) {
+    return this.search.searchStats(resolveTenantId(this.config, undefined, tenantHeader));
   }
 
   /** UC-AI-06 · SCR-PUBLIC-003 buyer-product matching */

@@ -52,6 +52,16 @@ export class SearchIndexDocEntity {
   @Column({ type: 'boolean', default: false })
   verified!: boolean;
 
+  @Column({ type: 'varchar', length: 64, nullable: true })
+  city!: string | null;
+
+  @Index(['tenantId', 'district'])
+  @Column({ type: 'varchar', length: 64, nullable: true })
+  district!: string | null;
+
+  @Column({ name: 'thumbnail_url', type: 'varchar', length: 512, nullable: true })
+  thumbnailUrl!: string | null;
+
   @Column({ name: 'search_text', type: 'text' })
   searchText!: string;
 

@@ -1,4 +1,5 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcryptjs';
 import { createHash } from 'crypto';
@@ -24,6 +25,7 @@ import {
   LeadEntity,
   CrmActivityEntity,
   ListingEntity,
+  ListingMediaEntity,
   TrustDisputeEntity,
   AnchorTenantProfileEntity,
   AgentActivityEventEntity,
@@ -34,6 +36,7 @@ import {
   TenantConfigVersionEntity,
 } from './entities';
 import { TenantRlsService } from './tenant-rls.service';
+import { ensureMarketplaceSerpSeed } from './marketplace-serp.seed';
 
 const SEED_TENANT_ID = 'ten_dev_01';
 const SEED_AGENCY_TENANT_ID = 'ten_agency_01';
@@ -173,6 +176,8 @@ export class DatabaseSeedService implements OnModuleInit {
     private readonly documentAccessLogs: Repository<DocumentAccessLogEntity>,
     @InjectRepository(ListingEntity)
     private readonly listings: Repository<ListingEntity>,
+    @InjectRepository(ListingMediaEntity)
+    private readonly listingMedia: Repository<ListingMediaEntity>,
     @InjectRepository(TrustDisputeEntity)
     private readonly trustDisputes: Repository<TrustDisputeEntity>,
     @InjectRepository(AnchorTenantProfileEntity)
@@ -182,6 +187,7 @@ export class DatabaseSeedService implements OnModuleInit {
     @InjectRepository(TenantConfigVersionEntity)
     private readonly tenantConfigs: Repository<TenantConfigVersionEntity>,
     private readonly tenantRls: TenantRlsService,
+    private readonly config: ConfigService,
   ) {}
 
   async onModuleInit() {
@@ -214,6 +220,7 @@ export class DatabaseSeedService implements OnModuleInit {
     await this.ensureDocumentsDemo();
     await this.ensureCommissionSettlementDemo();
     await this.ensurePublishedListings();
+    await this.ensureMarketplaceSerpSeed();
     await this.ensureDuplicateListingSeed();
     await this.ensureAnomalyListingSeed();
     await this.ensureContractEsignDemo();
@@ -892,6 +899,25 @@ Ngày lập: 20/08/2026
       },
     ]);
     this.logger.log('Listing seed — 2 PUBLISHED listings (UC-LS-05 / SCR-PUBLIC-006)');
+  }
+
+  private async ensureMarketplaceSerpSeed() {
+    const mediaRoot = this.config.get<string>(
+      'LISTING_MEDIA_LOCAL_ROOT',
+      join(process.cwd(), 'uploads', 'listing-media'),
+    );
+    const created = await ensureMarketplaceSerpSeed({
+      tenantId: SEED_TENANT_ID,
+      sunriseProjectId: SEED_PROJECT_ID,
+      mediaRoot,
+      projects: this.projects,
+      units: this.units,
+      listings: this.listings,
+      media: this.listingMedia,
+    });
+    if (created > 0) {
+      this.logger.log(`P1 marketplace SERP seed — ${created} listing(s) with cover media`);
+    }
   }
 
   private async ensureDuplicateListingSeed() {

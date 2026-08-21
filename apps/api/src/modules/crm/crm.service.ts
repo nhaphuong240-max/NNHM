@@ -712,7 +712,8 @@ export class CrmService {
     source: string,
     consent?: CreateLeadInput['consent'],
   ): void {
-    const requiresPdpa = source === 'PUBLIC_FORM' || source === 'PUBLIC_UNIT_DETAIL';
+    const requiresPdpa =
+      source === 'PUBLIC_FORM' || source === 'PUBLIC_UNIT_DETAIL' || source === 'PUBLIC_SERP';
 
     if (consent?.marketing && !consent.privacyPolicyVersion?.trim()) {
       throw new UnprocessableEntityException({

@@ -8,6 +8,8 @@ import { rankRecommendations } from './search-recommend.util';
 export interface SearchUnitsQuery {
   tenantId: string;
   q?: string;
+  district?: string;
+  city?: string;
   bedrooms?: number;
   minPrice?: number;
   maxPrice?: number;
@@ -53,12 +55,22 @@ export class SearchService {
     if (query.q?.trim()) {
       qb.andWhere('doc.search_text ILIKE :q', { q: `%${query.q.trim().toLowerCase()}%` });
     }
+    if (query.district?.trim()) {
+      qb.andWhere('doc.district = :district', { district: query.district.trim() });
+    }
+    if (query.city?.trim()) {
+      qb.andWhere('doc.city = :city', { city: query.city.trim() });
+    }
 
     const rows = await qb.getMany();
 
     const bedroomCounts = new Map<number, number>();
+    const districtCounts = new Map<string, number>();
     for (const doc of rows) {
       bedroomCounts.set(doc.bedrooms, (bedroomCounts.get(doc.bedrooms) ?? 0) + 1);
+      if (doc.district) {
+        districtCounts.set(doc.district, (districtCounts.get(doc.district) ?? 0) + 1);
+      }
     }
 
     const status = await this.searchIndex.getStatus(query.tenantId);
@@ -74,7 +86,9 @@ export class SearchService {
         area: Number(doc.area),
         title: doc.title,
         verified: doc.verified,
-        thumbnailUrl: null,
+        thumbnailUrl: doc.thumbnailUrl,
+        city: doc.city,
+        district: doc.district,
       },
     }));
 
@@ -86,8 +100,26 @@ export class SearchService {
         indexLagMs: status.lagMs,
         facets: {
           bedrooms: [...bedroomCounts.entries()].map(([value, count]) => ({ value, count })),
+          districts: [...districtCounts.entries()].map(([value, count]) => ({ value, count })),
         },
       },
+    };
+  }
+
+  /** P1 — trust strip metrics for public homepage / SERP */
+  async searchStats(tenantId: string) {
+    const [total, verified, latest] = await Promise.all([
+      this.indexDocs.count({ where: { tenantId } }),
+      this.indexDocs.count({ where: { tenantId, verified: true } }),
+      this.indexDocs.findOne({ where: { tenantId }, order: { indexedAt: 'DESC' } }),
+    ]);
+    return {
+      data: {
+        totalListings: total,
+        verifiedListings: verified,
+        lastIndexedAt: latest?.indexedAt?.toISOString() ?? null,
+      },
+      meta: { tenantId, source: 'search-index' },
     };
   }
 
@@ -119,7 +151,9 @@ export class SearchService {
           unitStatus: doc.detail.unitStatus,
           verified: doc.verified,
           antiDriftStatus: doc.detail.antiDriftStatus,
-          thumbnailUrl: null,
+          thumbnailUrl: doc.thumbnailUrl,
+          city: doc.city,
+          district: doc.district,
         },
       },
       meta: {

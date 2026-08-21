@@ -1,28 +1,56 @@
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
+import { ContactLeadModal } from '../components/public/ContactLeadModal';
+import { DISTRICT_FILTERS, ListingCard } from '../components/public/ListingCard';
 import { PublicTopBar } from '../components/PublicTopBar';
 import { useCompareBasket } from '../hooks/useCompareBasket';
-import { searchUnits, type SearchHit } from '../lib/api';
-import { brand, formatPrice } from '../theme/tokens';
+import { fetchSearchStats, searchUnits, type SearchHit } from '../lib/api';
+import { brand } from '../theme/tokens';
+
+const PRICE_BUCKETS = [
+  { label: 'Tất cả', min: undefined, max: undefined },
+  { label: 'Dưới 3 tỷ', min: undefined, max: 3_000_000_000 },
+  { label: '3 – 4.5 tỷ', min: 3_000_000_000, max: 4_500_000_000 },
+  { label: '4.5 – 6 tỷ', min: 4_500_000_000, max: 6_000_000_000 },
+  { label: 'Trên 6 tỷ', min: 6_000_000_000, max: undefined },
+] as const;
 
 export function SearchPage() {
-  const [params] = useSearchParams();
+  const [params, setParams] = useSearchParams();
   const q = params.get('q')?.trim() || undefined;
   const intent = params.get('intent') || 'buy';
+  const districtParam = params.get('district') || undefined;
   const { ids: compareIds, add: addCompare, count: compareCount, max: compareMax } = useCompareBasket();
   const [compareMsg, setCompareMsg] = useState<string | null>(null);
   const [bedrooms, setBedrooms] = useState<number | undefined>(undefined);
   const [minPrice, setMinPrice] = useState<number | undefined>(undefined);
   const [maxPrice, setMaxPrice] = useState<number | undefined>(undefined);
+  const [district, setDistrict] = useState<string | undefined>(districtParam);
   const [hits, setHits] = useState<SearchHit[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [contactHit, setContactHit] = useState<SearchHit | null>(null);
+  const [leadToast, setLeadToast] = useState<string | null>(null);
+  const [stats, setStats] = useState<{ total: number; verified: number } | null>(null);
+
+  useEffect(() => {
+    setDistrict(districtParam);
+  }, [districtParam]);
+
+  useEffect(() => {
+    fetchSearchStats()
+      .then((res) => setStats({ total: res.data.totalListings, verified: res.data.verifiedListings }))
+      .catch(() => setStats(null));
+  }, []);
 
   useEffect(() => {
     let active = true;
     setLoading(true);
     setError(null);
-    searchUnits({ q, bedrooms, minPrice, maxPrice })
+    const city = district
+      ? DISTRICT_FILTERS.find((d) => d.label === district)?.city
+      : undefined;
+    searchUnits({ q, district, city, bedrooms, minPrice, maxPrice, limit: 50 })
       .then((res) => {
         if (active) setHits(res.data);
       })
@@ -35,7 +63,15 @@ export function SearchPage() {
     return () => {
       active = false;
     };
-  }, [q, bedrooms, minPrice, maxPrice]);
+  }, [q, district, bedrooms, minPrice, maxPrice]);
+
+  function applyDistrict(next: string | undefined) {
+    setDistrict(next);
+    const nextParams = new URLSearchParams(params);
+    if (next) nextParams.set('district', next);
+    else nextParams.delete('district');
+    setParams(nextParams, { replace: true });
+  }
 
   const intentLabel = intent === 'rent' ? 'Thuê' : intent === 'project' ? 'Dự án' : 'Mua';
 
@@ -53,6 +89,11 @@ export function SearchPage() {
           <p className="text-sm mt-1" style={{ color: brand.muted }}>
             {q ? `Kết quả cho “${q}”` : 'Giá Golden Record · so sánh · giữ chỗ'}
           </p>
+          {stats && stats.total > 0 && (
+            <p className="text-xs mt-2 font-medium" style={{ color: brand.primary }}>
+              {stats.verified} căn Verified · {stats.total} listing trên bảng hàng
+            </p>
+          )}
         </div>
       </header>
 
@@ -63,6 +104,31 @@ export function SearchPage() {
             style={{ background: brand.surface, border: `1px solid ${brand.border}` }}
           >
             <h2 className="font-semibold text-sm">Bộ lọc</h2>
+            <div>
+              <p className="text-xs font-medium mb-2" style={{ color: brand.muted }}>
+                Quận / khu vực
+              </p>
+              <label className="flex items-center gap-2 text-sm mb-1">
+                <input
+                  type="radio"
+                  name="district"
+                  checked={district === undefined}
+                  onChange={() => applyDistrict(undefined)}
+                />
+                Tất cả
+              </label>
+              {DISTRICT_FILTERS.map((d) => (
+                <label key={d.label} className="flex items-center gap-2 text-sm mb-1">
+                  <input
+                    type="radio"
+                    name="district"
+                    checked={district === d.label}
+                    onChange={() => applyDistrict(d.label)}
+                  />
+                  {d.label}
+                </label>
+              ))}
+            </div>
             <div>
               <p className="text-xs font-medium mb-2" style={{ color: brand.muted }}>
                 Phòng ngủ
@@ -92,30 +158,23 @@ export function SearchPage() {
               <p className="text-xs font-medium mb-2" style={{ color: brand.muted }}>
                 Giá (VND)
               </p>
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="radio"
-                  name="price"
-                  checked={minPrice === 3_000_000_000 && maxPrice === 4_500_000_000}
-                  onChange={() => {
-                    setMinPrice(3_000_000_000);
-                    setMaxPrice(4_500_000_000);
-                  }}
-                />
-                3 – 4.5 tỷ
-              </label>
-              <label className="flex items-center gap-2 text-sm mt-1">
-                <input
-                  type="radio"
-                  name="price"
-                  checked={minPrice === undefined && maxPrice === undefined}
-                  onChange={() => {
-                    setMinPrice(undefined);
-                    setMaxPrice(undefined);
-                  }}
-                />
-                Tất cả
-              </label>
+              {PRICE_BUCKETS.map((bucket) => {
+                const active = minPrice === bucket.min && maxPrice === bucket.max;
+                return (
+                  <label key={bucket.label} className="flex items-center gap-2 text-sm mb-1">
+                    <input
+                      type="radio"
+                      name="price"
+                      checked={active}
+                      onChange={() => {
+                        setMinPrice(bucket.min);
+                        setMaxPrice(bucket.max);
+                      }}
+                    />
+                    {bucket.label}
+                  </label>
+                );
+              })}
             </div>
           </div>
         </aside>
@@ -142,89 +201,77 @@ export function SearchPage() {
               {compareMsg}
             </div>
           )}
+          {leadToast && (
+            <div className="rounded-lg p-3 text-sm" style={{ background: brand.hover, color: brand.primaryDark }}>
+              {leadToast}
+            </div>
+          )}
 
           {!loading && hits.length === 0 && !error && (
             <div
               className="rounded-xl p-8 text-center text-sm"
               style={{ background: brand.surface, border: `1px solid ${brand.border}` }}
             >
-              Chưa có listing PUBLISHED. Chạy demo S2: PATCH unit → POST listing → approve.
+              Không có căn phù hợp. Thử bỏ bộ lọc hoặc chọn quận khác.
             </div>
           )}
 
           {hits.map((hit) => (
-            <article
+            <ListingCard
               key={hit.listingId ?? hit.id}
-              className="rounded-xl transition-shadow hover:shadow-md"
-              style={{ background: brand.surface, border: `1px solid ${brand.border}` }}
-            >
-              <Link to={`/public/units/${hit.id}`} className="grid sm:grid-cols-[180px_1fr] gap-4 p-4">
-              <div
-                className="aspect-video rounded-lg flex items-center justify-center text-4xl"
-                style={{ background: brand.hover }}
-              >
-                🏠
-              </div>
-              <div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <h3 className="font-semibold text-lg">{hit.attributes.title}</h3>
-                  {hit.attributes.verified && (
-                    <span
-                      className="text-xs font-bold px-2 py-0.5 rounded"
-                      style={{ background: brand.hover, color: brand.success }}
-                    >
-                      Verified
-                    </span>
-                  )}
-                </div>
-                <p className="text-sm mt-1" style={{ color: brand.muted }}>
-                  {hit.attributes.projectName} · {hit.attributes.code} · {hit.attributes.bedrooms}PN ·{' '}
-                  {hit.attributes.area}m²
-                </p>
-                <p className="text-xl font-bold mt-2" style={{ color: brand.primary }}>
-                  {formatPrice(hit.attributes.basePrice)}
-                </p>
-                <p className="text-xs mt-2 underline" style={{ color: brand.primary }}>
-                  Xem chi tiết & đăng ký tư vấn →
-                </p>
-              </div>
-              </Link>
-              <div className="px-4 pb-4 flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  disabled={compareIds.includes(hit.id)}
-                  className="rounded-lg border px-3 py-1.5 text-xs font-medium disabled:opacity-50"
-                  style={{
-                    borderColor: compareIds.includes(hit.id) ? brand.success : brand.primary,
-                    color: compareIds.includes(hit.id) ? brand.success : brand.primary,
-                  }}
-                  onClick={() => {
-                    const result = addCompare(hit.id);
-                    if (result.added) {
-                      setCompareMsg(`Đã thêm ${hit.attributes.code} vào so sánh (${result.ids.length}/${compareMax})`);
-                    } else if (result.full) {
-                      setCompareMsg(`Tối đa ${compareMax} căn — mở trang so sánh để gỡ bớt.`);
-                    } else {
-                      setCompareMsg(`${hit.attributes.code} đã có trong danh sách so sánh.`);
-                    }
-                  }}
-                >
-                  {compareIds.includes(hit.id) ? '✓ Đã thêm so sánh' : '+ Thêm so sánh'}
-                </button>
-                {compareCount >= 2 && (
-                  <Link
-                    to={`/public/compare?ids=${compareIds.join(',')}`}
-                    className="rounded-lg px-3 py-1.5 text-xs font-semibold text-white"
-                    style={{ background: brand.primaryDark }}
+              hit={hit}
+              onContact={() => setContactHit(hit)}
+              compareSlot={
+                <>
+                  <button
+                    type="button"
+                    disabled={compareIds.includes(hit.id)}
+                    className="rounded-lg border px-3 py-1.5 text-xs font-medium disabled:opacity-50"
+                    style={{
+                      borderColor: compareIds.includes(hit.id) ? brand.success : brand.primary,
+                      color: compareIds.includes(hit.id) ? brand.success : brand.primary,
+                    }}
+                    onClick={() => {
+                      const result = addCompare(hit.id);
+                      if (result.added) {
+                        setCompareMsg(
+                          `Đã thêm ${hit.attributes.code} vào so sánh (${result.ids.length}/${compareMax})`,
+                        );
+                      } else if (result.full) {
+                        setCompareMsg(`Tối đa ${compareMax} căn — mở trang so sánh để gỡ bớt.`);
+                      } else {
+                        setCompareMsg(`${hit.attributes.code} đã có trong danh sách so sánh.`);
+                      }
+                    }}
                   >
-                    Mở bảng so sánh
-                  </Link>
-                )}
-              </div>
-            </article>
+                    {compareIds.includes(hit.id) ? '✓ So sánh' : '+ So sánh'}
+                  </button>
+                  {compareCount >= 2 && (
+                    <Link
+                      to={`/public/compare?ids=${compareIds.join(',')}`}
+                      className="rounded-lg px-3 py-1.5 text-xs font-semibold text-white"
+                      style={{ background: brand.primaryDark }}
+                    >
+                      Bảng so sánh
+                    </Link>
+                  )}
+                </>
+              }
+            />
           ))}
         </section>
       </main>
+
+      {contactHit && (
+        <ContactLeadModal
+          hit={contactHit}
+          onClose={() => setContactHit(null)}
+          onSuccess={(leadId) => {
+            setContactHit(null);
+            setLeadToast(`Đã gửi yêu cầu tư vấn (#${leadId.slice(-6)}). Sale sẽ liên hệ sớm.`);
+          }}
+        />
+      )}
     </div>
   );
 }

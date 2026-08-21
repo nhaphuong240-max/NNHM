@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { randomUUID } from 'crypto';
 import { Repository } from 'typeorm';
 import { ListingEntity } from '../../database/entities/listing.entity';
+import { ListingMediaEntity } from '../../database/entities/listing-media.entity';
 import { ProjectEntity } from '../../database/entities/project.entity';
 import {
   SearchIndexDetail,
@@ -33,6 +34,8 @@ export class SearchIndexService {
     private readonly docs: Repository<SearchIndexDocEntity>,
     @InjectRepository(ListingEntity)
     private readonly listings: Repository<ListingEntity>,
+    @InjectRepository(ListingMediaEntity)
+    private readonly listingMedia: Repository<ListingMediaEntity>,
     @InjectRepository(UnitEntity)
     private readonly units: Repository<UnitEntity>,
     @InjectRepository(ProjectEntity)
@@ -122,6 +125,14 @@ export class SearchIndexService {
     }
 
     return published.length;
+  }
+
+  async countIndexablePublished(tenantId: string) {
+    const published = await this.listings.find({
+      where: { tenantId, status: 'PUBLISHED', antiDriftStatus: 'PASS' },
+      relations: { unit: true },
+    });
+    return published.filter((l) => l.unit && l.unit.status !== 'SOLD').length;
   }
 
   async getStatus(tenantId: string) {
@@ -228,9 +239,18 @@ export class SearchIndexService {
       projectId: unit.projectId,
     };
 
-    const searchText = [listing.title, unit.code, project?.name ?? '', listing.description]
+    const searchText = [
+      listing.title,
+      unit.code,
+      project?.name ?? '',
+      project?.city ?? '',
+      project?.district ?? '',
+      listing.description,
+    ]
       .join(' ')
       .toLowerCase();
+
+    const thumbnailUrl = await this.resolveCoverUrl(listing);
 
     const now = new Date();
     await this.docs.save({
@@ -244,10 +264,26 @@ export class SearchIndexService {
       bedrooms: unit.bedrooms,
       area: unit.area,
       verified: listing.verified,
+      city: project?.city ?? null,
+      district: project?.district ?? null,
+      thumbnailUrl,
       searchText,
       detail,
       indexedAt: now,
       updatedAt: now,
     });
+  }
+
+  private async resolveCoverUrl(listing: ListingEntity): Promise<string | null> {
+    const coverId = listing.mediaIds?.[0];
+    if (!coverId) {
+      const cover = await this.listingMedia.findOne({
+        where: { tenantId: listing.tenantId, listingId: listing.id, isCover: true },
+        order: { sortOrder: 'ASC' },
+      });
+      if (!cover) return null;
+      return `/api/v1/listings/${listing.id}/media/${cover.id}/file`;
+    }
+    return `/api/v1/listings/${listing.id}/media/${coverId}/file`;
   }
 }

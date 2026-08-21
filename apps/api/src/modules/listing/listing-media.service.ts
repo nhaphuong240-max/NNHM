@@ -213,6 +213,15 @@ export class ListingMediaService {
     return { row, target };
   }
 
+  /** P1 — public SERP/detail cover images for PUBLISHED listings only */
+  async getPublicFileStream(tenantId: string, listingId: string, mediaId: string) {
+    const listing = await this.ensureListing(tenantId, listingId);
+    if (listing.status !== 'PUBLISHED' || listing.antiDriftStatus === 'BLOCK') {
+      throw new NotFoundException({ detail: 'Media not available' });
+    }
+    return this.getFileStream(tenantId, listingId, mediaId);
+  }
+
   async deleteMedia(tenantId: string, listingId: string, mediaId: string, actorId?: string) {
     const row = await this.media.findOne({ where: { id: mediaId, tenantId, listingId } });
     if (!row) throw new NotFoundException({ detail: `Media ${mediaId} not found` });

@@ -17,6 +17,8 @@ export type SearchHit = {
     title: string;
     verified: boolean;
     thumbnailUrl: string | null;
+    city?: string | null;
+    district?: string | null;
   };
 };
 
@@ -26,27 +28,44 @@ export type SearchResponse = {
     count: number;
     facets?: {
       bedrooms?: { value: number; count: number }[];
+      districts?: { value: string; count: number }[];
     };
   };
 };
 
 export async function searchUnits(params: {
   q?: string;
+  district?: string;
+  city?: string;
   bedrooms?: number;
   minPrice?: number;
   maxPrice?: number;
+  limit?: number;
 }): Promise<SearchResponse> {
   const qs = new URLSearchParams();
   if (params.q) qs.set('q', params.q);
+  if (params.district) qs.set('district', params.district);
+  if (params.city) qs.set('city', params.city);
   if (params.bedrooms !== undefined) qs.set('bedrooms', String(params.bedrooms));
   if (params.minPrice !== undefined) qs.set('minPrice', String(params.minPrice));
   if (params.maxPrice !== undefined) qs.set('maxPrice', String(params.maxPrice));
+  if (params.limit !== undefined) qs.set('limit', String(params.limit));
 
   const res = await fetch(`${API_BASE}/search/units?${qs.toString()}`, {
     headers: { 'X-Tenant-Id': DEFAULT_TENANT_ID },
   });
   if (!res.ok) throw new Error(`Search failed: ${res.status}`);
   return res.json();
+}
+
+export async function fetchSearchStats() {
+  const res = await fetch(`${API_BASE}/search/stats`, {
+    headers: { 'X-Tenant-Id': DEFAULT_TENANT_ID },
+  });
+  if (!res.ok) throw new Error(`Stats failed: ${res.status}`);
+  return res.json() as Promise<{
+    data: { totalListings: number; verifiedListings: number; lastIndexedAt: string | null };
+  }>;
 }
 
 export type RecommendationHit = {
@@ -2335,6 +2354,9 @@ export type UnitDetail = {
       unitStatus: string;
       verified: boolean;
       antiDriftStatus: string;
+      thumbnailUrl?: string | null;
+      city?: string | null;
+      district?: string | null;
     };
   };
   meta: { tenantId: string; privacyPolicyVersion: string };
@@ -2373,6 +2395,7 @@ export async function submitLead(input: {
   consent: { privacyAccepted: boolean; marketing?: boolean; privacyPolicyVersion: string };
   utm?: Record<string, string>;
   campaignId?: string;
+  source?: 'PUBLIC_UNIT_DETAIL' | 'PUBLIC_SERP' | 'PUBLIC_FORM';
 }) {
   const res = await fetch(`${API_BASE}/leads`, {
     method: 'POST',
@@ -2382,7 +2405,7 @@ export async function submitLead(input: {
     },
     body: JSON.stringify({
       ...input,
-      source: 'PUBLIC_UNIT_DETAIL',
+      source: input.source ?? 'PUBLIC_UNIT_DETAIL',
     }),
   });
   if (!res.ok) {

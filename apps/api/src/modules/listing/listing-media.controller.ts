@@ -19,6 +19,7 @@ import type { Response } from 'express';
 import { createReadStream } from 'fs';
 import { ConfigService } from '@nestjs/config';
 import { resolveTenantId } from '../../common/resolve-tenant-id';
+import { Public } from '../identity/decorators/public.decorator';
 import { CurrentUser } from '../identity/decorators/current-user.decorator';
 import type { AuthUser } from '../identity/identity.types';
 import { ListingMediaService } from './listing-media.service';
@@ -135,6 +136,7 @@ export class ListingMediaController {
     );
   }
 
+  @Public()
   @Get(':mediaId/file')
   async downloadFile(
     @CurrentUser() user: AuthUser | undefined,
@@ -144,7 +146,9 @@ export class ListingMediaController {
     @Res({ passthrough: true }) res: Response,
   ) {
     const tenantId = resolveTenantId(this.config, user, tenantHeader);
-    const { row, target } = await this.media.getFileStream(tenantId, listingId, mediaId);
+    const { row, target } = user
+      ? await this.media.getFileStream(tenantId, listingId, mediaId)
+      : await this.media.getPublicFileStream(tenantId, listingId, mediaId);
     res.setHeader('Content-Type', row.mimeType);
     res.setHeader('Content-Disposition', `inline; filename="${row.fileName}"`);
     return new StreamableFile(createReadStream(target));

@@ -1,8 +1,10 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { ContactLeadModal } from '../../components/public/ContactLeadModal';
+import { ListingCard } from '../../components/public/ListingCard';
 import { PublicTopBar } from '../../components/PublicTopBar';
-import { searchUnits, type SearchHit } from '../../lib/api';
-import { brand, formatPrice } from '../../theme/tokens';
+import { fetchSearchStats, searchUnits, type SearchHit } from '../../lib/api';
+import { brand } from '../../theme/tokens';
 
 const INTENTS = [
   { id: 'buy', label: 'Mua' },
@@ -22,12 +24,16 @@ export function PublicHomePage() {
   const [q, setQ] = useState('');
   const [picks, setPicks] = useState<SearchHit[]>([]);
   const [picksError, setPicksError] = useState<string | null>(null);
+  const [contactHit, setContactHit] = useState<SearchHit | null>(null);
+  const [stats, setStats] = useState<{ total: number; verified: number } | null>(null);
 
   useEffect(() => {
     let active = true;
-    searchUnits({})
-      .then((res) => {
-        if (active) setPicks(res.data.slice(0, 6));
+    Promise.all([searchUnits({ limit: 6 }), fetchSearchStats()])
+      .then(([res, statRes]) => {
+        if (!active) return;
+        setPicks(res.data.slice(0, 6));
+        setStats({ total: statRes.data.totalListings, verified: statRes.data.verifiedListings });
       })
       .catch((e) => {
         if (active) setPicksError(e instanceof Error ? e.message : 'Không tải được gợi ý');
@@ -61,6 +67,11 @@ export function PublicHomePage() {
           <p className="mt-3 max-w-xl text-sm opacity-85">
             Giá Golden Record · so sánh căn · giữ chỗ. Bắt đầu bằng khu vực hoặc dự án.
           </p>
+          {stats && stats.total > 0 && (
+            <p className="mt-2 text-sm font-semibold" style={{ color: brand.hover }}>
+              {stats.verified}+ căn Verified · {stats.total} listing trên bảng hàng
+            </p>
+          )}
 
           <div className="mt-8 max-w-3xl">
             <div className="flex gap-1 mb-0">
@@ -130,7 +141,7 @@ export function PublicHomePage() {
               Gợi ý hôm nay
             </h2>
             <p className="text-sm mt-1" style={{ color: brand.muted }}>
-              Listing đã duyệt trên bảng hàng
+              Listing đã duyệt trên bảng hàng · có ảnh & Verified
             </p>
           </div>
           <Link to="/public/search" className="text-sm font-semibold" style={{ color: brand.primary }}>
@@ -152,36 +163,23 @@ export function PublicHomePage() {
 
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {picks.map((hit) => (
-            <article
+            <ListingCard
               key={hit.listingId ?? hit.id}
-              className="rounded-2xl overflow-hidden flex flex-col"
-              style={{ background: brand.surface, border: `1px solid ${brand.border}` }}
-            >
-              <div className="h-36" style={{ background: brand.hover }} />
-              <div className="p-4 flex-1 flex flex-col gap-2">
-                <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: brand.muted }}>
-                  {hit.attributes.projectName}
-                </p>
-                <h3 className="font-bold leading-snug">{hit.attributes.title}</h3>
-                <p className="text-sm" style={{ color: brand.muted }}>
-                  {hit.attributes.bedrooms} PN · {hit.attributes.area}m²
-                  {hit.attributes.verified ? ' · Verified' : ''}
-                </p>
-                <p className="text-lg font-extrabold mt-auto" style={{ color: brand.primary }}>
-                  {formatPrice(hit.attributes.basePrice)}
-                </p>
-                <Link
-                  to={`/public/units/${hit.id}`}
-                  className="mt-2 rounded-xl py-2.5 text-center text-sm font-bold text-white no-underline"
-                  style={{ background: brand.primary }}
-                >
-                  Liên hệ
-                </Link>
-              </div>
-            </article>
+              hit={hit}
+              layout="grid"
+              onContact={() => setContactHit(hit)}
+            />
           ))}
         </div>
       </main>
+
+      {contactHit && (
+        <ContactLeadModal
+          hit={contactHit}
+          onClose={() => setContactHit(null)}
+          onSuccess={() => setContactHit(null)}
+        />
+      )}
     </div>
   );
 }

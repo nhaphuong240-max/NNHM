@@ -24,6 +24,12 @@ export class ProjectEntity {
   @Column({ type: 'varchar', length: 255 })
   name!: string;
 
+  @Column({ type: 'varchar', length: 64, nullable: true })
+  city!: string | null;
+
+  @Column({ type: 'varchar', length: 64, nullable: true })
+  district!: string | null;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt!: Date;
 

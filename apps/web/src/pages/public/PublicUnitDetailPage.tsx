@@ -9,6 +9,8 @@ import {
   type UnitDetail,
 } from '../../lib/api';
 import { brand, formatPrice } from '../../theme/tokens';
+import { ListingThumbnail } from '../../components/public/ListingThumbnail';
+import { VerifiedBadge } from '../../components/public/VerifiedBadge';
 
 function statusLabel(status: string) {
   switch (status) {
@@ -171,22 +173,16 @@ export function PublicUnitDetailPage() {
         {attrs && (
           <div className="grid lg:grid-cols-[1fr_340px] gap-8 items-start">
             <div className="space-y-6">
-              <div
-                className="aspect-video rounded-2xl flex items-center justify-center text-6xl"
-                style={{ background: '#E8F1F8' }}
-              >
-                🏠
+              <div className="aspect-video rounded-2xl overflow-hidden">
+                <ListingThumbnail
+                  url={attrs.thumbnailUrl}
+                  alt={attrs.title}
+                  className="aspect-video rounded-2xl w-full h-full"
+                />
               </div>
 
               <div className="flex flex-wrap gap-2 items-center">
-                {attrs.verified && (
-                  <span
-                    className="text-xs font-bold px-2 py-1 rounded"
-                    style={{ background: '#DCFCE7', color: brand.success }}
-                  >
-                    ✓ Verified Listing
-                  </span>
-                )}
+                {attrs.verified && <VerifiedBadge />}
                 {live && (
                   <span
                     className="text-xs font-bold px-2 py-1 rounded text-white transition-all"
@@ -420,6 +416,13 @@ export function PublicUnitDetailPage() {
                   >
                     {submitting ? 'Đang gửi…' : 'Gửi yêu cầu tư vấn'}
                   </button>
+                  <Link
+                    to={`/auth/login?portal=agent&unitId=${unitId}`}
+                    className="block w-full rounded-xl py-3 font-semibold text-center no-underline"
+                    style={{ background: brand.hover, color: brand.primaryDark }}
+                  >
+                    Giữ chỗ (đăng nhập agent)
+                  </Link>
                 </form>
               )}
             </aside>
