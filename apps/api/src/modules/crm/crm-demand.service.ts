@@ -15,6 +15,7 @@ import { AuditService } from '../audit/audit.service';
 import { CrmService } from './crm.service';
 import { normalizePhone } from './phone.util';
 import { shouldMaskRegistrationPii, type RegistrationViewer } from './registration-abac.util';
+import { hasViewingSlotConflict } from './viewing-slot.util';
 
 const PROTECTION_DAYS = 30;
 
@@ -192,7 +193,23 @@ export class CrmDemandService {
     const row = await this.viewings.findOne({ where: { id: viewingId, tenantId } });
     if (!row) throw new NotFoundException({ detail: `Viewing ${viewingId} not found` });
 
-    if (input.status) row.status = input.status;
+    if (input.status === 'CONFIRMED') {
+      row.status = 'CONFIRMED';
+      if (!row.assignedTo && actorId) row.assignedTo = actorId;
+      const siblings = await this.viewings.find({
+        where: { tenantId, assignedTo: row.assignedTo ?? undefined },
+      });
+      const conflict = hasViewingSlotConflict(row, siblings.filter((v) => v.id !== row.id));
+      if (conflict) {
+        throwBusinessError(
+          BusinessErrorCode.VIEWING_SLOT_CONFLICT,
+          `Agent already has viewing ${conflict.id} at this slot`,
+          { conflictViewingId: conflict.id },
+        );
+      }
+    } else if (input.status) {
+      row.status = input.status;
+    }
     if (input.outcome) {
       if (!VIEWING_OUTCOMES.includes(input.outcome)) {
         throw new UnprocessableEntityException({ detail: 'Invalid viewing outcome' });
@@ -375,6 +392,29 @@ export class CrmDemandService {
       take: 50,
     });
     return { data: rows.map((row) => this.mapSavedSearch(row)) };
+  }
+
+  async viewingAvailability(
+    tenantId: string,
+    agentId: string,
+    from: string,
+    to: string,
+  ) {
+    const fromDt = new Date(from);
+    const toDt = new Date(to);
+    const rows = await this.viewings.find({
+      where: { tenantId, assignedTo: agentId },
+      order: { requestedSlot: 'ASC' },
+    });
+    const busy = rows
+      .filter((r) => r.requestedSlot && ['CONFIRMED', 'REQUESTED'].includes(r.status))
+      .filter((r) => r.requestedSlot! >= fromDt && r.requestedSlot! <= toDt)
+      .map((r) => ({
+        viewingId: r.id,
+        slot: r.requestedSlot!.toISOString(),
+        status: r.status,
+      }));
+    return { data: busy, meta: { agentId, from, to, count: busy.length } };
   }
 
   async deleteSavedSearch(tenantId: string, id: string, visitorId: string) {

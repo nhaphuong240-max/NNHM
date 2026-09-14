@@ -17,6 +17,11 @@ export class DemandPolicyService {
     private readonly audit: AuditService,
   ) {}
 
+  async resolvePayload(tenantId: string): Promise<TenantDemandPolicyPayload> {
+    const row = await this.policies.findOne({ where: { tenantId } });
+    return row?.payload ?? { ...DEFAULT_TENANT_DEMAND_POLICY };
+  }
+
   async getPolicy(tenantId: string) {
     const row = await this.policies.findOne({ where: { tenantId } });
     const payload = row?.payload ?? { ...DEFAULT_TENANT_DEMAND_POLICY };

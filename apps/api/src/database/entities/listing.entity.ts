@@ -11,6 +11,7 @@ import { UnitEntity } from './unit.entity';
 
 export type ListingStatus = 'DRAFT' | 'PENDING_REVIEW' | 'PUBLISHED' | 'REJECTED';
 export type AntiDriftStatus = 'PASS' | 'FLAG' | 'BLOCK';
+export type ListingTransactionType = 'sale' | 'rent' | 'project';
 
 @Entity({ name: 'listings' })
 export class ListingEntity {
@@ -53,6 +54,14 @@ export class ListingEntity {
 
   @Column({ type: 'boolean', default: false })
   verified!: boolean;
+
+  /** P0 FR-SRCH-006 — sale / rent / project for index tab filter */
+  @Column({ name: 'transaction_type', type: 'varchar', length: 16, default: 'sale' })
+  transactionType!: ListingTransactionType;
+
+  /** P0 FR-SRCH-009 — stale listing auto-pause timestamp */
+  @Column({ name: 'freshness_paused_at', type: 'timestamptz', nullable: true })
+  freshnessPausedAt!: Date | null;
 
   @Column({ name: 'reject_reason', type: 'text', nullable: true })
   rejectReason!: string | null;

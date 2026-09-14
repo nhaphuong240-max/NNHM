@@ -45,6 +45,22 @@ export class CrmDemandController {
     return this.demand.listViewings(resolveTenantId(this.config, user, tenantHeader));
   }
 
+  @Get('viewings/availability')
+  viewingAvailability(
+    @CurrentUser() user: AuthUser | undefined,
+    @Headers('x-tenant-id') tenantHeader: string | undefined,
+    @Query('agentId') agentId: string,
+    @Query('from') from: string,
+    @Query('to') to: string,
+  ) {
+    return this.demand.viewingAvailability(
+      resolveTenantId(this.config, user, tenantHeader),
+      agentId,
+      from,
+      to,
+    );
+  }
+
   @Patch('viewings/:viewingId')
   patchViewing(
     @CurrentUser() user: AuthUser | undefined,

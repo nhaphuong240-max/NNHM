@@ -27,12 +27,91 @@ export type SearchResponse = {
   data: SearchHit[];
   meta: {
     count: number;
+    zeroResult?: boolean;
+    suggestions?: {
+      label: string;
+      params: Record<string, unknown>;
+    }[];
     facets?: {
       bedrooms?: { value: number; count: number }[];
       districts?: { value: string; count: number }[];
     };
   };
 };
+
+export async function trackAnalyticsEvent(input: {
+  name: string;
+  visitorId?: string;
+  sessionId?: string;
+  payload?: Record<string, unknown>;
+}) {
+  await fetch(`${API_BASE}/analytics/events`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Tenant-Id': DEFAULT_TENANT_ID },
+    body: JSON.stringify({ ...input, source: 'web' }),
+  }).catch(() => undefined);
+}
+
+export async function fetchCrmToday() {
+  const res = await authFetch(`${API_BASE}/crm/today`);
+  if (!res.ok) throw new Error(`Today failed: ${res.status}`);
+  return res.json() as Promise<{
+    data: {
+      attributes: {
+        slaApplicable: boolean;
+        hotFirstTouchMinutes: number;
+        overdueCount: number;
+        hotCount: number;
+        queue: Array<Record<string, unknown>>;
+      };
+    };
+  }>;
+}
+
+export async function escalateHotLead(leadId: string, reason?: string) {
+  const res = await authFetch(`${API_BASE}/crm/sla/leads/${leadId}/escalate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ reason }),
+  });
+  if (!res.ok) throw new Error(`Escalate failed: ${res.status}`);
+  return res.json();
+}
+
+export async function openDealDispute(registrationId: string, summary?: string) {
+  const res = await authFetch(`${API_BASE}/disputes`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ registrationId, summary }),
+  });
+  if (!res.ok) throw new Error(`Dispute failed: ${res.status}`);
+  return res.json();
+}
+
+export async function requestSeekerOtp(phone: string, visitorId?: string) {
+  const res = await fetch(`${API_BASE}/auth/seeker/otp/request`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Tenant-Id': DEFAULT_TENANT_ID },
+    body: JSON.stringify({ phone, visitorId }),
+  });
+  if (!res.ok) throw new Error(`OTP request failed: ${res.status}`);
+  return res.json() as Promise<{ data: { challengeId: string; expiresIn: number } }>;
+}
+
+export async function verifySeekerOtp(input: {
+  challengeId: string;
+  code: string;
+  phone: string;
+  visitorId?: string;
+}) {
+  const res = await fetch(`${API_BASE}/auth/seeker/otp/verify`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Tenant-Id': DEFAULT_TENANT_ID },
+    body: JSON.stringify(input),
+  });
+  if (!res.ok) throw new Error(`OTP verify failed: ${res.status}`);
+  return res.json() as Promise<{ data: { accessToken: string; userId: string } }>;
+}
 
 export async function searchUnits(params: {
   q?: string;
@@ -42,6 +121,8 @@ export async function searchUnits(params: {
   minPrice?: number;
   maxPrice?: number;
   limit?: number;
+  transactionType?: 'sale' | 'rent' | 'project';
+  sort?: 'relevance' | 'newest' | 'price' | 'area' | 'verified_first';
 }): Promise<SearchResponse> {
   const qs = new URLSearchParams();
   if (params.q) qs.set('q', params.q);
@@ -51,6 +132,8 @@ export async function searchUnits(params: {
   if (params.minPrice !== undefined) qs.set('minPrice', String(params.minPrice));
   if (params.maxPrice !== undefined) qs.set('maxPrice', String(params.maxPrice));
   if (params.limit !== undefined) qs.set('limit', String(params.limit));
+  if (params.transactionType) qs.set('transactionType', params.transactionType);
+  if (params.sort) qs.set('sort', params.sort);
 
   const res = await fetch(`${API_BASE}/search/units?${qs.toString()}`, {
     headers: { 'X-Tenant-Id': DEFAULT_TENANT_ID },

@@ -1,7 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { AgentShell } from '../../components/AgentShell';
-import { fetchBookings, fetchHotConversion, fetchLeads, type LeadRecord } from '../../lib/api';
+import {
+  escalateHotLead,
+  fetchBookings,
+  fetchCrmToday,
+  fetchHotConversion,
+  fetchLeads,
+  type LeadRecord,
+} from '../../lib/api';
 import { getSession } from '../../lib/auth';
 import { brand } from '../../theme/tokens';
 import {
@@ -74,21 +81,47 @@ export function AgentHomePage() {
   const [hotResponseSlaMs, setHotResponseSlaMs] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [today, setToday] = useState<{
+    slaApplicable: boolean;
+    hotFirstTouchMinutes: number;
+    overdueCount: number;
+    queue: Array<{
+      id: string;
+      attributes: { fullName: string; phone: string };
+      countdownMs?: number | null;
+      overdue?: boolean;
+    }>;
+  } | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const [leadsRes, bookingsRes, hotRes] = await Promise.all([
+      const [leadsRes, bookingsRes, hotRes, todayRes] = await Promise.all([
         fetchLeads(),
         fetchBookings({ limit: 50 }).catch(() => ({ data: [], meta: { count: 0 } })),
         fetchHotConversion().catch(() => null),
+        fetchCrmToday().catch(() => null),
       ]);
       setLeads(leadsRes.data);
       setBookingCount(bookingsRes.data.length);
       if (hotRes?.data) {
         setHotConversionRate(hotRes.data.hotConversionRate);
         setHotResponseSlaMs(hotRes.data.hotResponseSlaMs);
+      }
+      if (todayRes?.data?.attributes) {
+        const a = todayRes.data.attributes;
+        setToday({
+          slaApplicable: a.slaApplicable,
+          hotFirstTouchMinutes: a.hotFirstTouchMinutes,
+          overdueCount: a.overdueCount,
+          queue: a.queue as Array<{
+            id: string;
+            attributes: { fullName: string; phone: string };
+            countdownMs?: number | null;
+            overdue?: boolean;
+          }>,
+        });
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Không tải dashboard');
@@ -158,6 +191,54 @@ export function AgentHomePage() {
 
       {!loading && !error && (
         <div className="space-y-8">
+          {today && (
+            <section
+              className="rounded-2xl p-5 space-y-4"
+              style={{ background: brand.accentSoft, border: `1px solid ${brand.accent}` }}
+            >
+              <div className="flex justify-between items-center">
+                <h2 className="font-semibold">Today — HOT ≤ {today.hotFirstTouchMinutes} phút</h2>
+                <span className="text-xs" style={{ color: brand.muted }}>
+                  {today.slaApplicable ? 'Giờ hành chính' : 'Ngoài giờ SLA (SLA_NOT_APPLICABLE)'}
+                </span>
+              </div>
+              {today.queue.length === 0 ? (
+                <p className="text-sm" style={{ color: brand.muted }}>
+                  Không có HOT trong hàng đợi.
+                </p>
+              ) : (
+                <ul className="space-y-2">
+                  {today.queue.slice(0, 5).map((row) => (
+                    <li
+                      key={row.id}
+                      className="flex items-center justify-between rounded-xl px-4 py-3 text-sm"
+                      style={{ background: brand.surface, border: `1px solid ${brand.border}` }}
+                    >
+                      <div>
+                        <p className="font-medium">{row.attributes.fullName}</p>
+                        <p className="text-xs" style={{ color: brand.muted }}>
+                          {row.attributes.phone}
+                          {row.countdownMs != null && (
+                            <> · còn {Math.max(0, Math.ceil(row.countdownMs / 60000))} phút</>
+                          )}
+                          {row.overdue && <> · <strong style={{ color: brand.destructive }}>Quá hạn</strong></>}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        className="text-xs font-semibold px-3 py-1.5 rounded-lg"
+                        style={{ background: brand.primary, color: '#fff' }}
+                        onClick={() => void escalateHotLead(row.id).then(() => load())}
+                      >
+                        Escalate
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+          )}
+
           <section className="grid grid-cols-2 lg:grid-cols-5 gap-4">
             <KpiCard label="Tổng lead" value={leads.length} hint={`${stats.newToday.length} cập nhật 24h`} />
             <KpiCard label="Hot lead" value={stats.hot.length} hint={`score ≥ ${HOT_SCORE_MIN}`} highlight />

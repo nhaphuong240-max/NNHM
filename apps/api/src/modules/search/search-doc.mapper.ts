@@ -16,6 +16,8 @@ export function mapDocToSearchHit(doc: SearchIndexDocEntity) {
       thumbnailUrl: doc.thumbnailUrl,
       city: doc.city,
       district: doc.district,
+      transactionType: doc.transactionType,
+      updatedAt: doc.updatedAt.toISOString(),
     },
   };
 }

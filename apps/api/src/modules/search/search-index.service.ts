@@ -14,6 +14,7 @@ import {
   SearchOutboxOperation,
 } from '../../database/entities/search-outbox.entity';
 import { UnitEntity } from '../../database/entities/unit.entity';
+import { assertIndexTransactionType } from './search-transaction-type.util';
 
 export type SearchIndexEnqueueInput = {
   tenantId: string;
@@ -219,7 +220,8 @@ export class SearchIndexService {
     return (
       listing.status === 'PUBLISHED' &&
       listing.antiDriftStatus !== 'BLOCK' &&
-      unit.status !== 'SOLD'
+      unit.status !== 'SOLD' &&
+      !listing.freshnessPausedAt
     );
   }
 
@@ -252,6 +254,7 @@ export class SearchIndexService {
 
     const thumbnailUrl = await this.resolveCoverUrl(listing);
 
+    const transactionType = assertIndexTransactionType(listing.transactionType, unit.id);
     const now = new Date();
     await this.docs.save({
       id: unit.id,
@@ -266,6 +269,7 @@ export class SearchIndexService {
       verified: listing.verified,
       city: project?.city ?? null,
       district: project?.district ?? null,
+      transactionType,
       thumbnailUrl,
       searchText,
       detail,

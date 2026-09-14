@@ -147,6 +147,24 @@ SRS mục 17: thiếu thì UAT sàn/CĐT thất bại dù code đẹp.
 
 Wire: `crm-demand.service` dùng `PHONE_INVALID`, `VIEWING_SLOT_INVALID`, ABAC org; `crm.service` dùng `PDPA_CONSENT_REQUIRED`.
 
+### 4.5 Wave P0 — đã code (14/09/2026)
+
+| Sprint | WP | Deliverable | Path |
+|---|---|---|---|
+| S1 | FR-SRCH-006 | `transactionType` index + API + FE tab | `search-index.service.ts`, `SearchPage.tsx`, migration `1758050000000` |
+| S1 | FR-SRCH-008 | Sort + zero-result suggestions | `search.service.ts`, `search-zero-result.util.ts` |
+| S1 | FR-SRCH-009 | Freshness pause job | `search-freshness.job.ts` |
+| S1 | FR-EVT-001 | Product analytics events | `product-analytics.service.ts`, `POST /analytics/events` |
+| S1 | FR-LEAD-003b | Routing persist DB | `crm-routing-rule.entity.ts`, `crm-routing.service.ts`, `lead-routing.service.ts` |
+| S2 | FR-IAM-SEEKER | OTP seeker + visitor merge | `seeker-auth.service.ts`, `POST /auth/seeker/otp/*` |
+| S2 | FR-SRCH-003b | Alert worker sandbox | `saved-search-alert.job.ts` |
+| S2 | FR-LEAD-008 | HOT 5-min SLA + Today | `crm-hot-sla.service.ts`, `GET /crm/today`, `POST /crm/sla/leads/:id/escalate` |
+| S3 | FR-VIEW-001b | Slot conflict + availability | `viewing-slot.util.ts`, `GET /viewings/availability` |
+| S3 | FR-DP-004 | Deal dispute workflow | `deal-dispute.service.ts`, `GET/POST /disputes` |
+| S3 | FR-DP-002b | Cooling-off nightly job | `deal-protection.job.ts` |
+
+Migration: `1758050000000-P0Beachhead.ts`. Chưa ship: map SDK thật (FR-SRCH-007), KPI pack đầy đủ §16, ZNS prod.
+
 ---
 
 ## 5. Wave P0 — 6 tuần, 3 sprint (chi tiết công việc)

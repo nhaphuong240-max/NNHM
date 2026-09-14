@@ -13,6 +13,10 @@ import {
 import { mapDocToSearchHit } from './search-doc.mapper';
 import { SearchIndexService } from './search-index.service';
 import { rankRecommendations } from './search-recommend.util';
+import { buildZeroResultSuggestions } from './search-zero-result.util';
+import type { SearchTransactionType } from './search-transaction-type.util';
+
+export type SearchSort = 'relevance' | 'newest' | 'price' | 'area' | 'verified_first';
 
 export interface SearchUnitsQuery {
   tenantId: string;
@@ -23,6 +27,8 @@ export interface SearchUnitsQuery {
   minPrice?: number;
   maxPrice?: number;
   limit?: number;
+  transactionType?: SearchTransactionType;
+  sort?: SearchSort;
 }
 
 export interface RecommendUnitsQuery {
@@ -63,8 +69,34 @@ export class SearchService {
     const qb = this.indexDocs
       .createQueryBuilder('doc')
       .where('doc.tenant_id = :tenantId', { tenantId: query.tenantId })
-      .orderBy('doc.updated_at', 'DESC')
       .take(limit);
+
+    if (query.transactionType) {
+      qb.andWhere('doc.transaction_type = :transactionType', {
+        transactionType: query.transactionType,
+      });
+    }
+
+    switch (query.sort ?? 'newest') {
+      case 'price':
+        qb.orderBy('CAST(doc.base_price AS BIGINT)', 'ASC');
+        break;
+      case 'area':
+        qb.orderBy('CAST(doc.area AS NUMERIC)', 'DESC');
+        break;
+      case 'verified_first':
+        qb.orderBy('doc.verified', 'DESC').addOrderBy('doc.updated_at', 'DESC');
+        break;
+      case 'relevance':
+        if (query.q?.trim()) {
+          qb.orderBy('doc.updated_at', 'DESC');
+        } else {
+          qb.orderBy('doc.updated_at', 'DESC');
+        }
+        break;
+      default:
+        qb.orderBy('doc.updated_at', 'DESC');
+    }
 
     if (query.bedrooms !== undefined) {
       qb.andWhere('doc.bedrooms = :bedrooms', { bedrooms: query.bedrooms });
@@ -100,12 +132,27 @@ export class SearchService {
 
     const data = rows.map((doc) => this.mapHit(doc));
 
+    const zeroResult = data.length === 0;
+    const suggestions = zeroResult ? buildZeroResultSuggestions(query) : [];
+
     return {
       data,
       meta: {
         count: data.length,
         source: 'search-index',
         indexLagMs: status.lagMs,
+        zeroResult,
+        suggestions: suggestions.map((s) => ({
+          label: s.label,
+          params: {
+            transactionType: s.query.transactionType,
+            district: s.query.district,
+            bedrooms: s.query.bedrooms,
+            minPrice: s.query.minPrice,
+            maxPrice: s.query.maxPrice,
+            q: s.query.q,
+          },
+        })),
         facets: {
           bedrooms: [...bedroomCounts.entries()].map(([value, count]) => ({ value, count })),
           districts: [...districtCounts.entries()].map(([value, count]) => ({ value, count })),

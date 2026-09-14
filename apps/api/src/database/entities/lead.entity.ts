@@ -114,6 +114,16 @@ export class LeadEntity {
   @Column({ name: 'last_activity_at', type: 'timestamptz', nullable: true })
   lastActivityAt!: Date | null;
 
+  /** P0 FR-LEAD-008 — HOT first-touch SLA */
+  @Column({ name: 'first_touch_at', type: 'timestamptz', nullable: true })
+  firstTouchAt!: Date | null;
+
+  @Column({ name: 'hot_sla_due_at', type: 'timestamptz', nullable: true })
+  hotSlaDueAt!: Date | null;
+
+  @Column({ name: 'hot_sla_breached', type: 'boolean', default: false })
+  hotSlaBreached!: boolean;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt!: Date;
 

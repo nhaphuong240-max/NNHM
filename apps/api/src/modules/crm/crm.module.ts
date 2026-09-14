@@ -23,12 +23,24 @@ import { CrmInboxService } from './crm-inbox.service';
 import { CrmRoutingController } from './crm-routing.controller';
 import { CrmRoutingService } from './crm-routing.service';
 import { TenantDemandPolicyEntity } from '../../database/entities/tenant-demand-policy.entity';
+import { CrmRoutingRuleEntity } from '../../database/entities/crm-routing-rule.entity';
+import { SlaBreachLogEntity } from '../../database/entities/sla-breach-log.entity';
+import { DealDisputeEntity } from '../../database/entities/deal-dispute.entity';
+import { DealDisputeEventEntity } from '../../database/entities/deal-dispute-event.entity';
+import { ListingEntity } from '../../database/entities/listing.entity';
+import { TenantEntity } from '../../database/entities/tenant.entity';
 import { CrmDemandPolicyController } from './crm-demand-policy.controller';
 import { CrmDemandController } from './crm-demand.controller';
 import { CrmDemandService } from './crm-demand.service';
 import { DemandPolicyService } from './demand-policy.service';
 import { CrmController } from './crm.controller';
 import { CrmService } from './crm.service';
+import { CrmHotSlaService } from './crm-hot-sla.service';
+import { CrmTodayController } from './crm-today.controller';
+import { DealDisputeService } from './deal-dispute.service';
+import { DealDisputeController } from './deal-dispute.controller';
+import { SavedSearchAlertJob } from './saved-search-alert.job';
+import { DealProtectionJob } from './deal-protection.job';
 
 @Module({
   imports: [
@@ -39,6 +51,12 @@ import { CrmService } from './crm.service';
       LeadRegistrationEntity,
       SavedSearchEntity,
       TenantDemandPolicyEntity,
+      CrmRoutingRuleEntity,
+      SlaBreachLogEntity,
+      DealDisputeEntity,
+      DealDisputeEventEntity,
+      ListingEntity,
+      TenantEntity,
       UserEntity,
       MetaLeadEventEntity,
       ZaloLeadEventEntity,
@@ -59,6 +77,8 @@ import { CrmService } from './crm.service';
     CrmInboxController,
     CrmDemandController,
     CrmDemandPolicyController,
+    CrmTodayController,
+    DealDisputeController,
   ],
   providers: [
     CrmService,
@@ -67,7 +87,11 @@ import { CrmService } from './crm.service';
     CrmInboxDeliveryService,
     CrmDemandService,
     DemandPolicyService,
+    CrmHotSlaService,
+    DealDisputeService,
+    SavedSearchAlertJob,
+    DealProtectionJob,
   ],
-  exports: [CrmService, CrmInboxService, DemandPolicyService],
+  exports: [CrmService, CrmInboxService, DemandPolicyService, CrmHotSlaService],
 })
 export class CrmModule {}

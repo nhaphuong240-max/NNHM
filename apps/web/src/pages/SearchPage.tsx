@@ -4,7 +4,14 @@ import { ContactLeadModal } from '../components/public/ContactLeadModal';
 import { DISTRICT_FILTERS, ListingCard } from '../components/public/ListingCard';
 import { PublicTopBar } from '../components/PublicTopBar';
 import { useCompareBasket } from '../hooks/useCompareBasket';
-import { fetchSearchStats, savePublicSearch, searchUnits, type SearchHit } from '../lib/api';
+import {
+  fetchSearchStats,
+  savePublicSearch,
+  searchUnits,
+  trackAnalyticsEvent,
+  type SearchHit,
+} from '../lib/api';
+import { intentToApiTransactionType } from '../lib/search-intent';
 import { getVisitorId } from '../lib/visitor';
 import { brand } from '../theme/tokens';
 
@@ -34,6 +41,10 @@ export function SearchPage() {
   const [leadToast, setLeadToast] = useState<string | null>(null);
   const [stats, setStats] = useState<{ total: number; verified: number } | null>(null);
   const [savedMsg, setSavedMsg] = useState<string | null>(null);
+  const [suggestions, setSuggestions] = useState<{ label: string; params: Record<string, unknown> }[]>(
+    [],
+  );
+  const [sort, setSort] = useState<'newest' | 'price' | 'verified_first'>('newest');
 
   useEffect(() => {
     setDistrict(districtParam);
@@ -52,9 +63,23 @@ export function SearchPage() {
     const city = district
       ? DISTRICT_FILTERS.find((d) => d.label === district)?.city
       : undefined;
-    searchUnits({ q, district, city, bedrooms, minPrice, maxPrice, limit: 50 })
+    const transactionType = intentToApiTransactionType(intent);
+    searchUnits({ q, district, city, bedrooms, minPrice, maxPrice, limit: 50, transactionType, sort })
       .then((res) => {
-        if (active) setHits(res.data);
+        if (active) {
+          setHits(res.data);
+          setSuggestions(res.meta.suggestions ?? []);
+          void trackAnalyticsEvent({
+            name: 'search_submitted',
+            visitorId: getVisitorId(),
+            payload: {
+              resultCount: res.meta.count,
+              zeroResult: res.meta.zeroResult ?? false,
+              intent,
+              transactionType,
+            },
+          });
+        }
       })
       .catch((e) => {
         if (active) setError(e instanceof Error ? e.message : 'Lỗi tải kết quả');
@@ -65,7 +90,7 @@ export function SearchPage() {
     return () => {
       active = false;
     };
-  }, [q, district, bedrooms, minPrice, maxPrice]);
+  }, [q, district, bedrooms, minPrice, maxPrice, intent, sort]);
 
   function applyDistrict(next: string | undefined) {
     setDistrict(next);
@@ -203,6 +228,20 @@ export function SearchPage() {
                 );
               })}
             </div>
+            <div>
+              <p className="text-xs font-medium mb-2" style={{ color: brand.muted }}>
+                Sắp xếp
+              </p>
+              <select
+                className="w-full rounded-lg border px-2 py-1.5 text-sm"
+                value={sort}
+                onChange={(e) => setSort(e.target.value as typeof sort)}
+              >
+                <option value="newest">Mới nhất</option>
+                <option value="price">Giá thấp → cao</option>
+                <option value="verified_first">Verified trước</option>
+              </select>
+            </div>
           </div>
         </aside>
 
@@ -236,10 +275,32 @@ export function SearchPage() {
 
           {!loading && hits.length === 0 && !error && (
             <div
-              className="rounded-xl p-8 text-center text-sm"
+              className="rounded-xl p-8 text-center text-sm space-y-4"
               style={{ background: brand.surface, border: `1px solid ${brand.border}` }}
             >
-              Không có căn phù hợp. Thử bỏ bộ lọc hoặc chọn quận khác.
+              <p>Không có căn phù hợp với bộ lọc hiện tại.</p>
+              {suggestions.length > 0 && (
+                <div className="flex flex-wrap justify-center gap-2">
+                  {suggestions.map((s) => (
+                    <button
+                      key={s.label}
+                      type="button"
+                      className="rounded-full px-4 py-2 text-xs font-medium"
+                      style={{ background: brand.accentSoft, color: brand.primaryDark }}
+                      onClick={() => {
+                        if (s.params.district === undefined) setDistrict(undefined);
+                        if (s.params.bedrooms === undefined) setBedrooms(undefined);
+                        if (s.params.minPrice !== undefined) setMinPrice(s.params.minPrice as number);
+                        else if (s.params.minPrice === undefined && s.label.includes('giá')) setMinPrice(undefined);
+                        if (s.params.maxPrice !== undefined) setMaxPrice(s.params.maxPrice as number);
+                        else if (s.params.maxPrice === undefined && s.label.includes('giá')) setMaxPrice(undefined);
+                      }}
+                    >
+                      {s.label}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 

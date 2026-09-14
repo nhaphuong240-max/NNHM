@@ -2,6 +2,8 @@ import { Controller, Get, Headers, Param, Query } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { resolveTenantId } from '../../common/resolve-tenant-id';
 import { Public } from '../identity/decorators/public.decorator';
+import { parseTransactionType } from './search-transaction-type.util';
+import type { SearchSort } from './search.service';
 import { SearchService } from './search.service';
 
 @Controller('search')
@@ -23,12 +25,17 @@ export class SearchController {
     @Query('minPrice') minPriceRaw?: string,
     @Query('maxPrice') maxPriceRaw?: string,
     @Query('limit') limitRaw?: string,
+    @Query('transactionType') transactionTypeRaw?: string,
+    @Query('sort') sortRaw?: string,
   ) {
     const parseNum = (v?: string) => {
       if (!v) return undefined;
       const n = Number.parseInt(v, 10);
       return Number.isFinite(n) ? n : undefined;
     };
+
+    const sortValues: SearchSort[] = ['relevance', 'newest', 'price', 'area', 'verified_first'];
+    const sort = sortValues.includes(sortRaw as SearchSort) ? (sortRaw as SearchSort) : undefined;
 
     return this.search.searchUnits({
       tenantId: resolveTenantId(this.config, undefined, tenantHeader),
@@ -39,6 +46,8 @@ export class SearchController {
       minPrice: parseNum(minPriceRaw),
       maxPrice: parseNum(maxPriceRaw),
       limit: parseNum(limitRaw),
+      transactionType: parseTransactionType(transactionTypeRaw),
+      sort,
     });
   }
 

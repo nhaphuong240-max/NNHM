@@ -2,6 +2,7 @@ import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { AgentShell } from '../../components/AgentShell';
 import {
   fetchLeadRegistrations,
+  openDealDispute,
   registerLeadCustomer,
   type LeadRegistrationRecord,
 } from '../../lib/api';
@@ -107,6 +108,7 @@ export function AgentRegistrationsPage() {
               <th className="p-3">Dự án</th>
               <th className="p-3">Bảo vệ đến</th>
               <th className="p-3">Trạng thái</th>
+              <th className="p-3">Dispute</th>
             </tr>
           </thead>
           <tbody>
@@ -123,6 +125,23 @@ export function AgentRegistrationsPage() {
                   {new Date(row.attributes.protectedUntil).toLocaleDateString('vi-VN')}
                 </td>
                 <td className="p-3 text-xs font-bold">{row.attributes.status}</td>
+                <td className="p-3">
+                  {row.attributes.fullName === '••••' && (
+                    <button
+                      type="button"
+                      className="text-xs font-semibold underline"
+                      style={{ color: brand.clay }}
+                      onClick={() =>
+                        void openDealDispute(row.id, 'Tranh chấp bảo vệ khách').then(() => {
+                          setToast('Đã mở dispute — Ops xử lý trong 5 ngày làm việc');
+                          void load();
+                        })
+                      }
+                    >
+                      Mở dispute
+                    </button>
+                  )}
+                </td>
               </tr>
             ))}
           </tbody>

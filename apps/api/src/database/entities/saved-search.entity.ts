@@ -34,6 +34,18 @@ export class SavedSearchEntity {
   @Column({ name: 'marketing_consent', type: 'boolean', default: false })
   marketingConsent!: boolean;
 
+  @Column({ name: 'user_id', type: 'varchar', length: 32, nullable: true })
+  userId!: string | null;
+
+  @Column({ name: 'alert_opt_out', type: 'boolean', default: false })
+  alertOptOut!: boolean;
+
+  @Column({ name: 'last_alert_at', type: 'timestamptz', nullable: true })
+  lastAlertAt!: Date | null;
+
+  @Column({ name: 'alerts_sent_today', type: 'int', default: 0 })
+  alertsSentToday!: number;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt!: Date;
 

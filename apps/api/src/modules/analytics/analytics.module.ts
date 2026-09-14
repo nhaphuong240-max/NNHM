@@ -10,8 +10,11 @@ import { PaymentIntentEntity } from '../../database/entities/payment-intent.enti
 import { UnitEntity } from '../../database/entities/unit.entity';
 import { ZaloLeadEventEntity } from '../../database/entities/zalo-lead-event.entity';
 import { ZaloZnsDeliveryEntity } from '../../database/entities/zalo-zns-delivery.entity';
+import { AnalyticsEventEntity } from '../../database/entities/analytics-event.entity';
 import { AnalyticsController } from './analytics.controller';
 import { AnalyticsService } from './analytics.service';
+import { ProductAnalyticsController } from './product-analytics.controller';
+import { ProductAnalyticsService } from './product-analytics.service';
 import { AgentWauService } from './agent-wau.service';
 import { DataIntelligenceService } from './data-intelligence.service';
 import { DataMartJob } from './data-mart.job';
@@ -42,13 +45,14 @@ import { TenantConfigModule } from '../tenant-config/tenant-config.module';
       DataMartDailyEntity,
       DataProductEntitlementEntity,
       TenantEntity,
+      AnalyticsEventEntity,
     ]),
     AiScoringModule,
     RedisModule,
     TenantConfigModule,
   ],
-  controllers: [AnalyticsController],
-  providers: [AnalyticsService, AgentWauService, DataIntelligenceService, DataMartJob],
-  exports: [AnalyticsService, AgentWauService, DataIntelligenceService],
+  controllers: [AnalyticsController, ProductAnalyticsController],
+  providers: [AnalyticsService, AgentWauService, DataIntelligenceService, DataMartJob, ProductAnalyticsService],
+  exports: [AnalyticsService, AgentWauService, DataIntelligenceService, ProductAnalyticsService],
 })
 export class AnalyticsModule {}

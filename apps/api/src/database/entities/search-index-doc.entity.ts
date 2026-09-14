@@ -59,6 +59,10 @@ export class SearchIndexDocEntity {
   @Column({ type: 'varchar', length: 64, nullable: true })
   district!: string | null;
 
+  @Index(['tenantId', 'transactionType'])
+  @Column({ name: 'transaction_type', type: 'varchar', length: 16, default: 'sale' })
+  transactionType!: 'sale' | 'rent' | 'project';
+
   @Column({ name: 'thumbnail_url', type: 'varchar', length: 512, nullable: true })
   thumbnailUrl!: string | null;
 

@@ -5,6 +5,7 @@ import { LeadScoringOutboxEntity } from '../../database/entities/lead-scoring-ou
 import { LeadEntity } from '../../database/entities/lead.entity';
 import { BookingEntity } from '../../database/entities/booking.entity';
 import { UserEntity } from '../../database/entities/user.entity';
+import { CrmRoutingRuleEntity } from '../../database/entities/crm-routing-rule.entity';
 import { AuditModule } from '../audit/audit.module';
 import { StreamModule } from '../stream/stream.module';
 import { AiEvalController } from './ai-eval.controller';
@@ -21,6 +22,7 @@ import { LeadScoringWorker } from './lead-scoring.worker';
       LeadScoringOutboxEntity,
       LeadEntity,
       UserEntity,
+      CrmRoutingRuleEntity,
       LeadConversionEventEntity,
       BookingEntity,
     ]),

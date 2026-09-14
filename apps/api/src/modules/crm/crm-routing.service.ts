@@ -1,6 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import {
+  CrmRoutingRuleEntity,
+  type CrmRoutingRulesPayload,
+} from '../../database/entities/crm-routing-rule.entity';
 import { UserEntity } from '../../database/entities/user.entity';
 import { AuditService } from '../audit/audit.service';
 
@@ -11,6 +15,8 @@ export type RoutingRules = {
   hotTierMinScore: number;
   strategy: RoutingStrategy;
   assignOnTier: 'HOT';
+  maxOpenLeads?: number;
+  skillTags?: string[];
 };
 
 const DEFAULT_RULES: RoutingRules = {
@@ -22,20 +28,47 @@ const DEFAULT_RULES: RoutingRules = {
 
 @Injectable()
 export class CrmRoutingService {
-  private rulesByTenant = new Map<string, RoutingRules>();
-
   constructor(
+    @InjectRepository(CrmRoutingRuleEntity)
+    private readonly ruleRows: Repository<CrmRoutingRuleEntity>,
     @InjectRepository(UserEntity)
     private readonly users: Repository<UserEntity>,
     private readonly audit: AuditService,
   ) {}
 
-  private rulesFor(tenantId: string): RoutingRules {
-    return this.rulesByTenant.get(tenantId) ?? { ...DEFAULT_RULES };
+  private toPayload(rules: RoutingRules): CrmRoutingRulesPayload {
+    return {
+      enabled: rules.enabled,
+      hotTierMinScore: rules.hotTierMinScore,
+      strategy: 'HOT_ROUND_ROBIN',
+      assignOnTier: 'HOT',
+      maxOpenLeads: rules.maxOpenLeads,
+      skillTags: rules.skillTags,
+    };
+  }
+
+  private fromPayload(payload: CrmRoutingRulesPayload): RoutingRules {
+    return {
+      enabled: payload.enabled,
+      hotTierMinScore: payload.hotTierMinScore,
+      strategy: 'HOT_ROUND_ROBIN',
+      assignOnTier: 'HOT',
+      maxOpenLeads: payload.maxOpenLeads,
+      skillTags: payload.skillTags,
+    };
+  }
+
+  async rulesFor(tenantId: string, projectId = ''): Promise<RoutingRules & { roundRobinCursor: number }> {
+    const row = await this.ruleRows.findOne({ where: { tenantId, projectId } });
+    if (!row) {
+      return { ...DEFAULT_RULES, roundRobinCursor: 0 };
+    }
+    const rules = this.fromPayload(row.rules);
+    return { ...rules, roundRobinCursor: row.rules.roundRobinCursor ?? 0 };
   }
 
   async getRules(tenantId: string) {
-    const rules = this.rulesFor(tenantId);
+    const rules = await this.rulesFor(tenantId);
     const agents = await this.users.find({
       where: { tenantId, role: 'AGENT', isActive: true },
       order: { email: 'ASC' },
@@ -49,10 +82,11 @@ export class CrmRoutingService {
             id: a.id,
             email: a.email,
             role: a.role,
+            organizationId: a.organizationId,
           })),
         },
       },
-      meta: { tenantId, uc: 'UC-CRM-02', screen: 'SCR-AGENT-015' },
+      meta: { tenantId, uc: 'UC-CRM-02', screen: 'SCR-AGENT-015', persisted: true },
     };
   }
 
@@ -60,8 +94,9 @@ export class CrmRoutingService {
     tenantId: string,
     patch: Partial<RoutingRules>,
     actorId?: string,
+    projectId = '',
   ) {
-    const current = this.rulesFor(tenantId);
+    const current = await this.rulesFor(tenantId, projectId);
     const next: RoutingRules = {
       ...current,
       ...patch,
@@ -73,7 +108,17 @@ export class CrmRoutingService {
       next.hotTierMinScore = DEFAULT_RULES.hotTierMinScore;
     }
 
-    this.rulesByTenant.set(tenantId, next);
+    const existing = await this.ruleRows.findOne({ where: { tenantId, projectId } });
+    const payload = this.toPayload(next);
+    payload.roundRobinCursor = existing?.rules.roundRobinCursor ?? 0;
+
+    await this.ruleRows.save({
+      tenantId,
+      projectId,
+      rules: payload,
+      enabled: next.enabled,
+      updatedBy: actorId ?? null,
+    });
 
     await this.audit.append({
       tenantId,
@@ -85,5 +130,14 @@ export class CrmRoutingService {
     });
 
     return this.getRules(tenantId);
+  }
+
+  async advanceRoundRobin(tenantId: string, projectId = ''): Promise<number> {
+    const row = await this.ruleRows.findOne({ where: { tenantId, projectId } });
+    if (!row) return 0;
+    const cursor = (row.rules.roundRobinCursor ?? 0) + 1;
+    row.rules = { ...row.rules, roundRobinCursor: cursor };
+    await this.ruleRows.save(row);
+    return cursor;
   }
 }

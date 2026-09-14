@@ -6,6 +6,10 @@ import { PassportModule } from '@nestjs/passport';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { TenantEntity } from '../../database/entities/tenant.entity';
 import { UserEntity } from '../../database/entities/user.entity';
+import { SeekerOtpChallengeEntity } from '../../database/entities/seeker-otp-challenge.entity';
+import { SavedSearchEntity } from '../../database/entities/saved-search.entity';
+import { SeekerAuthController } from './seeker-auth.controller';
+import { SeekerAuthService } from './seeker-auth.service';
 import { AuditEventEntity } from '../../database/entities/audit-event.entity';
 import { AuditModule } from '../audit/audit.module';
 import { TenantConfigModule } from '../tenant-config/tenant-config.module';
@@ -28,7 +32,13 @@ import { UserService } from './user.service';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([UserEntity, TenantEntity, AuditEventEntity]),
+    TypeOrmModule.forFeature([
+      UserEntity,
+      TenantEntity,
+      AuditEventEntity,
+      SeekerOtpChallengeEntity,
+      SavedSearchEntity,
+    ]),
     AuditModule,
     TenantConfigModule,
     PassportModule.register({ defaultStrategy: 'jwt' }),
@@ -50,10 +60,12 @@ import { UserService } from './user.service';
     RoleController,
     SsoController,
     TenantBrandingController,
+    SeekerAuthController,
   ],
   providers: [
     IdentityService,
     AuthService,
+    SeekerAuthService,
     TenantService,
     UserService,
     RoleService,
