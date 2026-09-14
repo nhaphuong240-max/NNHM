@@ -276,8 +276,29 @@ export class SearchService {
     }
 
     const docs = await qb.getMany();
-    const pins = docs.map((doc, idx) =>
-      unitToMapPin(
+    const hasGoldenRecord = docs.some((d) => d.latitude && d.longitude);
+    const pins = docs.map((doc, idx) => {
+      if (doc.latitude && doc.longitude) {
+        return {
+          unitId: doc.id,
+          listingId: doc.listingId,
+          code: doc.code,
+          label: `${doc.code} · ${doc.bedrooms}PN`,
+          lat: Number(doc.latitude),
+          lng: Number(doc.longitude),
+          basePrice: Number(doc.basePrice),
+          status: doc.detail.unitStatus,
+          bedrooms: doc.bedrooms,
+          area: Number(doc.area),
+          tower: doc.detail.projectId,
+          floor: doc.detail.floor,
+          heightM: Math.max(12, doc.detail.floor * 3.2),
+          thumbnailUrl: this.cdnMediaUrl(doc.thumbnailUrl),
+          verified: doc.verified,
+          projectId: doc.detail.projectId,
+        };
+      }
+      return unitToMapPin(
         {
           id: doc.id,
           code: doc.code,
@@ -292,10 +313,17 @@ export class SearchService {
           listingId: doc.listingId,
         },
         idx,
-      ),
-    );
+      );
+    });
 
-    const center = mapCenterForProject(projectId ?? docs[0]?.detail.projectId);
+    const firstGr = docs.find((d) => d.latitude && d.longitude);
+    const center = firstGr
+      ? {
+          lat: Number(firstGr.latitude),
+          lng: Number(firstGr.longitude),
+          label: firstGr.projectName,
+        }
+      : mapCenterForProject(projectId ?? docs[0]?.detail.projectId);
 
     return {
       data: {
@@ -303,7 +331,7 @@ export class SearchService {
         center: { lat: center.lat, lng: center.lng, label: center.label },
         pins,
         buildings: groupBuildingsFromPins(pins),
-        mode: 'search-index-listings',
+        mode: hasGoldenRecord ? 'golden-record' : 'search-index-synthetic',
       },
       meta: { tenantId, count: pins.length, uc: ['UC-UX-06'], screen: 'SCR-PUBLIC-003' },
     };

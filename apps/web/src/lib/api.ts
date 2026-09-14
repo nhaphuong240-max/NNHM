@@ -68,6 +68,38 @@ export async function fetchCrmToday() {
   }>;
 }
 
+export type CrmKpiPack = {
+  northStarQualifiedViewingsPerWeek: number;
+  zeroResultRate: number | null;
+  hotFirstTouchRate: number | null;
+  viewingShowUpRate: number | null;
+  bookingLeadLinkRate: number | null;
+  listingFreshnessRate: number | null;
+  activeRegistrations: number;
+  openDisputes: number;
+  closedDisputes7d: number;
+  searchSubmittedTotal: number;
+  projectId: string | null;
+  targets: {
+    zeroResultRateMax: number;
+    hotFirstTouchP95Minutes: number;
+    viewingShowUpMin: number;
+    bookingLeadLinkMin: number;
+    listingFreshnessMin: number;
+  };
+  notes: {
+    searchP95: string;
+    detailToContact: string;
+  };
+};
+
+export async function fetchCrmKpi(projectId?: string) {
+  const qs = projectId ? `?projectId=${encodeURIComponent(projectId)}` : '';
+  const res = await authFetch(`${API_BASE}/crm/kpi${qs}`);
+  if (!res.ok) throw new Error(`KPI failed: ${res.status}`);
+  return res.json() as Promise<{ data: { attributes: CrmKpiPack } }>;
+}
+
 export async function escalateHotLead(leadId: string, reason?: string) {
   const res = await authFetch(`${API_BASE}/crm/sla/leads/${leadId}/escalate`, {
     method: 'POST',

@@ -41,6 +41,14 @@ import { DealDisputeService } from './deal-dispute.service';
 import { DealDisputeController } from './deal-dispute.controller';
 import { SavedSearchAlertJob } from './saved-search-alert.job';
 import { DealProtectionJob } from './deal-protection.job';
+import { CrmHotSlaEscalationJob } from './crm-hot-sla-escalation.job';
+import { ViewingReminderJob } from './viewing-reminder.job';
+import { CrmKpiService } from './crm-kpi.service';
+import { CrmKpiController } from './crm-kpi.controller';
+import { BookingEntity } from '../../database/entities/booking.entity';
+import { AnalyticsEventEntity } from '../../database/entities/analytics-event.entity';
+import { SearchIndexDocEntity } from '../../database/entities/search-index-doc.entity';
+import { ProjectEntity } from '../../database/entities/project.entity';
 
 @Module({
   imports: [
@@ -57,6 +65,10 @@ import { DealProtectionJob } from './deal-protection.job';
       DealDisputeEventEntity,
       ListingEntity,
       TenantEntity,
+      ProjectEntity,
+      BookingEntity,
+      AnalyticsEventEntity,
+      SearchIndexDocEntity,
       UserEntity,
       MetaLeadEventEntity,
       ZaloLeadEventEntity,
@@ -79,6 +91,7 @@ import { DealProtectionJob } from './deal-protection.job';
     CrmDemandPolicyController,
     CrmTodayController,
     DealDisputeController,
+    CrmKpiController,
   ],
   providers: [
     CrmService,
@@ -91,6 +104,9 @@ import { DealProtectionJob } from './deal-protection.job';
     DealDisputeService,
     SavedSearchAlertJob,
     DealProtectionJob,
+    CrmHotSlaEscalationJob,
+    ViewingReminderJob,
+    CrmKpiService,
   ],
   exports: [CrmService, CrmInboxService, DemandPolicyService, CrmHotSlaService],
 })

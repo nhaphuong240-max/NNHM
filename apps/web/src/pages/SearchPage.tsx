@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { ContactLeadModal } from '../components/public/ContactLeadModal';
+import { SearchMapPanel } from '../components/public/SearchMapPanel';
 import { DISTRICT_FILTERS, ListingCard } from '../components/public/ListingCard';
 import { PublicTopBar } from '../components/PublicTopBar';
 import { useCompareBasket } from '../hooks/useCompareBasket';
@@ -149,7 +150,7 @@ export function SearchPage() {
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto p-4 flex flex-col lg:flex-row gap-6">
+      <main className="max-w-7xl mx-auto p-4 flex flex-col lg:flex-row gap-6">
         <aside className="lg:w-64 shrink-0">
           <div
             className="nnhn-card p-4 space-y-4 sticky top-20"
@@ -245,7 +246,8 @@ export function SearchPage() {
           </div>
         </aside>
 
-        <section className="flex-1 space-y-4">
+        <div className="flex-1 flex flex-col xl:flex-row gap-4 min-w-0">
+        <section className="flex-1 space-y-4 min-w-0">
           <div className="flex justify-between text-sm gap-3" style={{ color: brand.muted }}>
             <span>
               {loading ? 'Đang tải…' : `${hits.length} căn · Verified Listing`}
@@ -348,6 +350,8 @@ export function SearchPage() {
             />
           ))}
         </section>
+        <SearchMapPanel unitIds={hits.map((h) => h.id)} className="xl:w-[380px] w-full" />
+        </div>
       </main>
 
       {contactHit && (

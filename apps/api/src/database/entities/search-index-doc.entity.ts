@@ -63,6 +63,12 @@ export class SearchIndexDocEntity {
   @Column({ name: 'transaction_type', type: 'varchar', length: 16, default: 'sale' })
   transactionType!: 'sale' | 'rent' | 'project';
 
+  @Column({ type: 'numeric', precision: 10, scale: 7, nullable: true })
+  latitude!: string | null;
+
+  @Column({ type: 'numeric', precision: 10, scale: 7, nullable: true })
+  longitude!: string | null;
+
   @Column({ name: 'thumbnail_url', type: 'varchar', length: 512, nullable: true })
   thumbnailUrl!: string | null;
 

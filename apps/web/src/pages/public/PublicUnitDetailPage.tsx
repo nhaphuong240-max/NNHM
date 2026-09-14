@@ -9,8 +9,10 @@ import {
   PRIVACY_POLICY_VERSION,
   submitLead,
   requestViewing,
+  trackAnalyticsEvent,
   type UnitDetail,
 } from '../../lib/api';
+import { getVisitorId } from '../../lib/visitor';
 import { buildProductSchema } from '../../lib/seo';
 import { brand, formatPrice } from '../../theme/tokens';
 import { ContactLeadModal } from '../../components/public/ContactLeadModal';
@@ -100,7 +102,19 @@ export function PublicUnitDetailPage() {
     setError(null);
     fetchUnitDetail(unitId)
       .then((d) => {
-        if (active) setDetail(d);
+        if (active) {
+          setDetail(d);
+          void trackAnalyticsEvent({
+            name: 'unit_viewed',
+            visitorId: getVisitorId(),
+            payload: {
+              unitId,
+              listingId: d.data.listingId,
+              projectId: d.data.attributes.projectId,
+              consentBasis: 'legitimate_interest',
+            },
+          });
+        }
       })
       .catch((e) => {
         if (active) setError(e instanceof Error ? e.message : 'Lỗi tải chi tiết');
@@ -121,6 +135,16 @@ export function PublicUnitDetailPage() {
     }
     setSubmitting(true);
     setSubmitError(null);
+    void trackAnalyticsEvent({
+      name: 'contact_started',
+      visitorId: getVisitorId(),
+      payload: {
+        unitId: detail.data.id,
+        listingId: detail.data.listingId,
+        consentBasis: 'privacy_policy',
+        privacyPolicyVersion: PRIVACY_POLICY_VERSION,
+      },
+    });
     try {
       const result = await submitLead({
         fullName,
@@ -135,6 +159,11 @@ export function PublicUnitDetailPage() {
           privacyPolicyVersion: PRIVACY_POLICY_VERSION,
         },
         ...leadAttribution,
+      });
+      void trackAnalyticsEvent({
+        name: 'lead_created',
+        visitorId: getVisitorId(),
+        payload: { leadId: result.data.id, unitId: detail.data.id, source: 'PUBLIC_PDP' },
       });
       setThankYou({
         leadId: result.data.id,
@@ -476,6 +505,16 @@ export function PublicUnitDetailPage() {
                       if (!detail || !privacyAccepted) return;
                       setSubmitting(true);
                       setViewingMsg(null);
+                      void trackAnalyticsEvent({
+                        name: 'viewing_requested',
+                        visitorId: getVisitorId(),
+                        payload: {
+                          unitId: detail.data.id,
+                          listingId: detail.data.listingId,
+                          requestedSlot: viewingSlot || null,
+                          consentBasis: 'privacy_policy',
+                        },
+                      });
                       void requestViewing({
                         fullName,
                         phone,

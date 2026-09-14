@@ -58,6 +58,9 @@ export class ViewingEntity {
   @Column({ name: 'assigned_to', type: 'varchar', length: 32, nullable: true })
   assignedTo!: string | null;
 
+  @Column({ name: 'reminder_sent_at', type: 'timestamptz', nullable: true })
+  reminderSentAt!: Date | null;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt!: Date;
 

@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { PublicFooter } from '../../components/public/PublicFooter';
+import { SeekerOtpModal } from '../../components/public/SeekerOtpModal';
 import { PublicTopBar } from '../../components/PublicTopBar';
 import { usePageMeta } from '../../hooks/usePageMeta';
 import { deleteSavedSearch, fetchSavedSearches, type SavedSearchRecord } from '../../lib/api';
+import { getSeekerSession } from '../../lib/seeker';
 import { getVisitorId } from '../../lib/visitor';
 import { brand } from '../../theme/tokens';
 
@@ -11,6 +13,8 @@ export function PublicSavedSearchesPage() {
   const [rows, setRows] = useState<SavedSearchRecord[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [seekerPhone, setSeekerPhone] = useState<string | null>(() => getSeekerSession()?.phone ?? null);
+  const [showOtp, setShowOtp] = useState(false);
 
   usePageMeta({ title: 'Đã lưu / cảnh báo | Ngôi Nhà Hôm Nay' });
 
@@ -51,6 +55,30 @@ export function PublicSavedSearchesPage() {
         <p className="text-sm mt-2" style={{ color: brand.muted }}>
           Cảnh báo listing mới bám theo consent. Chưa có tài khoản — tìm kiếm gắn với trình duyệt này.
         </p>
+        <div
+          className="mt-4 rounded-xl p-4 flex flex-wrap items-center justify-between gap-3"
+          style={{ background: brand.accentSoft, border: `1px solid ${brand.border}` }}
+        >
+          {seekerPhone ? (
+            <p className="text-sm">
+              ✓ SĐT đã xác minh: <strong>{seekerPhone}</strong> — alert gửi qua SMS khi có căn mới.
+            </p>
+          ) : (
+            <>
+              <p className="text-sm">
+                Xác minh SĐT để nhận cảnh báo trên mọi thiết bị (OTP seeker).
+              </p>
+              <button
+                type="button"
+                className="rounded-full px-4 py-2 text-sm font-semibold text-white"
+                style={{ background: brand.primary }}
+                onClick={() => setShowOtp(true)}
+              >
+                Xác minh OTP
+              </button>
+            </>
+          )}
+        </div>
         {error && <p className="text-sm text-red-600 mt-4">{error}</p>}
         <ul className="mt-8 space-y-3">
           {rows.map((row) => {
@@ -92,6 +120,12 @@ export function PublicSavedSearchesPage() {
         )}
       </main>
       <PublicFooter />
+      {showOtp && (
+        <SeekerOtpModal
+          onClose={() => setShowOtp(false)}
+          onVerified={(phone) => setSeekerPhone(phone)}
+        />
+      )}
     </div>
   );
 }

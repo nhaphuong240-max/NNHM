@@ -1,6 +1,7 @@
 import { FormEvent, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { PRIVACY_POLICY_VERSION, submitLead, type SearchHit } from '../../lib/api';
+import { PRIVACY_POLICY_VERSION, submitLead, trackAnalyticsEvent, type SearchHit } from '../../lib/api';
+import { getVisitorId } from '../../lib/visitor';
 import { brand } from '../../theme/tokens';
 
 type Props = {
@@ -24,6 +25,16 @@ export function ContactLeadModal({ hit, onClose, onSuccess }: Props) {
     }
     setSubmitting(true);
     setError(null);
+    void trackAnalyticsEvent({
+      name: 'contact_started',
+      visitorId: getVisitorId(),
+      payload: {
+        unitId: hit.id,
+        listingId: hit.listingId ?? hit.id,
+        consentBasis: 'privacy_policy',
+        privacyPolicyVersion: PRIVACY_POLICY_VERSION,
+      },
+    });
     try {
       const res = await submitLead({
         fullName: fullName.trim(),
@@ -32,6 +43,11 @@ export function ContactLeadModal({ hit, onClose, onSuccess }: Props) {
         listingId: hit.listingId ?? hit.id,
         consent: { privacyAccepted: true, privacyPolicyVersion: PRIVACY_POLICY_VERSION },
         source: 'PUBLIC_SERP',
+      });
+      void trackAnalyticsEvent({
+        name: 'lead_created',
+        visitorId: getVisitorId(),
+        payload: { leadId: res.data.id, unitId: hit.id, source: 'PUBLIC_SERP' },
       });
       onSuccess(res.data.id);
     } catch (err) {

@@ -30,6 +30,17 @@ export class ProjectEntity {
   @Column({ type: 'varchar', length: 64, nullable: true })
   district!: string | null;
 
+  /** P0 FR-SRCH-007 — Golden Record geo (beachhead pilot) */
+  @Column({ type: 'numeric', precision: 10, scale: 7, nullable: true })
+  latitude!: string | null;
+
+  @Column({ type: 'numeric', precision: 10, scale: 7, nullable: true })
+  longitude!: string | null;
+
+  /** P0 §0.2(8) — optional deal-protection override per project */
+  @Column({ name: 'demand_policy_override', type: 'jsonb', nullable: true })
+  demandPolicyOverride!: Record<string, unknown> | null;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt!: Date;
 

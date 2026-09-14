@@ -33,6 +33,7 @@ import { AgentBookingCancelPage } from './pages/agent/AgentBookingCancelPage';
 import { AgentContractCreatePage } from './pages/agent/AgentContractCreatePage';
 import { AgentSlaTasksPage } from './pages/agent/AgentSlaTasksPage';
 import { AgentHomePage } from './pages/agent/AgentHomePage';
+import { AgentKpiPage } from './pages/agent/AgentKpiPage';
 import { AgentLeadsPage } from './pages/agent/AgentLeadsPage';
 import { AgentBookingCreatePage } from './pages/agent/AgentBookingCreatePage';
 import { AgentLeadsImportPage } from './pages/agent/AgentLeadsImportPage';
@@ -300,6 +301,14 @@ export default function App() {
         element={
           <RequireAuth loginPath="/auth/login">
             <AgentHomePage />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/agent/kpi"
+        element={
+          <RequireAuth loginPath="/auth/login">
+            <AgentKpiPage />
           </RequireAuth>
         }
       />

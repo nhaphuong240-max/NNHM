@@ -3,6 +3,7 @@ import { brand, portalThemes } from '../theme/tokens';
 
 const P0 = [
   { to: '/agent', label: 'Dashboard' },
+  { to: '/agent/kpi', label: 'KPI' },
   { to: '/agent/leads', label: 'Leads' },
   { to: '/agent/viewings', label: 'Xem nhà' },
   { to: '/agent/registrations', label: 'Đăng ký khách' },

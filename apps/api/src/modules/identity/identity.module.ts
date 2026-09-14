@@ -13,6 +13,7 @@ import { SeekerAuthService } from './seeker-auth.service';
 import { AuditEventEntity } from '../../database/entities/audit-event.entity';
 import { AuditModule } from '../audit/audit.module';
 import { TenantConfigModule } from '../tenant-config/tenant-config.module';
+import { SmsModule } from '../sms/sms.module';
 import { AuthService } from './auth.service';
 import { IdentityController } from './identity.controller';
 import { IdentityService } from './identity.service';
@@ -41,6 +42,7 @@ import { UserService } from './user.service';
     ]),
     AuditModule,
     TenantConfigModule,
+    SmsModule,
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
       imports: [ConfigModule],

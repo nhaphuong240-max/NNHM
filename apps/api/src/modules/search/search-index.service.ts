@@ -255,6 +255,8 @@ export class SearchIndexService {
     const thumbnailUrl = await this.resolveCoverUrl(listing);
 
     const transactionType = assertIndexTransactionType(listing.transactionType, unit.id);
+    const lat = project?.latitude ?? null;
+    const lng = project?.longitude ?? null;
     const now = new Date();
     await this.docs.save({
       id: unit.id,
@@ -270,6 +272,8 @@ export class SearchIndexService {
       city: project?.city ?? null,
       district: project?.district ?? null,
       transactionType,
+      latitude: lat,
+      longitude: lng,
       thumbnailUrl,
       searchText,
       detail,

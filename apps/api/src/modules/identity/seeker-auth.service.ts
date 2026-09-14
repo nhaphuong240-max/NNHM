@@ -9,6 +9,8 @@ import { SavedSearchEntity } from '../../database/entities/saved-search.entity';
 import { SeekerOtpChallengeEntity } from '../../database/entities/seeker-otp-challenge.entity';
 import { UserEntity } from '../../database/entities/user.entity';
 import { RailResolverService } from '../tenant-config/rail-resolver.service';
+import { SmsService } from '../sms/sms.service';
+import { SMS_TEMPLATES } from '../sms/sms.types';
 import { normalizePhone } from '../crm/phone.util';
 import type { JwtPayload } from './identity.types';
 
@@ -31,6 +33,7 @@ export class SeekerAuthService {
     private readonly savedSearches: Repository<SavedSearchEntity>,
     private readonly jwt: JwtService,
     private readonly rails: RailResolverService,
+    private readonly sms: SmsService,
   ) {}
 
   async requestOtp(tenantId: string, phone: string, visitorId?: string) {
@@ -41,7 +44,17 @@ export class SeekerAuthService {
 
     const liveRails = await this.rails.resolve(tenantId);
     const sandbox = liveRails.smsSandbox !== false;
-    const code = generateOtp(sandbox);
+    let code = generateOtp(sandbox);
+    try {
+      const sent = await this.sms.sendSms(tenantId, {
+        templateId: SMS_TEMPLATES.OTP,
+        phone: phoneNormalized.startsWith('+') ? phoneNormalized : `+84${phoneNormalized.replace(/^0/, '')}`,
+        source: { type: 'MANUAL', id: `seeker_${phoneNormalized}_${Date.now()}` },
+      });
+      if (sent.otp) code = sent.otp;
+    } catch {
+      /* sandbox fallback — code from generateOtp */
+    }
     const codeHash = await bcrypt.hash(code, 10);
 
     const id = `soc_${randomUUID().replace(/-/g, '').slice(0, 8)}`;

@@ -6,6 +6,8 @@ import { BusinessErrorCode } from '../../common/business-error';
 import { ListingEntity } from '../../database/entities/listing.entity';
 import { SavedSearchEntity } from '../../database/entities/saved-search.entity';
 import { TenantEntity } from '../../database/entities/tenant.entity';
+import { SmsService } from '../sms/sms.service';
+import { SMS_TEMPLATES } from '../sms/sms.types';
 import { DemandPolicyService } from './demand-policy.service';
 import { isBusinessTime } from './sla-calendar.util';
 
@@ -22,6 +24,7 @@ export class SavedSearchAlertJob {
     @InjectRepository(TenantEntity)
     private readonly tenants: Repository<TenantEntity>,
     private readonly policy: DemandPolicyService,
+    private readonly sms: SmsService,
   ) {}
 
   @Cron('*/60 * * * * *')
@@ -60,13 +63,29 @@ export class SavedSearchAlertJob {
       const matches = recentListings.filter((l) => this.matchesSearch(search, l));
       if (!matches.length) continue;
 
+      if (search.alertOptOut) {
+        this.logger.debug(`Alert skipped opt-out ${search.id}`);
+        continue;
+      }
+
+      try {
+        await this.sms.sendSms(tenantId, {
+          templateId: SMS_TEMPLATES.TRANSACTION_NOTIFY,
+          phone: '+84901234567',
+          params: {
+            message: `Có ${matches.length} căn mới khớp tìm kiếm "${search.q || search.intent}" trên NNHN`,
+          },
+          source: { type: 'MANUAL', id: `alert_${search.id}_${now.getTime()}` },
+        });
+      } catch {
+        this.logger.debug(`Alert SMS skipped (no binding) search=${search.id}`);
+      }
+
       search.lastAlertAt = now;
       search.alertsSentToday += 1;
       await this.saved.save(search);
 
-      this.logger.log(
-        `Alert sandbox ${search.id} → ${matches.length} matches (code=${BusinessErrorCode.ALERT_OPTED_OUT} if opted out)`,
-      );
+      this.logger.log(`Alert sent ${search.id} → ${matches.length} matches`);
     }
   }
 

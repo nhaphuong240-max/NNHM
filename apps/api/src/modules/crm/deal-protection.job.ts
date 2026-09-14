@@ -3,6 +3,7 @@ import { Cron } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { LeadRegistrationEntity } from '../../database/entities/lead-registration.entity';
+import { ProjectEntity } from '../../database/entities/project.entity';
 import { TenantEntity } from '../../database/entities/tenant.entity';
 import { AuditService } from '../audit/audit.service';
 import { DemandPolicyService } from './demand-policy.service';
@@ -17,6 +18,8 @@ export class DealProtectionJob {
     private readonly registrations: Repository<LeadRegistrationEntity>,
     @InjectRepository(TenantEntity)
     private readonly tenants: Repository<TenantEntity>,
+    @InjectRepository(ProjectEntity)
+    private readonly projects: Repository<ProjectEntity>,
     private readonly policy: DemandPolicyService,
     private readonly audit: AuditService,
   ) {}
@@ -30,10 +33,8 @@ export class DealProtectionJob {
   }
 
   async processTenant(tenantId: string) {
-    const payload = await this.policy.resolvePayload(tenantId);
+    const basePayload = await this.policy.resolvePayload(tenantId);
     const now = new Date();
-    const coolingMs = payload.dealProtection.coolingOffDaysInactive * 24 * 60 * 60 * 1000;
-    const revivalMs = payload.dealProtection.revivalDaysAfterExpiry * 24 * 60 * 60 * 1000;
 
     const active = await this.registrations.find({
       where: { tenantId, status: 'ACCEPTED' },
@@ -44,6 +45,25 @@ export class DealProtectionJob {
     let revived = 0;
 
     for (const reg of active) {
+      const project = reg.projectId
+        ? await this.projects.findOne({ where: { id: reg.projectId, tenantId } })
+        : null;
+      const override = (project?.demandPolicyOverride ?? {}) as Record<string, number>;
+      const regPolicy = {
+        ...basePayload,
+        dealProtection: {
+          ...basePayload.dealProtection,
+          coolingOffDaysInactive:
+            override.coolingOffDaysInactive ?? basePayload.dealProtection.coolingOffDaysInactive,
+          revivalDaysAfterExpiry:
+            override.revivalDaysAfterExpiry ?? basePayload.dealProtection.revivalDaysAfterExpiry,
+          protectionDays:
+            override.protectionDays ?? basePayload.dealProtection.protectionDays,
+        },
+      };
+      const coolingMs = regPolicy.dealProtection.coolingOffDaysInactive * 24 * 60 * 60 * 1000;
+      const revivalMs = regPolicy.dealProtection.revivalDaysAfterExpiry * 24 * 60 * 60 * 1000;
+
       if (reg.protectedUntil > now) continue;
 
       const inactiveSince = reg.updatedAt.getTime();
@@ -56,7 +76,7 @@ export class DealProtectionJob {
           entityType: 'lead_registration',
           entityId: reg.id,
           action: 'PROTECTION_EXPIRED',
-          payload: { policyVersion: payload.dealProtectionPolicyId },
+          payload: { policyVersion: regPolicy.dealProtectionPolicyId, projectId: reg.projectId },
           actorId: null,
         });
         continue;
@@ -64,7 +84,7 @@ export class DealProtectionJob {
 
       if (now.getTime() - reg.protectedUntil.getTime() <= revivalMs) {
         reg.protectedUntil = new Date(
-          now.getTime() + payload.dealProtection.protectionDays * 24 * 60 * 60 * 1000,
+          now.getTime() + regPolicy.dealProtection.protectionDays * 24 * 60 * 60 * 1000,
         );
         reg.status = 'ACCEPTED';
         await this.registrations.save(reg);
