@@ -13,6 +13,7 @@ import { SmsModule } from '../sms/sms.module';
 import { ComplianceModule } from '../compliance/compliance.module';
 import { TenantConfigModule } from '../tenant-config/tenant-config.module';
 import { TenantWebhooksModule } from '../tenant-webhooks/tenant-webhooks.module';
+import { CrmModule } from '../crm/crm.module';
 import { BookingContractController } from './booking-contract.controller';
 import { BookingContractEsignProviderService } from './booking-contract-esign-provider.service';
 import { BookingContractEsignSmsService } from './booking-contract-esign-sms.service';
@@ -43,6 +44,7 @@ import { BookingService } from './booking.service';
     SmsModule,
     ComplianceModule,
     TenantConfigModule,
+    CrmModule,
   ],
   controllers: [BookingController, BookingContractController, BookingWorkflowController],
   providers: [

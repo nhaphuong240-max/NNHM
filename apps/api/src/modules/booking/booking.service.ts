@@ -28,6 +28,7 @@ import { mapBookingEntity } from './booking.types';
 import { RefundService } from '../payment/refund.service';
 import { BookingEventsService } from './booking-events.service';
 import { TenantWebhookService } from '../tenant-webhooks/tenant-webhook.service';
+import { CrmService } from '../crm/crm.service';
 
 const DEFAULT_EXPIRY_HOURS = 48;
 
@@ -45,6 +46,7 @@ export class BookingService {
     private readonly refunds: RefundService,
     private readonly bookingEvents: BookingEventsService,
     private readonly tenantWebhooks: TenantWebhookService,
+    private readonly crm: CrmService,
   ) {}
 
   status() {
@@ -216,6 +218,10 @@ export class BookingService {
           expiresAt: expiresAt.toISOString(),
         })
         .catch(() => undefined);
+
+      if (input.leadId) {
+        await this.crm.syncLeadFromBooking(tenantId, input.leadId, input.unitId).catch(() => undefined);
+      }
 
       return { data: mapBookingEntity(record) };
     } catch (error) {

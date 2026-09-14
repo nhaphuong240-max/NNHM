@@ -18,6 +18,10 @@ export class UserEntity {
   @Column({ type: 'varchar', length: 64 })
   role!: string;
 
+  /** Wave 0 ABAC — agency / partner org within tenant */
+  @Column({ name: 'organization_id', type: 'varchar', length: 32, nullable: true })
+  organizationId!: string | null;
+
   @Column({ name: 'is_active', type: 'boolean', default: true })
   isActive!: boolean;
 

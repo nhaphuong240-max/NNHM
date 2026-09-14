@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>NNHN · Studio UI · Website & CRM</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,650&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="nnhn.css?v=2" />
+</head>
+<body>
+  <div class="studio-bar" role="navigation" aria-label="Chọn màn hình mockup">
+    <strong>NNHN Studio</strong>
+    <button data-go="home" aria-current="true">1. Trang chủ</button>
+    <button data-go="search">2. Tìm nhà</button>
+    <button data-go="unit">3. Chi tiết căn</button>
+    <button data-go="saved">4. Đã lưu</button>
+    <button data-go="crm">5. CRM Today</button>
+    <button data-go="registry">6. Đăng ký khách</button>
+    <button data-go="viewings">7. Lịch xem nhà</button>
+    <button data-go="pipeline">8. Pipeline</button>
+  </div>
+
+  <!-- HOME -->
+  <section class="screen is-on" id="home">
+    <header class="topbar">
+      <div class="brand"><span class="mark"></span> Ngôi Nhà Hôm Nay</div>
+      <nav class="nav">
+        <a href="#search">Mua</a>
+        <a href="#search">Thuê</a>
+        <a href="#search">Dự án</a>
+        <a href="#saved">Đã lưu</a>
+        <a href="#search">Bản đồ</a>
+        <span>Trả góp</span>
+        <a class="cta" href="#crm">Đối tác</a>
+      </nav>
+    </header>
+    <div class="hero">
+      <div class="hero-art" aria-hidden="true"></div>
+      <div class="hero-copy">
+        <p class="kicker">Dự án chủ đầu tư · Verified V2</p>
+        <h1 class="display">Ngôi Nhà Hôm Nay</h1>
+        <p class="kicker" style="margin-top:32px;opacity:.85">Pearl Land Development · PLD-Q7</p>
+        <h2 class="display project">The River Gate</h2>
+        <p class="lede">Căn hộ ven sông, bàn giao 2027. Giá Golden Record — không tin ảo, không giữ chỗ miệng.</p>
+        <p class="price-gold">3,85 – 6,20 tỷ</p>
+        <div class="hero-actions">
+          <button class="btn-clay" data-go-screen="unit">Xem căn điển hình</button>
+          <button class="btn-ghost" data-go-screen="search">Bảng hàng dự án</button>
+        </div>
+      </div>
+    </div>
+    <div class="dock-wrap">
+      <div class="dock">
+        <div class="seg">
+          <button class="on">Mua</button>
+          <button>Thuê</button>
+          <button>Dự án</button>
+        </div>
+        <input value="Quận 7, 2PN, đã xác minh" readonly />
+        <button class="go" data-go-screen="search">Tìm kiếm</button>
+      </div>
+      <p class="quick">
+        <span class="kicker">Nhanh</span>
+        <span class="chip">Hà Nội</span>
+        <span class="chip">TP.HCM</span>
+        <span class="chip">Đà Nẵng</span>
+        <span class="chip">Ven sông</span>
+      </p>
+    </div>
+    <div class="trust">
+      <div><p class="display">128+</p><p>căn Verified</p></div>
+      <div><p class="display">312</p><p>listing bảng hàng</p></div>
+      <div><p class="display">GR</p><p>Giá Golden Record</p></div>
+      <div><p class="display">30n</p><p>bảo vệ khách sàn</p></div>
+    </div>
+    <div class="wrap">
+      <div class="section-head">
+        <div>
+          <p class="kicker">Bảng hàng tươi</p>
+          <h2 class="display">Gợi ý hôm nay</h2>
+        </div>
+        <a href="#search" style="font-weight:700;color:var(--forest)">Xem tất cả trên bản đồ →</a>
+      </div>
+      <div class="grid-3">
+        <article class="card">
+          <img class="cover" src="https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=800&q=80" alt="" />
+          <div class="pad">
+            <span class="badge">Verified V2</span>
+            <h3 class="display">A-12-05 · The River Gate</h3>
+            <p class="meta">Quận 7 · 2PN · 68m² · Cập nhật 2 giờ</p>
+            <p class="display" style="font-size:24px;margin:10px 0 0">3,85 tỷ</p>
+          </div>
+        </article>
+        <article class="card">
+          <img class="cover" src="https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&w=800&q=80" alt="" />
+          <div class="pad">
+            <span class="badge">Verified V2</span>
+            <h3 class="display">B-08-12 · Sunrise</h3>
+            <p class="meta">Hải Châu · 2PN · 72m² · Còn hàng</p>
+            <p class="display" style="font-size:24px;margin:10px 0 0">2,90 tỷ</p>
+          </div>
+        </article>
+        <article class="card">
+          <img class="cover" src="https://images.unsplash.com/photo-1484154216820-a942b4e61ea4?auto=format&fit=crop&w=800&q=80" alt="" />
+          <div class="pad">
+            <span class="badge v2">Mới mở bán</span>
+            <h3 class="display">C-19-03 · Bay Group</h3>
+            <p class="meta">Ngũ Hành Sơn · 3PN · 92m²</p>
+            <p class="display" style="font-size:24px;margin:10px 0 0">4,60 tỷ</p>
+          </div>
+        </article>
+      </div>
+
+      <div class="section-head" style="margin-top:56px">
+        <div>
+          <p class="kicker">Dự án chủ đầu tư</p>
+          <h2 class="display">Sales room public-safe</h2>
+        </div>
+      </div>
+      <div class="grid-3">
+        <article class="proj">
+          <img src="https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=900&q=80" alt="" />
+          <div class="shade"></div>
+          <div class="pad">
+            <span class="badge gold">Golden Record</span>
+            <h3 class="display">The River Gate</h3>
+            <p class="meta" style="color:#e8c4a8">Quận 7 · 48 căn còn hàng</p>
+          </div>
+        </article>
+        <article class="proj">
+          <img src="https://images.unsplash.com/photo-1460317442991-0ec209397118?auto=format&fit=crop&w=900&q=80" alt="" />
+          <div class="shade"></div>
+          <div class="pad">
+            <span class="badge">Verified</span>
+            <h3 class="display">Sunrise Harbor</h3>
+            <p class="meta" style="color:#e8c4a8">Hải Châu · View sông Hàn</p>
+          </div>
+        </article>
+        <article class="proj">
+          <img src="https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=900&q=80" alt="" />
+          <div class="shade"></div>
+          <div class="pad">
+            <span class="badge v2">Sắp bàn giao</span>
+            <h3 class="display">Bay Residences</h3>
+            <p class="meta" style="color:#e8c4a8">Ngũ Hành Sơn · 2026</p>
+          </div>
+        </article>
+      </div>
+    </div>
+    <footer class="footer">
+      <div class="foot">
+        <div>
+          <p class="display" style="font-size:24px;margin:0 0 10px">Ngôi Nhà Hôm Nay</p>
+          <p style="opacity:.8;max-width:36ch;line-height:1.55">Marketplace bất động sản — tìm nhà, so sánh căn, giữ chỗ minh bạch. Demand OS cho mạng bán.</p>
+        </div>
+        <div><b>Khách tìm nhà</b><a href="#search">Mua / Thuê</a><a href="#saved">Đã lưu &amp; cảnh báo</a><a>Chính sách bảo mật</a></div>
+        <div><b>Đối tác</b><a href="#crm">CRM Today</a><a href="#registry">Đăng ký khách</a><a href="#viewings">Lịch xem nhà</a></div>
+        <div><b>Khu vực</b><a>Quận 7</a><a>Cầu Giấy</a><a>Hải Châu</a></div>
+      </div>
+    </footer>
+  </section>
+
+  <!-- SEARCH -->
+  <section class="screen" id="search">
+    <header class="topbar">
+      <div class="brand"><span class="mark"></span> Ngôi Nhà Hôm Nay</div>
+      <nav class="nav">
+        <a href="#home">Trang chủ</a>
+        <a href="#saved">Đã lưu</a>
+        <a class="cta" href="#unit">Chi tiết căn</a>
+      </nav>
+    </header>
+    <div class="wrap serp-page">
+      <p class="kicker">FR-SRCH-002 · Split map / list</p>
+      <div class="toolbar">
+        <div>
+          <h1 class="display" style="font-size:40px;margin:6px 0 4px">Mua căn hộ · Quận 7</h1>
+          <p class="muted">24 căn · Verified-first · Giá Golden Record · không hoa hồng</p>
+        </div>
+        <div class="sorts">
+          <button class="on">Liên quan</button>
+          <button>Mới nhất</button>
+          <button>Giá</button>
+          <button>Verified</button>
+        </div>
+      </div>
+      <div class="split">
+        <div class="hits">
+          <article class="card hit">
+            <img src="https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=600&q=80" alt="" />
+            <div>
+              <span class="badge">Verified V2 · tươi 2h</span>
+              <h3 class="display" style="margin:8px 0 4px;font-size:20px">The River Gate · A-12-05</h3>
+              <p class="meta">Quận 7 · 2PN · 68m² · Đông Nam</p>
+              <p class="price display">3,85 tỷ</p>
+            </div>
+          </article>
+          <article class="card hit">
+            <img src="https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=600&q=80" alt="" />
+            <div>
+              <span class="badge">Verified V2</span>
+              <h3 class="display" style="margin:8px 0 4px;font-size:20px">The River Gate · B-07-18</h3>
+              <p class="meta">Quận 7 · 3PN · 86m² · View sông</p>
+              <p class="price display">5,10 tỷ</p>
+            </div>
+          </article>
+          <article class="card hit">
+            <img src="https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&w=600&q=80" alt="" />
+            <div>
+              <span class="badge v2">Limited</span>
+              <h3 class="display" style="margin:8px 0 4px;font-size:20px">Sunrise · B-08-12</h3>
+              <p class="meta">Hải Châu · 2PN · 72m²</p>
+              <p class="price display">2,90 tỷ</p>
+            </div>
+          </article>
+          <article class="card hit">
+            <img src="https://images.unsplash.com/photo-1484154216820-a942b4e61ea4?auto=format&fit=crop&w=600&q=80" alt="" />
+            <div>
+              <span class="badge gold">Golden Record</span>
+              <h3 class="display" style="margin:8px 0 4px;font-size:20px">Bay Group · C-19-03</h3>
+              <p class="meta">Ngũ Hành Sơn · 3PN · 92m²</p>
+              <p class="price display">4,60 tỷ</p>
+            </div>
+          </article>
+        </div>
+        <div class="map" aria-label="Bản đồ kết quả">
+          <span class="pin on" style="left:42%;top:38%">3,85 tỷ</span>
+          <span class="pin" style="left:51%;top:46%">5,10 tỷ</span>
+          <span class="pin" style="left:28%;top:58%">2,90 tỷ</span>
+          <span class="pin" style="left:64%;top:32%">4,60 tỷ</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- UNIT -->
+  <section class="screen" id="unit">
+    <header class="topbar">
+      <div class="brand"><span class="mark"></span> Ngôi Nhà Hôm Nay</div>
+      <nav class="nav">
+        <a href="#search">Tìm nhà</a>
+        <a href="#saved">Lưu căn</a>
+        <a class="cta" href="#home">Trang chủ</a>
+      </nav>
+    </header>
+    <div class="pdp-hero">
+      <img src="https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=1600&q=80" alt="Phòng khách The River Gate" />
+      <div class="stack">
+        <img src="https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?auto=format&fit=crop&w=900&q=80" alt="Bếp" />
+        <img src="https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&w=900&q=80" alt="View sông" />
+      </div>
+    </div>
+    <div class="wrap grid-2">
+      <div>
+        <span class="badge">Verified V2</span>
+        <span class="badge ok" style="margin-left:6px">Còn hàng</span>
+        <span class="badge gold" style="margin-left:6px">Golden Record</span>
+        <h1 class="display" style="font-size:44px;margin:14px 0 8px">A-12-05 · The River Gate</h1>
+        <p class="muted">Quận 7, TP.HCM · Pearl Land Development · Cập nhật 14:20 hôm nay</p>
+        <p class="display" style="font-size:36px;margin:18px 0 6px;color:var(--forest-dark)">3,85 tỷ</p>
+        <p class="muted">Giá marketing đã duyệt — không hiển thị hold nội bộ hay hoa hồng.</p>
+        <div class="specs">
+          <div class="spec"><span class="muted">Phòng ngủ</span><b>2 PN</b></div>
+          <div class="spec"><span class="muted">Diện tích</span><b>68 m²</b></div>
+          <div class="spec"><span class="muted">Hướng</span><b>Đông Nam</b></div>
+          <div class="spec"><span class="muted">Tầng</span><b>12</b></div>
+        </div>
+        <p style="line-height:1.7;max-width:58ch">View sông, nội thất bàn giao. Listing public-safe: khách thấy mã căn, trạng thái còn hàng, diện tích và giá theo rule — không PII khách khác, không chủ hold.</p>
+      </div>
+      <aside class="card sticky-ask">
+        <p class="kicker">Tư vấn &amp; xem nhà</p>
+        <h3 class="display" style="margin:6px 0 4px;font-size:26px">Liên hệ im lặng PII</h3>
+        <p class="muted" style="margin-bottom:12px">Lead vào cùng Lead Registry. Trùng SĐT được gộp, không nhân bản.</p>
+        <label class="field"><span>Họ tên</span><input value="Nguyễn Thu Trang" /></label>
+        <label class="field"><span>Số điện thoại</span><input value="0901 234 567" /></label>
+        <label class="field"><span>Nhu cầu</span>
+          <select><option>Mua</option><option>Thuê</option><option>Dự án</option></select>
+        </label>
+        <label class="field"><span>Lịch xem nhà</span><input type="datetime-local" value="2026-09-15T14:00" /></label>
+        <label class="muted" style="display:flex;gap:8px;align-items:flex-start;margin:10px 0">
+          <input type="checkbox" checked /> Đồng ý chính sách bảo mật v2026-07-01
+        </label>
+        <button class="btn-clay" style="width:100%;margin-top:8px">Gửi yêu cầu tư vấn</button>
+        <button class="go" style="width:100%;margin-top:8px;background:var(--paper);color:var(--forest-dark);border:1px solid var(--line);border-radius:999px;padding:12px;font-weight:700">Gửi lịch xem nhà</button>
+      </aside>
+    </div>
+  </section>
+
+  <!-- SAVED -->
+  <section class="screen" id="saved">
+    <header class="topbar">
+      <div class="brand"><span class="mark"></span> Ngôi Nhà Hôm Nay</div>
+      <nav class="nav"><a class="cta" href="#home">Trang chủ</a></nav>
+    </header>
+    <div class="wrap">
+      <p class="kicker">FR-SRCH-003 · Saved search + alert</p>
+      <h1 class="display" style="font-size:44px;margin:8px 0 8px">Đã lưu</h1>
+      <p class="muted">Cảnh báo listing mới · giảm giá · back-to-market. Chỉ gửi khi đã OTP và consent.</p>
+      <div class="saved-grid" style="margin-top:28px">
+        <div class="card">
+          <div class="alert-row">
+            <div>
+              <b>Quận 7 · 2PN · Verified</b>
+              <p class="muted" style="margin:6px 0 0">Alert mỗi ngày · Mua · 3 căn mới tuần này</p>
+            </div>
+            <span class="badge">Đang theo dõi</span>
+          </div>
+          <div class="alert-row">
+            <div>
+              <b>Hải Châu · dưới 3 tỷ</b>
+              <p class="muted" style="margin:6px 0 0">Alert ngay khi giảm giá</p>
+            </div>
+            <span class="badge v2">OTP pending</span>
+          </div>
+          <div class="alert-row">
+            <div>
+              <b>The River Gate · 3PN</b>
+              <p class="muted" style="margin:6px 0 0">Back-to-market · tuần</p>
+            </div>
+            <span class="badge">Đang theo dõi</span>
+          </div>
+        </div>
+        <article class="card">
+          <img class="cover" src="https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=800&q=80" alt="" />
+          <div class="pad">
+            <span class="badge">Căn đã tim</span>
+            <h3 class="display">A-12-05 · The River Gate</h3>
+            <p class="meta">Giá giữ 3,85 tỷ · chưa giảm</p>
+          </div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- CRM TODAY -->
+  <section class="screen" id="crm">
+    <div class="crm">
+      <aside class="side">
+        <div class="brand"><span class="mark"></span> NNHN Agent</div>
+        <p class="who">Lan Phương · Team Q7<br />Ca sáng · giờ hành chính</p>
+        <p class="kicker" style="color:var(--gold);margin:8px 12px">Bán hàng</p>
+        <nav>
+          <a class="on" href="#crm">Today</a>
+          <a href="#pipeline">Pipeline</a>
+          <a href="#registry">Đăng ký khách</a>
+          <a href="#viewings">Lịch xem nhà</a>
+          <a href="#home">Marketplace</a>
+        </nav>
+      </aside>
+      <div class="crm-main">
+        <p class="kicker">Lead OS · first-touch SLA</p>
+        <h1 class="display" style="font-size:38px;margin:6px 0 18px">Today</h1>
+        <div class="kpis">
+          <div class="card kpi"><span class="muted">First-touch HOT</span><p class="display">4 phút</p></div>
+          <div class="card kpi"><span class="muted">SLA trễ</span><p class="display">2</p></div>
+          <div class="card kpi"><span class="muted">Xem nhà hôm nay</span><p class="display">5</p></div>
+          <div class="card kpi"><span class="muted">Bảo vệ còn hạn</span><p class="display">18</p></div>
+        </div>
+        <div class="card" style="margin-top:18px;overflow:auto">
+          <table class="table">
+            <thead><tr><th>Khách</th><th>Nguồn</th><th>Điểm</th><th>SLA</th><th></th></tr></thead>
+            <tbody>
+              <tr>
+                <td><b>Thu Trang</b><br /><span class="muted">0901 **** 67 · The River Gate</span></td>
+                <td>Website PDP</td>
+                <td><span class="pill hot">HOT 92</span></td>
+                <td><span class="pill ok">còn 3 phút</span></td>
+                <td><button class="btn-tiny">Gọi</button></td>
+              </tr>
+              <tr>
+                <td><b>Minh Đức</b><br /><span class="muted">0988 **** 21 · Sunrise</span></td>
+                <td>Zalo OA</td>
+                <td><span class="pill warn">WARM 71</span></td>
+                <td><span class="pill bad">trễ 12 phút</span></td>
+                <td><button class="btn-tiny" style="background:var(--clay)">Escalate</button></td>
+              </tr>
+              <tr>
+                <td><b>Hà My</b><br /><span class="muted">0912 **** 08 · SERP Quận 7</span></td>
+                <td>Website search</td>
+                <td><span class="pill ok">NEW 54</span></td>
+                <td><span class="pill ok">còn 41 phút</span></td>
+                <td><button class="btn-tiny">Nhận</button></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- REGISTRY -->
+  <section class="screen" id="registry">
+    <div class="crm">
+      <aside class="side">
+        <div class="brand"><span class="mark"></span> NNHN Agent</div>
+        <nav style="margin-top:28px">
+          <a href="#crm">Today</a>
+          <a class="on" href="#registry">Đăng ký khách</a>
+          <a href="#viewings">Lịch xem nhà</a>
+          <a href="#pipeline">Pipeline</a>
+        </nav>
+      </aside>
+      <div class="crm-main">
+        <p class="kicker">FR-DP · Deal protection 30 ngày</p>
+        <h1 class="display" style="font-size:36px;margin:6px 0 8px">Đăng ký khách</h1>
+        <p class="muted">Sàn khác không thấy PII. Trùng SĐT + dự án → Existing Protected. Conflict mở case, không lộ tên.</p>
+        <form class="card reg-form" style="padding:16px;margin:18px 0">
+          <label class="field" style="margin:0"><span>Họ tên</span><input placeholder="Nguyễn…" /></label>
+          <label class="field" style="margin:0"><span>SĐT</span><input placeholder="090…" /></label>
+          <label class="field" style="margin:0"><span>Dự án</span><input value="The River Gate" /></label>
+          <button class="btn-clay" type="button" style="margin:0;height:44px">Đăng ký</button>
+        </form>
+        <div class="card" style="overflow:auto">
+          <table class="table">
+            <thead><tr><th>Khách</th><th>Dự án</th><th>Bảo vệ đến</th><th>Kết quả</th></tr></thead>
+            <tbody>
+              <tr>
+                <td>Thu Trang<br /><span class="muted">0901 234 567</span></td>
+                <td>The River Gate</td>
+                <td>14/10/2026</td>
+                <td><span class="pill ok">Accepted</span></td>
+              </tr>
+              <tr>
+                <td>••••<br /><span class="muted">0988 ****</span></td>
+                <td>Sunrise</td>
+                <td>02/10/2026</td>
+                <td><span class="pill warn">Existing Protected</span></td>
+              </tr>
+              <tr>
+                <td>••••<br /><span class="muted">0933 ****</span></td>
+                <td>Bay Residences</td>
+                <td>Pending</td>
+                <td><span class="pill bad">Conflict</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- VIEWINGS -->
+  <section class="screen" id="viewings">
+    <div class="crm">
+      <aside class="side">
+        <div class="brand"><span class="mark"></span> NNHN Agent</div>
+        <nav style="margin-top:28px">
+          <a href="#crm">Today</a>
+          <a href="#registry">Đăng ký khách</a>
+          <a class="on" href="#viewings">Lịch xem nhà</a>
+          <a href="#pipeline">Pipeline</a>
+        </nav>
+      </aside>
+      <div class="crm-main">
+        <p class="kicker">FR-VIEW · thực thể lịch, không phải cột kanban</p>
+        <h1 class="display" style="font-size:36px;margin:6px 0 18px">Lịch xem nhà · Thứ Hai 15/09</h1>
+        <div class="grid-2" style="align-items:start">
+          <div class="card" style="padding:8px 0">
+            <div class="cal">
+              <div class="slot">09:00</div><div class="slot"></div>
+              <div class="slot">10:30</div><div class="slot"><div class="event"><b>Lan Anh · C-19-03</b><br />Completed · Quan tâm</div></div>
+              <div class="slot">14:00</div><div class="slot"><div class="event" style="background:var(--clay-soft)"><b>Thu Trang · A-12-05</b><br />Confirmed · The River Gate</div></div>
+              <div class="slot">16:00</div><div class="slot"></div>
+            </div>
+          </div>
+          <div class="card" style="overflow:auto">
+            <table class="table">
+              <thead><tr><th>Lead</th><th>Căn</th><th>Trạng thái</th></tr></thead>
+              <tbody>
+                <tr><td>Thu Trang</td><td>A-12-05</td><td><span class="pill ok">Confirmed</span></td></tr>
+                <tr><td>Minh Đức</td><td>B-08-12</td><td><span class="pill warn">Requested · callback</span></td></tr>
+                <tr><td>Lan Anh</td><td>C-19-03</td><td><span class="pill ok">Completed</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PIPELINE -->
+  <section class="screen" id="pipeline">
+    <div class="crm">
+      <aside class="side">
+        <div class="brand"><span class="mark"></span> NNHN Agent</div>
+        <nav style="margin-top:28px">
+          <a href="#crm">Today</a>
+          <a class="on" href="#pipeline">Pipeline</a>
+          <a href="#registry">Đăng ký khách</a>
+          <a href="#viewings">Lịch xem nhà</a>
+        </nav>
+      </aside>
+      <div class="crm-main">
+        <p class="kicker">7 stage · ánh xạ 13 bước NSOS</p>
+        <h1 class="display" style="font-size:36px;margin:6px 0 18px">Pipeline</h1>
+        <div class="kanban">
+          <div class="col"><h4>Mới <span>2</span></h4><div class="ticket"><b>Hà My</b><span class="muted">Website SERP</span></div></div>
+          <div class="col"><h4>Đã liên hệ <span>1</span></h4><div class="ticket"><b>Đức</b><span class="badge hot">HOT 71</span></div></div>
+          <div class="col"><h4>Xem nhà <span>1</span></h4><div class="ticket"><b>Thu Trang</b><span class="muted">14:00 A-12-05</span></div></div>
+          <div class="col"><h4>Đàm phán <span>0</span></h4></div>
+          <div class="col"><h4>Booking <span>1</span></h4><div class="ticket"><b>Khánh</b><span class="muted">Lead ↔ inventory</span></div></div>
+          <div class="col"><h4>Won <span>0</span></h4></div>
+          <div class="col"><h4>Lost <span>—</span></h4><div class="ticket"><b>Bắt buộc lý do</b><span class="muted">PRICE · FINANCE · LEGAL</span></div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <script>
+    const buttons = document.querySelectorAll(".studio-bar button");
+    const screens = document.querySelectorAll(".screen");
+    function show(id) {
+      screens.forEach((s) => s.classList.toggle("is-on", s.id === id));
+      buttons.forEach((b) => b.setAttribute("aria-current", b.dataset.go === id ? "true" : "false"));
+      history.replaceState(null, "", "#" + id);
+      window.scrollTo(0, 0);
+    }
+    buttons.forEach((b) => b.addEventListener("click", () => show(b.dataset.go)));
+    document.querySelectorAll("[data-go-screen]").forEach((el) => {
+      el.addEventListener("click", () => show(el.getAttribute("data-go-screen")));
+    });
+    document.querySelectorAll("a[href^='#']").forEach((a) => {
+      a.addEventListener("click", (e) => {
+        const id = a.getAttribute("href").slice(1);
+        if (document.getElementById(id)) {
+          e.preventDefault();
+          show(id);
+        }
+      });
+    });
+    const initial = location.hash.slice(1);
+    if (initial && document.getElementById(initial)) show(initial);
+  </script>
+</body>
+</html>

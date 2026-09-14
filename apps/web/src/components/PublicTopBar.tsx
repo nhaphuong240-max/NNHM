@@ -33,8 +33,17 @@ export function PublicTopBar() {
           <span className="nnhn-display text-[1.05rem] sm:text-lg">{label}</span>
         </Link>
         <nav className="flex flex-wrap items-center gap-1 text-sm">
-          <Link to="/public/search" className="rounded-full px-3 py-1.5 hover:bg-black/5">
-            Tìm nhà
+          <Link to="/public/search?intent=buy" className="rounded-full px-3 py-1.5 hover:bg-black/5">
+            Mua
+          </Link>
+          <Link to="/public/search?intent=rent" className="rounded-full px-3 py-1.5 hover:bg-black/5">
+            Thuê
+          </Link>
+          <Link to="/public/search?intent=project" className="rounded-full px-3 py-1.5 hover:bg-black/5">
+            Dự án
+          </Link>
+          <Link to="/public/saved" className="rounded-full px-3 py-1.5 hover:bg-black/5">
+            Đã lưu
           </Link>
           <Link to="/public/map" className="rounded-full px-3 py-1.5 hover:bg-black/5">
             Bản đồ

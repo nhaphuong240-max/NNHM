@@ -4,7 +4,8 @@ import { ContactLeadModal } from '../components/public/ContactLeadModal';
 import { DISTRICT_FILTERS, ListingCard } from '../components/public/ListingCard';
 import { PublicTopBar } from '../components/PublicTopBar';
 import { useCompareBasket } from '../hooks/useCompareBasket';
-import { fetchSearchStats, searchUnits, type SearchHit } from '../lib/api';
+import { fetchSearchStats, savePublicSearch, searchUnits, type SearchHit } from '../lib/api';
+import { getVisitorId } from '../lib/visitor';
 import { brand } from '../theme/tokens';
 
 const PRICE_BUCKETS = [
@@ -32,6 +33,7 @@ export function SearchPage() {
   const [contactHit, setContactHit] = useState<SearchHit | null>(null);
   const [leadToast, setLeadToast] = useState<string | null>(null);
   const [stats, setStats] = useState<{ total: number; verified: number } | null>(null);
+  const [savedMsg, setSavedMsg] = useState<string | null>(null);
 
   useEffect(() => {
     setDistrict(districtParam);
@@ -90,6 +92,33 @@ export function SearchPage() {
           {stats && stats.total > 0 && (
             <p className="text-xs mt-2 font-medium" style={{ color: brand.primary }}>
               {stats.verified} căn Verified · {stats.total} listing trên bảng hàng
+            </p>
+          )}
+          <button
+            type="button"
+            className="mt-4 rounded-full px-4 py-2 text-sm font-semibold"
+            style={{ background: brand.primary, color: '#fff' }}
+            onClick={() => {
+              void savePublicSearch({
+                visitorId: getVisitorId(),
+                intent,
+                q: q ?? '',
+                filters: { district, bedrooms, minPrice, maxPrice },
+                alertFrequency: 'daily',
+                marketingConsent: true,
+              })
+                .then(() => setSavedMsg('Đã lưu tìm kiếm. Xem tại Đã lưu.'))
+                .catch((e) => setSavedMsg(e instanceof Error ? e.message : 'Không lưu được'));
+            }}
+          >
+            Lưu tìm kiếm này
+          </button>
+          {savedMsg && (
+            <p className="text-xs mt-2">
+              {savedMsg}{' '}
+              <Link to="/public/saved" style={{ color: brand.primary }}>
+                Mở Đã lưu
+              </Link>
             </p>
           )}
         </div>

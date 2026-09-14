@@ -80,11 +80,20 @@ export function PublicFooter() {
             </li>
             <li>
               <Link
-                to="/public/search"
+                to="/legal/privacy"
                 className="opacity-85 hover:opacity-100 no-underline hover:underline"
                 style={{ color: '#F4EFE6' }}
               >
-                Tìm kiếm nâng cao
+                Chính sách bảo mật
+              </Link>
+            </li>
+            <li>
+              <Link
+                to="/public/saved"
+                className="opacity-85 hover:opacity-100 no-underline hover:underline"
+                style={{ color: '#F4EFE6' }}
+              >
+                Đã lưu / cảnh báo
               </Link>
             </li>
             <li>

@@ -2482,6 +2482,147 @@ export async function submitLead(input: {
   return res.json() as Promise<LeadSubmitResult>;
 }
 
+export type SavedSearchRecord = {
+  id: string;
+  attributes: {
+    visitorId: string;
+    intent: string;
+    q: string;
+    filters: Record<string, unknown>;
+    alertFrequency: 'none' | 'daily' | 'instant';
+    marketingConsent: boolean;
+    createdAt: string;
+  };
+};
+
+export async function savePublicSearch(input: {
+  visitorId: string;
+  intent?: string;
+  q?: string;
+  filters?: Record<string, unknown>;
+  alertFrequency?: 'none' | 'daily' | 'instant';
+  marketingConsent?: boolean;
+}) {
+  const res = await fetch(`${API_BASE}/saved-searches`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Tenant-Id': DEFAULT_TENANT_ID },
+    body: JSON.stringify(input),
+  });
+  if (!res.ok) throw new Error(`Không lưu được tìm kiếm (${res.status})`);
+  return res.json() as Promise<{ data: SavedSearchRecord }>;
+}
+
+export async function fetchSavedSearches(visitorId: string) {
+  const res = await fetch(
+    `${API_BASE}/saved-searches?visitorId=${encodeURIComponent(visitorId)}`,
+    { headers: { 'X-Tenant-Id': DEFAULT_TENANT_ID } },
+  );
+  if (!res.ok) throw new Error(`Không tải được tìm kiếm đã lưu (${res.status})`);
+  return res.json() as Promise<{ data: SavedSearchRecord[] }>;
+}
+
+export async function deleteSavedSearch(id: string, visitorId: string) {
+  const res = await fetch(
+    `${API_BASE}/saved-searches/${encodeURIComponent(id)}?visitorId=${encodeURIComponent(visitorId)}`,
+    { method: 'DELETE', headers: { 'X-Tenant-Id': DEFAULT_TENANT_ID } },
+  );
+  if (!res.ok) throw new Error(`Không xóa được (${res.status})`);
+  return res.json();
+}
+
+export async function requestViewing(input: {
+  fullName: string;
+  phone: string;
+  email?: string;
+  unitId?: string;
+  projectId?: string;
+  listingId?: string;
+  requestedSlot?: string;
+  note?: string;
+  inquiryType?: string;
+  consent: { privacyAccepted: boolean; privacyPolicyVersion: string; marketing?: boolean };
+}) {
+  const res = await fetch(`${API_BASE}/viewings`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Tenant-Id': DEFAULT_TENANT_ID },
+    body: JSON.stringify(input),
+  });
+  if (!res.ok) {
+    const body = (await res.json().catch(() => null)) as { detail?: string } | null;
+    throw new Error(body?.detail ?? `Đặt lịch thất bại (${res.status})`);
+  }
+  return res.json() as Promise<{ data: { id: string }; meta: { leadId: string; deduplicated?: boolean } }>;
+}
+
+export type ViewingRecord = {
+  id: string;
+  attributes: {
+    leadId: string;
+    unitId: string | null;
+    projectId: string | null;
+    requestedSlot: string | null;
+    mode: string;
+    status: string;
+    outcome: string | null;
+    note: string | null;
+    createdAt: string;
+  };
+};
+
+export async function fetchViewings() {
+  const res = await authFetch('/viewings');
+  return res.json() as Promise<{ data: ViewingRecord[] }>;
+}
+
+export async function patchViewing(
+  viewingId: string,
+  body: { status?: string; outcome?: string; note?: string },
+) {
+  const res = await authFetch(`/viewings/${encodeURIComponent(viewingId)}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  return res.json() as Promise<{ data: ViewingRecord }>;
+}
+
+export type LeadRegistrationRecord = {
+  id: string;
+  attributes: {
+    fullName: string;
+    phone: string;
+    projectId: string;
+    unitId: string | null;
+    leadId?: string;
+    registeredBy: string;
+    status: string;
+    protectedUntil: string;
+    intent: string;
+    createdAt: string;
+  };
+};
+
+export async function fetchLeadRegistrations() {
+  const res = await authFetch('/lead-registrations');
+  return res.json() as Promise<{ data: LeadRegistrationRecord[]; meta: { result?: string } }>;
+}
+
+export async function registerLeadCustomer(input: {
+  fullName: string;
+  phone: string;
+  projectId: string;
+  unitId?: string;
+  intent?: string;
+  note?: string;
+}) {
+  const res = await authFetch('/lead-registrations', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  return res.json() as Promise<{ data: LeadRegistrationRecord; meta: { result: string } }>;
+}
+
 export type GrUnit = {
   id: string;
   attributes: {
@@ -3145,6 +3286,12 @@ export const LOST_REASONS = [
   { code: 'NO_BUDGET', label: 'Không đủ ngân sách' },
   { code: 'NO_RESPONSE', label: 'Không phản hồi' },
   { code: 'BOUGHT_ELSEWHERE', label: 'Mua nơi khác' },
+  { code: 'PRICE', label: 'Giá' },
+  { code: 'FINANCE', label: 'Tài chính / vay' },
+  { code: 'PRODUCT_MISMATCH', label: 'Không khớp sản phẩm' },
+  { code: 'COMPETITOR', label: 'Đối thủ' },
+  { code: 'POLICY_DELAY', label: 'Chậm chính sách' },
+  { code: 'LEGAL', label: 'Pháp lý' },
   { code: 'OTHER', label: 'Khác' },
 ] as const;
 

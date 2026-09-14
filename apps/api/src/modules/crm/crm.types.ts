@@ -21,14 +21,20 @@ export const LOST_REASONS = [
   'NO_BUDGET',
   'NO_RESPONSE',
   'BOUGHT_ELSEWHERE',
+  'PRICE',
+  'FINANCE',
+  'PRODUCT_MISMATCH',
+  'COMPETITOR',
+  'POLICY_DELAY',
+  'LEGAL',
   'OTHER',
 ] as const;
 
 export type LostReason = (typeof LOST_REASONS)[number];
 
 const ALLOWED_TRANSITIONS: Record<LeadStatus, LeadStatus[]> = {
-  NEW: ['CONTACTED', 'VIEWING', 'LOST'],
-  CONTACTED: ['NEW', 'VIEWING', 'NEGOTIATING', 'LOST'],
+  NEW: ['CONTACTED', 'VIEWING', 'NEGOTIATING', 'BOOKING', 'LOST'],
+  CONTACTED: ['NEW', 'VIEWING', 'NEGOTIATING', 'BOOKING', 'LOST'],
   VIEWING: ['CONTACTED', 'NEGOTIATING', 'BOOKING', 'LOST'],
   NEGOTIATING: ['VIEWING', 'BOOKING', 'WON', 'LOST'],
   BOOKING: ['NEGOTIATING', 'WON', 'LOST'],
@@ -43,6 +49,9 @@ export interface CreateLeadInput {
   source?: string;
   unitId?: string;
   listingId?: string;
+  projectId?: string;
+  inquiryType?: string;
+  requirement?: Record<string, unknown>;
   message?: string;
   consent?: {
     privacyAccepted?: boolean;
@@ -84,6 +93,9 @@ export interface LeadRecord {
     scoringMeta?: Record<string, unknown> | null;
     channelMeta?: Record<string, unknown> | null;
     unitId?: string;
+    projectId?: string;
+    inquiryType?: string;
+    requirement?: Record<string, unknown> | null;
     utmCampaign?: string | null;
     campaignId?: string | null;
     lostReason?: string;
@@ -106,7 +118,7 @@ export interface ActivityRecord {
 
 export interface CreateLeadResult {
   data: LeadRecord;
-  meta?: { idempotentReplay?: boolean };
+  meta?: { idempotentReplay?: boolean; deduplicated?: boolean };
 }
 
 export function mapLeadEntity(row: LeadEntity): LeadRecord {
@@ -125,6 +137,9 @@ export function mapLeadEntity(row: LeadEntity): LeadRecord {
       scoringMeta: row.scoringMeta,
       channelMeta: row.channelMeta,
       unitId: row.unitId ?? undefined,
+      projectId: row.projectId ?? undefined,
+      inquiryType: row.inquiryType ?? undefined,
+      requirement: row.requirement,
       utmCampaign: row.utmCampaign,
       campaignId: row.campaignId,
       lostReason: row.lostReason ?? undefined,

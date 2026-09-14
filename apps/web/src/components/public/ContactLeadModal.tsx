@@ -1,4 +1,5 @@
 import { FormEvent, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { PRIVACY_POLICY_VERSION, submitLead, type SearchHit } from '../../lib/api';
 import { brand } from '../../theme/tokens';
 
@@ -96,7 +97,11 @@ export function ContactLeadModal({ hit, onClose, onSuccess }: Props) {
               onChange={(e) => setPrivacyAccepted(e.target.checked)}
               className="mt-0.5"
             />
-            Tôi đồng ý xử lý dữ liệu theo chính sách bảo mật NNHN.
+            Tôi đồng ý xử lý dữ liệu theo{' '}
+            <Link to="/legal/privacy" className="underline" style={{ color: brand.primary }}>
+              chính sách bảo mật
+            </Link>{' '}
+            NNHN.
           </label>
           {error && <p className="text-sm text-red-600">{error}</p>}
           <button

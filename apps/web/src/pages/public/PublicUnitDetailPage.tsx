@@ -8,6 +8,7 @@ import {
   fetchUnitMedia,
   PRIVACY_POLICY_VERSION,
   submitLead,
+  requestViewing,
   type UnitDetail,
 } from '../../lib/api';
 import { buildProductSchema } from '../../lib/seo';
@@ -52,6 +53,8 @@ export function PublicUnitDetailPage() {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [thankYou, setThankYou] = useState<{ leadId: string; tier: string } | null>(null);
+  const [viewingSlot, setViewingSlot] = useState('');
+  const [viewingMsg, setViewingMsg] = useState<string | null>(null);
   const [showContactModal, setShowContactModal] = useState(false);
   const [liveStatus, setLiveStatus] = useState<string | null>(null);
   const [statusFlash, setStatusFlash] = useState(false);
@@ -426,9 +429,9 @@ export function PublicUnitDetailPage() {
                     />
                     <span>
                       Tôi đồng ý với{' '}
-                      <a href="#" className="underline" style={{ color: brand.primary }}>
+                      <Link to="/legal/privacy" className="underline" style={{ color: brand.primary }}>
                         Chính sách bảo mật
-                      </a>{' '}
+                      </Link>{' '}
                       (v{PRIVACY_POLICY_VERSION}) *
                     </span>
                   </label>
@@ -454,6 +457,50 @@ export function PublicUnitDetailPage() {
                   >
                     {submitting ? 'Đang gửi…' : 'Gửi yêu cầu tư vấn'}
                   </button>
+                  <label className="block text-sm">
+                    Đặt lịch xem nhà
+                    <input
+                      type="datetime-local"
+                      value={viewingSlot}
+                      onChange={(e) => setViewingSlot(e.target.value)}
+                      className="mt-1 w-full rounded-xl border px-3 py-2.5"
+                      style={{ borderColor: brand.border }}
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    disabled={submitting || !privacyAccepted}
+                    className="w-full rounded-xl py-3 font-semibold disabled:opacity-50"
+                    style={{ background: brand.hover, color: brand.primaryDark }}
+                    onClick={() => {
+                      if (!detail || !privacyAccepted) return;
+                      setSubmitting(true);
+                      setViewingMsg(null);
+                      void requestViewing({
+                        fullName,
+                        phone,
+                        email: email || undefined,
+                        unitId: detail.data.id,
+                        listingId: detail.data.listingId,
+                        requestedSlot: viewingSlot ? new Date(viewingSlot).toISOString() : undefined,
+                        note: message || undefined,
+                        consent: {
+                          privacyAccepted: true,
+                          marketing,
+                          privacyPolicyVersion: PRIVACY_POLICY_VERSION,
+                        },
+                      })
+                        .then((res) => {
+                          setViewingMsg(`Đã ghi lịch xem. Mã lead ${res.meta.leadId}`);
+                          setThankYou({ leadId: res.meta.leadId, tier: 'NEW' });
+                        })
+                        .catch((err) => setSubmitError(err instanceof Error ? err.message : 'Đặt lịch thất bại'))
+                        .finally(() => setSubmitting(false));
+                    }}
+                  >
+                    Gửi lịch xem nhà
+                  </button>
+                  {viewingMsg && <p className="text-xs" style={{ color: brand.primary }}>{viewingMsg}</p>}
                   <Link
                     to={`/auth/login?portal=agent&unitId=${unitId}`}
                     className="block w-full rounded-xl py-3 font-semibold text-center no-underline"

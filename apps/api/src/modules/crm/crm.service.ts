@@ -8,6 +8,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { randomUUID } from 'crypto';
 import { Repository } from 'typeorm';
+import { BusinessErrorCode, throwBusinessError } from '../../common/business-error';
 import { CrmActivityEntity } from '../../database/entities/crm-activity.entity';
 import { LeadEntity } from '../../database/entities/lead.entity';
 import { AuditService } from '../audit/audit.service';
@@ -33,6 +34,7 @@ import {
 } from './crm.types';
 import { resolveLeadAttribution } from './lead-attribution.util';
 import { parseLeadImportCsv } from './crm-lead-import.util';
+import { phonesMatch } from './phone.util';
 import type { LeadImportCommitInput, LeadImportPreviewInput } from './crm.types';
 import {
   computeSlaBucket,
@@ -110,6 +112,11 @@ export class CrmService {
     const source = input.source?.trim() || 'PUBLIC_FORM';
     this.assertConsent(source, input.consent);
 
+    const existing = await this.findExistingByPhone(tenantId, input.phone);
+    if (existing) {
+      return this.mergeIntoExistingLead(tenantId, existing, input, actorId);
+    }
+
     const id = `ld_${randomUUID().replace(/-/g, '').slice(0, 8)}`;
     const consentGiven = Boolean(input.consent?.privacyAccepted);
     const privacyPolicyVersion = input.consent?.privacyPolicyVersion?.trim() ?? null;
@@ -137,6 +144,9 @@ export class CrmService {
       channelMeta: input.channelMeta ?? null,
       unitId: input.unitId?.trim() ?? null,
       listingId: input.listingId?.trim() ?? null,
+      projectId: input.projectId?.trim() ?? null,
+      inquiryType: input.inquiryType?.trim() ?? null,
+      requirement: input.requirement ?? null,
       message: input.message?.trim() ?? null,
       idempotencyKey: idempotencyKey ?? null,
       consentGiven,
@@ -708,12 +718,96 @@ export class CrmService {
     return { data: mapActivityEntity(row) };
   }
 
+  async findExistingByPhone(tenantId: string, phone: string): Promise<LeadEntity | null> {
+    const rows = await this.leads.find({
+      where: { tenantId },
+      order: { createdAt: 'ASC' },
+      take: 400,
+    });
+    return rows.find((row) => phonesMatch(row.phone, phone)) ?? null;
+  }
+
+  async syncLeadFromBooking(tenantId: string, leadId: string, unitId?: string): Promise<void> {
+    const row = await this.leads.findOne({ where: { id: leadId, tenantId } });
+    if (!row) return;
+    if (row.status === 'WON' || row.status === 'LOST' || row.status === 'BOOKING') {
+      if (unitId && !row.unitId) {
+        row.unitId = unitId;
+        await this.leads.save(row);
+      }
+      return;
+    }
+    if (unitId) row.unitId = unitId;
+    assertStageTransition(row.status, 'BOOKING');
+    row.status = 'BOOKING';
+    row.lastActivityAt = new Date();
+    await this.leads.save(row);
+    await this.audit.append({
+      tenantId,
+      entityType: 'lead',
+      entityId: row.id,
+      action: 'STAGE',
+      payload: { to: 'BOOKING', reason: 'booking.created' },
+      actorId: null,
+    });
+  }
+
+  private async mergeIntoExistingLead(
+    tenantId: string,
+    existing: LeadEntity,
+    input: CreateLeadInput,
+    actorId?: string,
+  ): Promise<CreateLeadResult> {
+    const unitId = input.unitId?.trim();
+    if (unitId && !existing.unitId) existing.unitId = unitId;
+    if (input.projectId?.trim() && !existing.projectId) existing.projectId = input.projectId.trim();
+    if (input.inquiryType?.trim() && !existing.inquiryType) {
+      existing.inquiryType = input.inquiryType.trim();
+    }
+    existing.lastActivityAt = new Date();
+    await this.leads.save(existing);
+
+    await this.createActivity(
+      tenantId,
+      {
+        leadId: existing.id,
+        type: 'NOTE',
+        summary: input.message?.trim() || `Tương tác mới từ ${input.source ?? 'PUBLIC'}`,
+        metadata: {
+          deduplicated: true,
+          source: input.source,
+          unitId: unitId ?? null,
+          utm: input.utm ?? null,
+        },
+      },
+      actorId,
+    );
+
+    await this.audit.append({
+      tenantId,
+      entityType: 'lead',
+      entityId: existing.id,
+      action: 'DEDUP_MERGE',
+      payload: { source: input.source, unitId },
+      actorId: actorId ?? null,
+    });
+
+    const refreshed = await this.leads.findOne({ where: { id: existing.id, tenantId } });
+    return {
+      data: mapLeadEntity(refreshed ?? existing),
+      meta: { deduplicated: true },
+    };
+  }
+
   private assertConsent(
     source: string,
     consent?: CreateLeadInput['consent'],
   ): void {
     const requiresPdpa =
-      source === 'PUBLIC_FORM' || source === 'PUBLIC_UNIT_DETAIL' || source === 'PUBLIC_SERP';
+      source === 'PUBLIC_FORM' ||
+      source === 'PUBLIC_UNIT_DETAIL' ||
+      source === 'PUBLIC_SERP' ||
+      source === 'PUBLIC_VIEWING';
 
     if (consent?.marketing && !consent.privacyPolicyVersion?.trim()) {
       throw new UnprocessableEntityException({
@@ -724,17 +818,17 @@ export class CrmService {
     if (!requiresPdpa) return;
 
     if (!consent?.privacyAccepted) {
-      throw new UnprocessableEntityException({
-        type: 'https://wereal.dev/problems/consent-required',
-        title: 'Consent required',
-        detail: 'consent.privacyAccepted is required for public lead forms (BR-15)',
-      });
+      throwBusinessError(
+        BusinessErrorCode.PDPA_CONSENT_REQUIRED,
+        'consent.privacyAccepted is required for public lead forms (BR-15)',
+      );
     }
 
     if (!consent?.privacyPolicyVersion?.trim()) {
-      throw new UnprocessableEntityException({
-        detail: 'privacyPolicyVersion is required (BR-15)',
-      });
+      throwBusinessError(
+        BusinessErrorCode.PDPA_CONSENT_REQUIRED,
+        'privacyPolicyVersion is required (BR-15)',
+      );
     }
   }
 }

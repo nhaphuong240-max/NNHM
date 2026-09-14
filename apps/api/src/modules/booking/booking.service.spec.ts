@@ -8,6 +8,7 @@ import { InventoryLockService } from '../../infrastructure/redis/inventory-lock.
 import { RefundService } from '../payment/refund.service';
 import { StreamEventsService } from '../stream/stream-events.service';
 import { TenantWebhookService } from '../tenant-webhooks/tenant-webhook.service';
+import { CrmService } from '../crm/crm.service';
 import { BookingEventsService } from './booking-events.service';
 import { BookingService } from './booking.service';
 
@@ -113,6 +114,10 @@ describe('BookingService', () => {
         {
           provide: TenantWebhookService,
           useValue: { emitEvent: jest.fn().mockResolvedValue({ data: { delivered: 0, deliveries: [] } }) },
+        },
+        {
+          provide: CrmService,
+          useValue: { syncLeadFromBooking: jest.fn().mockResolvedValue(undefined) },
         },
         {
           provide: getRepositoryToken(PaymentIntentEntity),

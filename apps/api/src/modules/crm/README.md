@@ -11,7 +11,14 @@ Lead capture from public forms and agent workflows; async AI scoring hook (UC-AI
 
 | Method | Path | Auth |
 |--------|------|------|
-| POST | `/leads` | Public — provisional score 50, async AI scoring enqueued |
+| POST | `/leads` | Public — provisional score 50, async AI scoring enqueued; duplicate phone merges (FR-LEAD-002) |
+| POST | `/viewings` | Public — viewing request + lead (FR-VIEW-001) |
+| GET | `/viewings` | JWT |
+| PATCH | `/viewings/{id}` | JWT — confirm / outcome |
+| POST | `/lead-registrations` | JWT — deal protection 30 ngày (FR-DP-001) |
+| GET | `/lead-registrations` | JWT — PII mask nếu không phải người đăng ký |
+| POST | `/saved-searches` | Public — visitorId (FR-SRCH-003) |
+| GET | `/saved-searches` | Public — `?visitorId=` |
 | — | `POST /webhooks/meta` | Meta Lead Ads → `META_LEAD` (UC-NW-02 / BR-05) |
 | — | `POST /webhooks/zalo` | Zalo OA message → `ZALO_OA` (UC-NW-01 / BR-05) |
 | GET | `/leads` | JWT |
@@ -55,15 +62,21 @@ Public forms (`PUBLIC_FORM`, `PUBLIC_UNIT_DETAIL`) require:
 
 | Route | Screen |
 |-------|--------|
-| `/public/units/:unitId` | SCR-PUBLIC-006 sticky lead form |
+| `/public/units/:unitId` | SCR-PUBLIC-006 sticky lead form + viewing request |
+| `/public/saved` | Saved searches / alerts (FR-SRCH-003) |
+| `/legal/privacy` | PDPA policy page |
 | `/agent` | Agent dashboard · hot leads KPI (UC-CRM-05) |
 | `/agent/leads` | Lead list · filter · score sort |
 | `/agent/pipeline` | SCR-AGENT-014 kanban + activity drawer |
+| `/agent/viewings` | Lịch xem nhà (FR-VIEW) |
+| `/agent/registrations` | Lead registry / deal protection (FR-DP) |
 | `/agent/leads/import` | SCR-AGENT-008 CSV import preview + commit |
 | `/agent/bookings/cancel` | SCR-AGENT-004 cancel + MFA + refund tracker |
 | `/agent/listings/media` | SCR-AGENT-010 listing media gallery |
 | `/agent/contracts/new` | SCR-AGENT-006 contract template wizard (UC-BK-06) |
 | `/agent/tasks/sla` | SCR-AGENT-SLA reminder & escalation (UC-CRM-06) |
+
+Spec: `docs/specs/NNHN-SRS-Website-CRM.md` · Implementation: `docs/specs/NNHN-SRS-Implementation-Plan.md`
 
 ## UAT
 

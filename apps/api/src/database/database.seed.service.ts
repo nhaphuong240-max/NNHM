@@ -41,6 +41,27 @@ import { ensureMarketplaceSerpSeed } from './marketplace-serp.seed';
 const SEED_TENANT_ID = 'ten_dev_01';
 const SEED_AGENCY_TENANT_ID = 'ten_agency_01';
 const SEED_PROJECT_ID = 'prj_sunrise';
+
+/** Wave 0 — beachhead orgs on ten_dev_01 (2 sàn UAT, SRS §17 ABAC). */
+const WAVE0_ORG_SUNRISE = 'org_sunrise';
+const WAVE0_ORG_RIVER = 'org_river';
+
+const WAVE0_AGENT_USERS = [
+  {
+    id: 'usr_agent_01',
+    email: 'agent@sunrise-dev.vn',
+    role: 'AGENT' as const,
+    password: 'Agent123!',
+    organizationId: WAVE0_ORG_SUNRISE,
+  },
+  {
+    id: 'usr_agent_river',
+    email: 'agent.river@sunrise-dev.vn',
+    role: 'AGENT' as const,
+    password: 'Agent123!',
+    organizationId: WAVE0_ORG_RIVER,
+  },
+] as const;
 const PILOT_CDT_TENANT_ID = 'ten_pilot_cdt_01';
 const PILOT_CDT_PROJECT_ID = 'prj_thanglong_01';
 
@@ -233,6 +254,7 @@ export class DatabaseSeedService implements OnModuleInit {
     await this.ensurePilotS5Settlement();
     await this.ensureNetworkScaleT7S6();
     await this.ensureEnterpriseT7S8();
+    await this.ensureWave0OrgAgents();
   }
 
   private async ensurePilotCdtAnchor() {
@@ -1153,6 +1175,44 @@ Ngày lập: 29/07/2026
         user.passwordHash = hash;
         user.role = demo.role;
         await this.users.save(user);
+      }
+    }
+  }
+
+  /** Wave 0 — assign org_sunrise / org_river to beachhead agents on ten_dev_01. */
+  private async ensureWave0OrgAgents() {
+    for (const demo of WAVE0_AGENT_USERS) {
+      const hash = await bcrypt.hash(demo.password, 10);
+      const existing = await this.users.findOne({ where: { email: demo.email } });
+      if (!existing) {
+        await this.users.save({
+          id: demo.id,
+          tenantId: SEED_TENANT_ID,
+          email: demo.email,
+          role: demo.role,
+          passwordHash: hash,
+          isActive: true,
+          organizationId: demo.organizationId,
+        });
+        this.logger.log(`Wave0 org seed — ${demo.id} → ${demo.organizationId}`);
+        continue;
+      }
+      let dirty = false;
+      if (existing.organizationId !== demo.organizationId) {
+        existing.organizationId = demo.organizationId;
+        dirty = true;
+      }
+      if (!existing.passwordHash) {
+        existing.passwordHash = hash;
+        dirty = true;
+      }
+      if (existing.tenantId !== SEED_TENANT_ID) {
+        existing.tenantId = SEED_TENANT_ID;
+        dirty = true;
+      }
+      if (dirty) {
+        await this.users.save(existing);
+        this.logger.log(`Wave0 org seed — updated ${demo.id} → ${demo.organizationId}`);
       }
     }
   }

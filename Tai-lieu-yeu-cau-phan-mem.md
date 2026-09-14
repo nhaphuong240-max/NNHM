@@ -5,7 +5,7 @@
 > **Ngày phát hành:** 28/07/2026
 > **Trạng thái:** Draft — chờ Steering Committee sign-off
 > **Baseline ID:** WEREAL-SRS-2026-v2.0
-> **Liên kết:** `Danh-sach-use-case-user-story.md` | `Tieu-chi-chap-nhan.md` | `Yeu-cau-da-xac-nhan.md` | `Ke-hoach-du-an.md` | `Pham-vi-cong-viec.md`
+> **Liên kết:** `docs/specs/NNHN-SRS-Website-CRM.md` (phân hệ website + CRM theo NSOS 14/09/2026) · `docs/specs/NNHN-SRS-Implementation-Plan.md` (triển khai SRS nâng cao) · `Danh-sach-use-case-user-story.md` | `Tieu-chi-chap-nhan.md` | `Yeu-cau-da-xac-nhan.md` | `Ke-hoach-du-an.md` | `Pham-vi-cong-viec.md`
 
 ---
 

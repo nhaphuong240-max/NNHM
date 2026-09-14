@@ -45,11 +45,15 @@ import { AgentRoutingSettingsPage } from './pages/agent/AgentRoutingSettingsPage
 import { AgentAiLegalPage } from './pages/agent/AgentAiLegalPage';
 import { AgentAiReplyPage } from './pages/agent/AgentAiReplyPage';
 import { AgentInboxPage } from './pages/agent/AgentInboxPage';
+import { AgentViewingsPage } from './pages/agent/AgentViewingsPage';
+import { AgentRegistrationsPage } from './pages/agent/AgentRegistrationsPage';
 import { PublicChatPage } from './pages/public/PublicChatPage';
 import { PublicMapPage } from './pages/public/PublicMapPage';
 import { PublicProjectPage } from './pages/public/PublicProjectPage';
 import { PublicDistrictPage } from './pages/public/PublicDistrictPage';
 import { PublicEmiPage } from './pages/public/PublicEmiPage';
+import { PublicSavedSearchesPage } from './pages/public/PublicSavedSearchesPage';
+import { LegalPrivacyPage } from './pages/public/LegalPrivacyPage';
 import { AuthSsoPage } from './pages/auth/AuthSsoPage';
 import { AuthSsoCallbackPage } from './pages/auth/AuthSsoCallbackPage';
 import { AdminWhitelabelPage } from './pages/admin/AdminWhitelabelPage';
@@ -92,6 +96,8 @@ export default function App() {
       <Route path="/app" element={<OpsPortalsPage />} />
       <Route path="/mua/:districtSlug" element={<PublicDistrictPage />} />
       <Route path="/public/tools/emi" element={<PublicEmiPage />} />
+      <Route path="/public/saved" element={<PublicSavedSearchesPage />} />
+      <Route path="/legal/privacy" element={<LegalPrivacyPage />} />
       <Route path="/public/search" element={<SearchPage />} />
       <Route path="/public/recommendations" element={<PublicRecommendationsPage />} />
       <Route path="/public/chat" element={<PublicChatPage />} />
@@ -318,6 +324,22 @@ export default function App() {
         element={
           <RequireAuth loginPath="/auth/login">
             <AgentLeadsPage />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/agent/viewings"
+        element={
+          <RequireAuth loginPath="/auth/login">
+            <AgentViewingsPage />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/agent/registrations"
+        element={
+          <RequireAuth loginPath="/auth/login">
+            <AgentRegistrationsPage />
           </RequireAuth>
         }
       />

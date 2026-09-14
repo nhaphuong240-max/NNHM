@@ -70,6 +70,15 @@ export class LeadEntity {
   @Column({ name: 'listing_id', type: 'varchar', length: 32, nullable: true })
   listingId!: string | null;
 
+  @Column({ name: 'project_id', type: 'varchar', length: 32, nullable: true })
+  projectId!: string | null;
+
+  @Column({ name: 'inquiry_type', type: 'varchar', length: 16, nullable: true })
+  inquiryType!: string | null;
+
+  @Column({ type: 'jsonb', nullable: true })
+  requirement!: Record<string, unknown> | null;
+
   @Column({ type: 'text', nullable: true })
   message!: string | null;
 

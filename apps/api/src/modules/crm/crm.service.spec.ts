@@ -272,6 +272,31 @@ describe('CrmService', () => {
     expect(rows).toHaveLength(1);
   });
 
+  it('merges duplicate public phone into the same lead (FR-LEAD-002)', async () => {
+    const consent = { privacyAccepted: true, privacyPolicyVersion: '2026-07-01' };
+    const first = await service.createLead(TENANT, {
+      fullName: 'A',
+      phone: '+84901234567',
+      source: 'PUBLIC_SERP',
+      unitId: 'un_01',
+      consent,
+    });
+    const second = await service.createLead(TENANT, {
+      fullName: 'A',
+      phone: '0901234567',
+      source: 'PUBLIC_UNIT_DETAIL',
+      message: 'Xem lại căn',
+      consent,
+    });
+
+    expect(second.data.id).toBe(first.data.id);
+    expect(second.meta?.deduplicated).toBe(true);
+    expect(rows).toHaveLength(1);
+    expect(activityRows.some((a) => a.metadata && (a.metadata as { deduplicated?: boolean }).deduplicated)).toBe(
+      true,
+    );
+  });
+
   it('patches lead stage with audit', async () => {
     await service.createLead(TENANT, {
       fullName: 'Kanban',
