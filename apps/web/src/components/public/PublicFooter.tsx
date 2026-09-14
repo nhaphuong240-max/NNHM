@@ -1,10 +1,24 @@
+import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { BrandMark } from './BrandMark';
 import { PostPropertyLink } from './PostPropertyCta';
-import { CITY_GROUPS, DISTRICTS, districtPath, findDistrictBySlug } from '../../lib/districts';
+import { districtPath } from '../../lib/districts';
+import { useGeoAreas } from '../../hooks/useGeoAreas';
 import { brand } from '../../theme/tokens';
 
 export function PublicFooter() {
+  const { areas } = useGeoAreas();
+
+  const cityGroups = useMemo(() => {
+    const map = new Map<string, typeof areas>();
+    for (const area of areas) {
+      const list = map.get(area.city) ?? [];
+      list.push(area);
+      map.set(area.city, list);
+    }
+    return [...map.entries()].sort(([a], [b]) => a.localeCompare(b, 'vi'));
+  }, [areas]);
+
   return (
     <footer
       className="mt-auto px-4 py-12"
@@ -22,27 +36,23 @@ export function PublicFooter() {
           </p>
         </div>
 
-        {CITY_GROUPS.map((group) => (
-          <div key={group.city}>
+        {cityGroups.map(([city, cityAreas]) => (
+          <div key={city}>
             <p className="nnhn-kicker mb-3" style={{ color: '#E8C4A8' }}>
-              {group.city}
+              {city}
             </p>
             <ul className="space-y-1.5">
-              {group.slugs.map((slug) => {
-                const d = findDistrictBySlug(slug);
-                if (!d) return null;
-                return (
-                  <li key={slug}>
-                    <Link
-                      to={districtPath(slug)}
-                      className="opacity-85 hover:opacity-100 no-underline hover:underline"
-                      style={{ color: '#F4EFE6' }}
-                    >
-                      Căn hộ {d.label}
-                    </Link>
-                  </li>
-                );
-              })}
+              {cityAreas.map((d) => (
+                <li key={d.slug}>
+                  <Link
+                    to={districtPath(d.slug)}
+                    className="opacity-85 hover:opacity-100 no-underline hover:underline"
+                    style={{ color: '#F4EFE6' }}
+                  >
+                    Căn hộ {d.label}
+                  </Link>
+                </li>
+              ))}
             </ul>
           </div>
         ))}
@@ -107,7 +117,7 @@ export function PublicFooter() {
             </li>
           </ul>
           <p className="opacity-60 text-xs leading-relaxed mt-4">
-            {DISTRICTS.map((d) => d.label).join(' · ')}
+            {areas.map((d) => d.label).join(' · ')}
           </p>
         </div>
       </div>

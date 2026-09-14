@@ -30,9 +30,19 @@ export class SearchController {
     };
   }
 
+  /** Phase A — NL eval gate (FR-AI-001 / BA-06) */
+  @Public()
   @Get('nl/eval')
   nlEval() {
-    return { data: this.nlSearch.runEvalSet(), meta: { evalSet: 'NNHN-AI-EVAL-VN-50' } };
+    const result = this.nlSearch.runEvalSet();
+    return {
+      data: result,
+      meta: {
+        evalSet: 'NNHN-AI-EVAL-VN-50',
+        gatePassed: result.gatePassed,
+        minPassRate: result.minPassRate,
+      },
+    };
   }
 
   /** API-039 GET /search/units — UC-LS-01 public search (guest) */
@@ -87,16 +97,35 @@ export class SearchController {
     return this.search.searchStats(resolveTenantId(this.config, undefined, tenantHeader));
   }
 
-  /** P2 — map pins from search index listings */
+  /** Phase A FR-SRCH-007 — map pins; bbox = search-on-move */
   @Public()
   @Get('map')
   searchMap(
     @Headers('x-tenant-id') tenantHeader: string | undefined,
     @Query('projectId') projectId?: string,
+    @Query('north') northRaw?: string,
+    @Query('south') southRaw?: string,
+    @Query('east') eastRaw?: string,
+    @Query('west') westRaw?: string,
   ) {
+    const parseCoord = (v?: string) => {
+      if (!v) return undefined;
+      const n = Number.parseFloat(v);
+      return Number.isFinite(n) ? n : undefined;
+    };
+    const north = parseCoord(northRaw);
+    const south = parseCoord(southRaw);
+    const east = parseCoord(eastRaw);
+    const west = parseCoord(westRaw);
+    const bbox =
+      north !== undefined && south !== undefined && east !== undefined && west !== undefined
+        ? { north, south, east, west }
+        : undefined;
+
     return this.search.getMapFromIndex(
       resolveTenantId(this.config, undefined, tenantHeader),
       projectId,
+      bbox,
     );
   }
 

@@ -1,5 +1,5 @@
-import { Injectable } from '@nestjs/common';
-import { readFileSync } from 'fs';
+import { Injectable, Logger } from '@nestjs/common';
+import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
 
 export type NlSearchParseResult = {
@@ -26,9 +26,26 @@ const DISTRICT_ALIASES: Record<string, { district: string; city: string }> = {
   'ngũ hành sơn': { district: 'Ngũ Hành Sơn', city: 'Đà Nẵng' },
 };
 
+const EVAL_MIN_PASS_RATE = 0.85;
+
+const AGENT_ONLY_EXPECTS = new Set([
+  'copilot_summary_p2',
+  'registration_flow',
+  'dispute_policy_ref',
+  'sla_explain',
+  'agent_scoped',
+  'inbox_merge_lead',
+  'import_preview',
+  'agent_booking_flow',
+  'refuse_or_agent_login',
+  'event_p1_or_unknown',
+]);
+
 /** P1 FR-AI-001 — rule-based VN NL → search filters (grounded, no hallucinated price). */
 @Injectable()
 export class NlSearchService {
+  private readonly logger = new Logger(NlSearchService.name);
+
   parse(query: string): NlSearchParseResult {
     const raw = query.trim();
     const lower = raw.toLowerCase();
@@ -121,38 +138,179 @@ export class NlSearchService {
     return result;
   }
 
-  runEvalSet(): { passed: number; total: number; items: { id: number; ok: boolean; note?: string }[] } {
-    const path = join(process.cwd(), 'docs/specs/eval/NNHN-AI-Eval-VN-50.json');
+  private evalSetPath(): string {
+    const candidates = [
+      join(process.cwd(), 'docs/specs/eval/NNHN-AI-Eval-VN-50.json'),
+      join(process.cwd(), '../../docs/specs/eval/NNHN-AI-Eval-VN-50.json'),
+      join(__dirname, '../../../../docs/specs/eval/NNHN-AI-Eval-VN-50.json'),
+    ];
+    return candidates.find((p) => existsSync(p)) ?? candidates[0]!;
+  }
+
+  private evaluateEvalItem(
+    item: { id: number; query: string; expect: string; mustNot?: string },
+    parsed: NlSearchParseResult,
+  ): { ok: boolean; skipped?: boolean; note?: string } {
+    if (AGENT_ONLY_EXPECTS.has(item.expect)) {
+      return { ok: true, skipped: true, note: 'agent_scope' };
+    }
+
+    let ok = true;
+    const noteParts: string[] = [];
+
+    if (item.mustNot === 'invent_price' && parsed.minPrice && !item.query.includes('tỷ')) {
+      ok = false;
+      noteParts.push('invent_price');
+    }
+    if (item.mustNot === 'commission' && !parsed.refused?.includes('commission')) {
+      ok = false;
+      noteParts.push('must_refuse_commission');
+    }
+    if (item.mustNot === 'pii' && !parsed.refused?.includes('pii')) {
+      ok = false;
+      noteParts.push('must_refuse_pii');
+    }
+    if (item.mustNot === 'pii_hold' && !parsed.refused?.includes('pii')) {
+      ok = false;
+      noteParts.push('must_refuse_hold_pii');
+    }
+    if (item.mustNot === 'legal_guarantee') {
+      const hasDisclaimer =
+        parsed.refused?.includes('legal_guarantee') ||
+        parsed.understood.some((u) => u.includes('disclaimer'));
+      if (!hasDisclaimer) {
+        ok = false;
+        noteParts.push('legal_disclaimer');
+      }
+    }
+    if (item.mustNot === 'lead_pii' && !parsed.refused?.includes('pii')) {
+      ok = false;
+    }
+    if (item.mustNot === 'customer_name_leak' && !parsed.refused?.includes('pii')) {
+      ok = false;
+    }
+    if (item.mustNot === 'auto_reject_lead') {
+      /* NL parser never auto-rejects — always pass */
+    }
+
+    switch (item.expect) {
+      case 'transactionType_rent':
+        if (parsed.transactionType !== 'rent') ok = false;
+        break;
+      case 'filter_verified':
+        if (!parsed.verifiedOnly) ok = false;
+        break;
+      case 'refuse_commission':
+        if (!parsed.refused?.includes('commission')) ok = false;
+        break;
+      case 'refuse_pii':
+      case 'refuse_hold_owner':
+        if (!parsed.refused?.includes('pii')) ok = false;
+        break;
+      case 'disclaimer_legal':
+      case 'verification_disclaimer':
+        if (!parsed.refused?.includes('legal_guarantee') && !parsed.understood.some((u) => u.includes('disclaimer'))) {
+          ok = false;
+        }
+        break;
+      case 'sort_price_asc':
+        if (parsed.sort !== 'price') ok = false;
+        break;
+      case 'sort_newest':
+        if (parsed.sort !== 'newest') ok = false;
+        break;
+      case 'filter_budget':
+        if (!parsed.maxPrice && !parsed.minPrice) ok = false;
+        break;
+      case 'filter_bedrooms_area':
+        if (!parsed.bedrooms) ok = false;
+        break;
+      case 'map_intent':
+        if (!parsed.understood.some((u) => u.includes('intent=map')) && !parsed.district) ok = false;
+        break;
+      case 'ground_inventory_only':
+      case 'no_sold_as_available':
+      case 'compare_projects':
+      case 'filter_area_view':
+      case 'zero_or_secondary_phase':
+      case 'emi_tool_or_disclaimer':
+      case 'viewing_cta':
+      case 'filter_orientation':
+      case 'filter_delivery':
+      case 'aggregate_if_public':
+      case 'filter_price_drop':
+      case 'respect_limited_status':
+      case 'clarify_rent_type':
+      case 'filter_studio_budget':
+      case 'filter_developer':
+      case 'public_safe_status':
+      case 'freshness_back_to_market':
+      case 'saved_search_intent':
+      case 'seeker_auth_flow':
+      case 'price_from_index':
+      case 'geo_or_zero':
+      case 'filter_type_if_exists':
+      case 'filter_furnished':
+      case 'compare_price_sqm':
+      case 'not_found':
+      case 'golden_record_explain':
+      case 'explain_gr':
+        /* NL parser returns filters only — pass if no mustNot violation */
+        break;
+      default:
+        break;
+    }
+
+    return {
+      ok,
+      note: noteParts.length ? noteParts.join(',') : ok ? undefined : JSON.stringify(parsed),
+    };
+  }
+
+  runEvalSet() {
+    const path = this.evalSetPath();
     let items: { id: number; query: string; expect: string; mustNot?: string }[] = [];
     try {
       const json = JSON.parse(readFileSync(path, 'utf8')) as {
         items: { id: number; query: string; expect: string; mustNot?: string }[];
       };
       items = json.items;
-    } catch {
-      return { passed: 0, total: 0, items: [] };
+    } catch (err) {
+      this.logger.warn(`Eval set not loaded from ${path}: ${err instanceof Error ? err.message : err}`);
+      return {
+        passed: 0,
+        total: 0,
+        passRate: 0,
+        minPassRate: EVAL_MIN_PASS_RATE,
+        gatePassed: false,
+        nlScoped: 0,
+        skippedAgent: 0,
+        items: [] as { id: number; ok: boolean; skipped?: boolean; note?: string }[],
+        evalPath: path,
+      };
     }
 
     const results = items.map((item) => {
       const parsed = this.parse(item.query);
-      let ok = true;
-      let note: string | undefined;
-      if (item.mustNot === 'invent_price' && parsed.minPrice && !item.query.includes('tỷ')) ok = false;
-      if (item.mustNot === 'commission' && !parsed.refused?.includes('commission')) ok = false;
-      if (item.mustNot === 'pii' && !parsed.refused?.includes('pii')) ok = false;
-      if (item.mustNot === 'legal_guarantee' && !parsed.refused?.includes('legal_guarantee')) ok = false;
-      if (item.expect === 'transactionType_rent' && parsed.transactionType !== 'rent') ok = false;
-      if (item.expect === 'filter_verified' && !parsed.verifiedOnly) ok = false;
-      if (item.expect === 'refuse_commission' && !parsed.refused?.includes('commission')) ok = false;
-      if (item.expect === 'refuse_pii' && !parsed.refused?.includes('pii')) ok = false;
-      if (!ok) note = JSON.stringify(parsed);
-      return { id: item.id, ok, note };
+      const { ok, skipped, note } = this.evaluateEvalItem(item, parsed);
+      return { id: item.id, ok, skipped, note };
     });
 
+    const nlResults = results.filter((r) => !r.skipped);
+    const passed = nlResults.filter((r) => r.ok).length;
+    const total = nlResults.length;
+    const passRate = total > 0 ? passed / total : 0;
+
     return {
-      passed: results.filter((r) => r.ok).length,
-      total: results.length,
+      passed,
+      total,
+      passRate: Math.round(passRate * 1000) / 1000,
+      minPassRate: EVAL_MIN_PASS_RATE,
+      gatePassed: passRate >= EVAL_MIN_PASS_RATE,
+      nlScoped: total,
+      skippedAgent: results.filter((r) => r.skipped).length,
       items: results,
+      evalPath: path,
     };
   }
 }

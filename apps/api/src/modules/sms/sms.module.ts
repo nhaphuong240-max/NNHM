@@ -26,6 +26,6 @@ import { TenantConfigModule } from '../tenant-config/tenant-config.module';
   ],
   controllers: [SmsIntegrationController],
   providers: [SmsService, SmsProviderClient, SmsPaymentNotifyService],
-  exports: [SmsService, SmsPaymentNotifyService],
+  exports: [SmsService, SmsPaymentNotifyService, SmsProviderClient],
 })
 export class SmsModule {}

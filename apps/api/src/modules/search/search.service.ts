@@ -263,16 +263,33 @@ export class SearchService {
     };
   }
 
-  /** P2 — map pins from published search index */
-  async getMapFromIndex(tenantId: string, projectId?: string) {
+  /** Phase A FR-SRCH-007 — map pins from GR index, optional bbox search-on-move */
+  async getMapFromIndex(
+    tenantId: string,
+    projectId?: string,
+    bbox?: { north: number; south: number; east: number; west: number },
+  ) {
     const qb = this.indexDocs
       .createQueryBuilder('doc')
       .where('doc.tenant_id = :tenantId', { tenantId })
+      .andWhere('doc.latitude IS NOT NULL')
+      .andWhere('doc.longitude IS NOT NULL')
       .orderBy('doc.code', 'ASC')
-      .take(60);
+      .take(bbox ? 120 : 60);
 
     if (projectId?.trim()) {
       qb.andWhere("doc.detail->>'projectId' = :projectId", { projectId: projectId.trim() });
+    }
+
+    if (bbox) {
+      qb.andWhere('doc.latitude BETWEEN :south AND :north', {
+        south: bbox.south,
+        north: bbox.north,
+      });
+      qb.andWhere('doc.longitude BETWEEN :west AND :east', {
+        west: bbox.west,
+        east: bbox.east,
+      });
     }
 
     const docs = await qb.getMany();

@@ -145,13 +145,43 @@ export async function parseNlSearch(query: string) {
   }>;
 }
 
+export type CmsGeoArea = {
+  id: string;
+  slug: string;
+  label: string;
+  city: string;
+  level: string;
+  seoTitle?: string;
+  seoDescription?: string;
+  listingCount: number;
+  isIndexable: boolean;
+};
+
+export async function fetchCmsAreas(city?: string) {
+  const qs = city ? `?city=${encodeURIComponent(city)}` : '';
+  const res = await fetch(`${API_BASE}/cms/areas${qs}`, {
+    headers: { 'X-Tenant-Id': DEFAULT_TENANT_ID },
+  });
+  if (!res.ok) throw new Error(`CMS areas failed: ${res.status}`);
+  return res.json() as Promise<{ data: CmsGeoArea[]; meta: { count: number } }>;
+}
+
 export async function fetchCmsArea(slug: string) {
   const res = await fetch(`${API_BASE}/cms/areas/${encodeURIComponent(slug)}`, {
     headers: { 'X-Tenant-Id': DEFAULT_TENANT_ID },
   });
   if (!res.ok) throw new Error(`CMS area failed: ${res.status}`);
   return res.json() as Promise<{
-    data: { area: { label: string; city: string; seoTitle?: string }; cms?: { body: string }; robots?: string };
+    data: {
+      area: {
+        label: string;
+        city: string;
+        seoTitle?: string;
+        seoDescription?: string;
+      };
+      cms?: { body: string };
+      robots?: string;
+    };
     meta: { listingCount: number; indexable: boolean };
   }>;
 }
@@ -320,8 +350,19 @@ export async function fetchProjectDetail(projectId: string) {
   return res.json() as Promise<ProjectDetailResponse>;
 }
 
-export async function fetchSearchMap(projectId?: string) {
-  const qs = projectId ? `?projectId=${encodeURIComponent(projectId)}` : '';
+export async function fetchSearchMap(
+  projectId?: string,
+  bbox?: { north: number; south: number; east: number; west: number },
+) {
+  const params = new URLSearchParams();
+  if (projectId) params.set('projectId', projectId);
+  if (bbox) {
+    params.set('north', String(bbox.north));
+    params.set('south', String(bbox.south));
+    params.set('east', String(bbox.east));
+    params.set('west', String(bbox.west));
+  }
+  const qs = params.toString() ? `?${params.toString()}` : '';
   const res = await fetch(`${API_BASE}/search/map${qs}`, {
     headers: { 'X-Tenant-Id': DEFAULT_TENANT_ID },
   });

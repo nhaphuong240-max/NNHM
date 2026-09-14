@@ -8,19 +8,58 @@ import { TrustStrip } from '../../components/public/TrustStrip';
 import { PublicTopBar } from '../../components/PublicTopBar';
 import { usePageMeta } from '../../hooks/usePageMeta';
 import { findDistrictBySlug } from '../../lib/districts';
-import { searchUnits, type SearchHit } from '../../lib/api';
+import { fetchCmsArea, searchUnits, type SearchHit } from '../../lib/api';
 import { brand } from '../../theme/tokens';
 import { EmiCalculator } from '../../components/public/EmiCalculator';
 
+type DistrictView = {
+  slug: string;
+  label: string;
+  city: string;
+  seoTitle: string;
+  seoDescription: string;
+};
+
 export function PublicDistrictPage() {
   const { districtSlug = '' } = useParams<{ districtSlug: string }>();
-  const district = findDistrictBySlug(districtSlug);
+  const [district, setDistrict] = useState<DistrictView | null>(null);
+  const [areaLoading, setAreaLoading] = useState(true);
   const [hits, setHits] = useState<SearchHit[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [contactHit, setContactHit] = useState<SearchHit | null>(null);
 
   const siteOrigin = typeof window !== 'undefined' ? window.location.origin : 'https://ngoinhahomnay.vn';
+
+  useEffect(() => {
+    let active = true;
+    setAreaLoading(true);
+    fetchCmsArea(districtSlug)
+      .then((res) => {
+        if (!active) return;
+        const a = res.data.area;
+        setDistrict({
+          slug: districtSlug,
+          label: a.label,
+          city: a.city,
+          seoTitle: a.seoTitle ?? `Căn hộ bán tại ${a.label}, ${a.city}`,
+          seoDescription:
+            a.seoDescription ??
+            `Danh sách căn hộ Verified tại ${a.label}, ${a.city} — giá Golden Record minh bạch.`,
+        });
+      })
+      .catch(() => {
+        if (!active) return;
+        const fallback = findDistrictBySlug(districtSlug);
+        setDistrict(fallback ?? null);
+      })
+      .finally(() => {
+        if (active) setAreaLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [districtSlug]);
 
   usePageMeta(
     district
@@ -29,7 +68,9 @@ export function PublicDistrictPage() {
           description: district.seoDescription,
           canonical: `${siteOrigin}/mua/${district.slug}`,
         }
-      : { title: 'Không tìm thấy khu vực | Ngôi Nhà Hôm Nay' },
+      : !areaLoading
+        ? { title: 'Không tìm thấy khu vực | Ngôi Nhà Hôm Nay' }
+        : { title: 'Đang tải… | Ngôi Nhà Hôm Nay' },
   );
 
   useEffect(() => {
@@ -67,6 +108,20 @@ export function PublicDistrictPage() {
       })),
     };
   }, [district, hits, siteOrigin]);
+
+  if (areaLoading) {
+    return (
+      <div className="min-h-screen flex flex-col" style={{ background: brand.background }}>
+        <PublicTopBar />
+        <main className="flex-1 max-w-6xl mx-auto px-4 py-16">
+          <p className="text-sm" style={{ color: brand.muted }}>
+            Đang tải khu vực…
+          </p>
+        </main>
+        <PublicFooter />
+      </div>
+    );
+  }
 
   if (!district) {
     return (

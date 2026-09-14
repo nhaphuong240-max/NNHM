@@ -3,7 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { ContactLeadModal } from '../components/public/ContactLeadModal';
 import { LocalityInsightPanel } from '../components/public/LocalityInsightPanel';
 import { SearchMapPanel } from '../components/public/SearchMapPanel';
-import { DISTRICT_FILTERS, ListingCard } from '../components/public/ListingCard';
+import { ListingCard } from '../components/public/ListingCard';
 import { PublicTopBar } from '../components/PublicTopBar';
 import { useCompareBasket } from '../hooks/useCompareBasket';
 import {
@@ -14,7 +14,7 @@ import {
   trackAnalyticsEvent,
   type SearchHit,
 } from '../lib/api';
-import { DISTRICTS } from '../lib/districts';
+import { useGeoAreas } from '../hooks/useGeoAreas';
 import { intentToApiTransactionType } from '../lib/search-intent';
 import { getVisitorId } from '../lib/visitor';
 import { brand } from '../theme/tokens';
@@ -28,6 +28,7 @@ const PRICE_BUCKETS = [
 ] as const;
 
 export function SearchPage() {
+  const { areas: geoAreas } = useGeoAreas();
   const [params, setParams] = useSearchParams();
   const q = params.get('q')?.trim() || undefined;
   const intent = params.get('intent') || 'buy';
@@ -54,7 +55,7 @@ export function SearchPage() {
   const [nlBusy, setNlBusy] = useState(false);
 
   const districtSlug = district
-    ? DISTRICTS.find((d) => d.label === district)?.slug
+    ? geoAreas.find((d) => d.label === district)?.slug
     : undefined;
 
   useEffect(() => {
@@ -72,7 +73,7 @@ export function SearchPage() {
     setLoading(true);
     setError(null);
     const city = district
-      ? DISTRICT_FILTERS.find((d) => d.label === district)?.city
+      ? geoAreas.find((d) => d.label === district)?.city
       : undefined;
     const transactionType = intentToApiTransactionType(intent);
     searchUnits({ q, district, city, bedrooms, minPrice, maxPrice, limit: 50, transactionType, sort })
@@ -226,8 +227,8 @@ export function SearchPage() {
                 />
                 Tất cả
               </label>
-              {DISTRICT_FILTERS.map((d) => (
-                <label key={d.label} className="flex items-center gap-2 text-sm mb-1">
+              {geoAreas.map((d) => (
+                <label key={d.slug} className="flex items-center gap-2 text-sm mb-1">
                   <input
                     type="radio"
                     name="district"
@@ -235,6 +236,11 @@ export function SearchPage() {
                     onChange={() => applyDistrict(d.label)}
                   />
                   {d.label}
+                  {d.listingCount > 0 && (
+                    <span className="text-xs" style={{ color: brand.muted }}>
+                      ({d.listingCount})
+                    </span>
+                  )}
                 </label>
               ))}
               <LocalityInsightPanel slug={districtSlug} />
