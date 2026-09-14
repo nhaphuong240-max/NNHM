@@ -55,6 +55,10 @@ export class ListingEntity {
   @Column({ type: 'boolean', default: false })
   verified!: boolean;
 
+  /** P1 FR-PRP-004b — V0–V4 verification (V2 ≈ legacy verified boolean) */
+  @Column({ name: 'verification_level', type: 'varchar', length: 2, default: 'V0' })
+  verificationLevel!: 'V0' | 'V1' | 'V2' | 'V3' | 'V4';
+
   /** P0 FR-SRCH-006 — sale / rent / project for index tab filter */
   @Column({ name: 'transaction_type', type: 'varchar', length: 16, default: 'sale' })
   transactionType!: ListingTransactionType;

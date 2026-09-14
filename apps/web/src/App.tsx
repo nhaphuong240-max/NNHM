@@ -50,6 +50,9 @@ import { AgentViewingsPage } from './pages/agent/AgentViewingsPage';
 import { AgentRegistrationsPage } from './pages/agent/AgentRegistrationsPage';
 import { PublicChatPage } from './pages/public/PublicChatPage';
 import { PublicMapPage } from './pages/public/PublicMapPage';
+import { PublicDsrPage } from './pages/public/PublicDsrPage';
+import { PublicOpenDayPage } from './pages/public/PublicOpenDayPage';
+import { PublicSharePage } from './pages/public/PublicSharePage';
 import { PublicProjectPage } from './pages/public/PublicProjectPage';
 import { PublicDistrictPage } from './pages/public/PublicDistrictPage';
 import { PublicEmiPage } from './pages/public/PublicEmiPage';
@@ -103,6 +106,9 @@ export default function App() {
       <Route path="/public/recommendations" element={<PublicRecommendationsPage />} />
       <Route path="/public/chat" element={<PublicChatPage />} />
       <Route path="/public/map" element={<PublicMapPage />} />
+      <Route path="/public/dsr/:projectId" element={<PublicDsrPage />} />
+      <Route path="/public/open-day" element={<PublicOpenDayPage />} />
+      <Route path="/public/share/:token" element={<PublicSharePage />} />
       <Route path="/public/projects/:projectId" element={<PublicProjectPage />} />
       <Route path="/public/compare" element={<PublicComparePage />} />
       <Route path="/public/units/:unitId" element={<PublicUnitDetailPage />} />

@@ -1,17 +1,39 @@
-import { Controller, Get, Headers, Param, Query } from '@nestjs/common';
+import { Body, Controller, Get, Headers, HttpCode, Param, Post, Query } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { resolveTenantId } from '../../common/resolve-tenant-id';
 import { Public } from '../identity/decorators/public.decorator';
 import { parseTransactionType } from './search-transaction-type.util';
 import type { SearchSort } from './search.service';
+import { NlSearchService } from './nl-search.service';
 import { SearchService } from './search.service';
 
 @Controller('search')
 export class SearchController {
   constructor(
     private readonly search: SearchService,
+    private readonly nlSearch: NlSearchService,
     private readonly config: ConfigService,
   ) {}
+
+  /** P1 FR-AI-001 — Vietnamese NL → structured filters */
+  @Public()
+  @Post('nl')
+  @HttpCode(200)
+  parseNl(
+    @Headers('x-tenant-id') tenantHeader: string | undefined,
+    @Body() body: { query: string },
+  ) {
+    const parsed = this.nlSearch.parse(body.query ?? '');
+    return {
+      data: parsed,
+      meta: { tenantId: resolveTenantId(this.config, undefined, tenantHeader), grounded: true },
+    };
+  }
+
+  @Get('nl/eval')
+  nlEval() {
+    return { data: this.nlSearch.runEvalSet(), meta: { evalSet: 'NNHN-AI-EVAL-VN-50' } };
+  }
 
   /** API-039 GET /search/units — UC-LS-01 public search (guest) */
   @Public()

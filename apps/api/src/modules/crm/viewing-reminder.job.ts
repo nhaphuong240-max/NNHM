@@ -2,12 +2,12 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { LeadEntity } from '../../database/entities/lead.entity';
 import { ViewingEntity } from '../../database/entities/viewing.entity';
 import { UserEntity } from '../../database/entities/user.entity';
-import { SmsService } from '../sms/sms.service';
-import { SMS_TEMPLATES } from '../sms/sms.types';
+import { NotifyService } from '../notify/notify.service';
 
-/** P0 §0.2(6) — T-2h viewing reminder (SMS sandbox). */
+/** P1 FR-NOT-001b — T-2h viewing reminder with delivery log. */
 @Injectable()
 export class ViewingReminderJob {
   private readonly logger = new Logger(ViewingReminderJob.name);
@@ -17,7 +17,9 @@ export class ViewingReminderJob {
     private readonly viewings: Repository<ViewingEntity>,
     @InjectRepository(UserEntity)
     private readonly users: Repository<UserEntity>,
-    private readonly sms: SmsService,
+    @InjectRepository(LeadEntity)
+    private readonly leads: Repository<LeadEntity>,
+    private readonly notify: NotifyService,
   ) {}
 
   @Cron('*/5 * * * *')
@@ -39,20 +41,21 @@ export class ViewingReminderJob {
       .getMany();
 
     for (const row of rows) {
+      const lead = await this.leads.findOne({ where: { id: row.leadId, tenantId: row.tenantId } });
       const agent = row.assignedTo
         ? await this.users.findOne({ where: { id: row.assignedTo } })
         : null;
-      try {
-        await this.sms.sendSms(row.tenantId, {
-          templateId: SMS_TEMPLATES.TRANSACTION_NOTIFY,
-          phone: '+84901234567',
-          params: {
-            message: `Nhắc xem nhà ${row.id} lúc ${row.requestedSlot?.toISOString()} — agent ${agent?.email ?? row.assignedTo}`,
-          },
-          source: { type: 'MANUAL', id: `vwr_${row.id}` },
+      const phone = lead?.phone;
+      if (phone) {
+        await this.notify.sendToLead(row.tenantId, {
+          leadId: row.leadId,
+          phone,
+          template: 'VIEWING_REMINDER',
+          message: `Nhắc xem nhà lúc ${row.requestedSlot?.toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })} — agent ${agent?.email ?? 'NNHN'}`,
+          sourceId: `vwr_${row.id}`,
         });
-      } catch {
-        this.logger.debug(`Viewing reminder sandbox log ${row.id}`);
+      } else {
+        this.logger.debug(`Viewing reminder skipped — no phone ${row.id}`);
       }
       row.reminderSentAt = new Date();
       await this.viewings.save(row);

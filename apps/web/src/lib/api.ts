@@ -100,6 +100,116 @@ export async function fetchCrmKpi(projectId?: string) {
   return res.json() as Promise<{ data: { attributes: CrmKpiPack } }>;
 }
 
+export async function patchLeadQualification(
+  leadId: string,
+  body: { budget?: number; timeline?: string; loanIntent?: string },
+) {
+  const res = await authFetch(`${API_BASE}/leads/${leadId}/qualification`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`Qualification failed: ${res.status}`);
+  return res.json();
+}
+
+export async function fetchLeadNotifications(leadId: string) {
+  const res = await authFetch(`${API_BASE}/crm/notifications/leads/${leadId}`);
+  if (!res.ok) throw new Error(`Notifications failed: ${res.status}`);
+  return res.json() as Promise<{
+    data: Array<{ id: string; channel: string; templateId: string; status: string; createdAt: string }>;
+  }>;
+}
+
+export async function parseNlSearch(query: string) {
+  const res = await fetch(`${API_BASE}/search/nl`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Tenant-Id': DEFAULT_TENANT_ID },
+    body: JSON.stringify({ query }),
+  });
+  if (!res.ok) throw new Error(`NL search failed: ${res.status}`);
+  return res.json() as Promise<{
+    data: {
+      understood: string[];
+      refused?: string[];
+      district?: string;
+      city?: string;
+      bedrooms?: number;
+      minPrice?: number;
+      maxPrice?: number;
+      transactionType?: 'sale' | 'rent' | 'project';
+      sort?: string;
+      verifiedOnly?: boolean;
+      q?: string;
+    };
+  }>;
+}
+
+export async function fetchCmsArea(slug: string) {
+  const res = await fetch(`${API_BASE}/cms/areas/${encodeURIComponent(slug)}`, {
+    headers: { 'X-Tenant-Id': DEFAULT_TENANT_ID },
+  });
+  if (!res.ok) throw new Error(`CMS area failed: ${res.status}`);
+  return res.json() as Promise<{
+    data: { area: { label: string; city: string; seoTitle?: string }; cms?: { body: string }; robots?: string };
+    meta: { listingCount: number; indexable: boolean };
+  }>;
+}
+
+export async function fetchDsrMasterplan(projectId: string) {
+  const res = await fetch(`${API_BASE}/dsr/projects/${encodeURIComponent(projectId)}/masterplan`, {
+    headers: { 'X-Tenant-Id': DEFAULT_TENANT_ID },
+  });
+  if (!res.ok) throw new Error(`DSR failed: ${res.status}`);
+  return res.json() as Promise<{
+    data: {
+      polygons: Array<{ id: string; level: string; refId: string; label: string; geojson: Record<string, unknown> }>;
+      units: Array<{ unitId: string; code: string; basePrice: number; status: string }>;
+    };
+  }>;
+}
+
+export async function openShareLink(token: string) {
+  const res = await fetch(`${API_BASE}/dsr/share/${encodeURIComponent(token)}`, {
+    headers: { 'X-Tenant-Id': DEFAULT_TENANT_ID },
+  });
+  if (!res.ok) throw new Error(`Share link failed: ${res.status}`);
+  return res.json() as Promise<{ data: { redirect: string } }>;
+}
+
+export type OpenDayEvent = {
+  id: string;
+  title: string;
+  startsAt: string;
+  spotsLeft: number;
+};
+
+export async function fetchOpenDays(projectId?: string) {
+  const qs = projectId ? `?projectId=${encodeURIComponent(projectId)}` : '';
+  const res = await fetch(`${API_BASE}/open-days${qs}`, {
+    headers: { 'X-Tenant-Id': DEFAULT_TENANT_ID },
+  });
+  if (!res.ok) throw new Error(`Open days failed: ${res.status}`);
+  return res.json() as Promise<{ data: OpenDayEvent[] }>;
+}
+
+export async function rsvpOpenDay(eventId: string, body: { fullName: string; phone: string }) {
+  const res = await fetch(`${API_BASE}/open-days/${eventId}/rsvp`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Tenant-Id': DEFAULT_TENANT_ID },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`RSVP failed: ${res.status}`);
+  return res.json() as Promise<{ data: { qrToken: string } }>;
+}
+
+export async function fetchAttributionGraph(campaignId?: string) {
+  const qs = campaignId ? `?campaignId=${encodeURIComponent(campaignId)}` : '';
+  const res = await authFetch(`${API_BASE}/attribution/graph${qs}`);
+  if (!res.ok) throw new Error(`Attribution failed: ${res.status}`);
+  return res.json();
+}
+
 export async function escalateHotLead(leadId: string, reason?: string) {
   const res = await authFetch(`${API_BASE}/crm/sla/leads/${leadId}/escalate`, {
     method: 'POST',
@@ -2691,7 +2801,7 @@ export async function fetchViewings() {
 
 export async function patchViewing(
   viewingId: string,
-  body: { status?: string; outcome?: string; note?: string },
+  body: { status?: string; outcome?: string; note?: string; checklist?: Record<string, boolean> },
 ) {
   const res = await authFetch(`/viewings/${encodeURIComponent(viewingId)}`, {
     method: 'PATCH',

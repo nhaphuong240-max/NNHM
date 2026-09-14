@@ -269,6 +269,7 @@ export class SearchIndexService {
       bedrooms: unit.bedrooms,
       area: unit.area,
       verified: listing.verified,
+      verificationLevel: listing.verificationLevel ?? (listing.verified ? 'V2' : 'V0'),
       city: project?.city ?? null,
       district: project?.district ?? null,
       transactionType,

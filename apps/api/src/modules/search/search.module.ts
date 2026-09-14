@@ -12,6 +12,7 @@ import { SearchFreshnessJob } from './search-freshness.job';
 import { SearchIndexService } from './search-index.service';
 import { SearchIndexWorker } from './search-index.worker';
 import { SearchController } from './search.controller';
+import { NlSearchService } from './nl-search.service';
 import { SearchService } from './search.service';
 
 @Module({
@@ -28,7 +29,7 @@ import { SearchService } from './search.service';
     ]),
   ],
   controllers: [SearchController],
-  providers: [SearchService, SearchIndexService, SearchIndexWorker, SearchFreshnessJob],
+  providers: [SearchService, SearchIndexService, SearchIndexWorker, SearchFreshnessJob, NlSearchService],
   exports: [SearchIndexService],
 })
 export class SearchModule {}

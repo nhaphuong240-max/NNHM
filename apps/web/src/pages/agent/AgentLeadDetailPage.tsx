@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { AgentShell } from '../../components/AgentShell';
+import { QualificationPanel } from '../../components/agent/QualificationPanel';
 import {
   createActivity,
   fetchActivities,
   fetchLead,
+  fetchLeadNotifications,
   fetchLeadScoreExplain,
   LOST_REASONS,
   patchLeadStage,
@@ -42,20 +44,25 @@ export function AgentLeadDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [activityNote, setActivityNote] = useState('');
   const [scoreExplain, setScoreExplain] = useState<LeadScoreExplain | null>(null);
+  const [notifications, setNotifications] = useState<
+    Array<{ id: string; templateId: string; status: string; createdAt: string }>
+  >([]);
 
   const load = useCallback(async () => {
     if (!leadId) return;
     setLoading(true);
     setError(null);
     try {
-      const [leadRes, actRes, scoreRes] = await Promise.all([
+      const [leadRes, actRes, scoreRes, notifyRes] = await Promise.all([
         fetchLead(leadId),
         fetchActivities(leadId),
         fetchLeadScoreExplain(leadId).catch(() => null),
+        fetchLeadNotifications(leadId).catch(() => ({ data: [] })),
       ]);
       setLead(leadRes.data);
       setActivities(actRes.data);
       setScoreExplain(scoreRes?.data ?? null);
+      setNotifications(notifyRes.data);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Không tải được lead');
     } finally {
@@ -248,6 +255,24 @@ export function AgentLeadDetailPage() {
           </div>
 
           <aside className="space-y-4">
+            <QualificationPanel
+              leadId={lead.id}
+              requirement={(lead.attributes as { requirement?: Record<string, unknown> }).requirement}
+              onUpdated={() => void load()}
+            />
+            {notifications.length > 0 && (
+              <section
+                className="rounded-xl p-4 space-y-2"
+                style={{ background: brand.surface, border: `1px solid ${brand.border}` }}
+              >
+                <p className="font-semibold text-sm">SMS/ZNS delivery</p>
+                {notifications.map((n) => (
+                  <p key={n.id} className="text-xs" style={{ color: brand.muted }}>
+                    {n.templateId} · <strong>{n.status}</strong> · {formatTs(n.createdAt)}
+                  </p>
+                ))}
+              </section>
+            )}
             {scoreExplain && (
               <section
                 className="rounded-xl p-5 space-y-3"

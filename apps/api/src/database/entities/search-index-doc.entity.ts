@@ -52,6 +52,9 @@ export class SearchIndexDocEntity {
   @Column({ type: 'boolean', default: false })
   verified!: boolean;
 
+  @Column({ name: 'verification_level', type: 'varchar', length: 2, default: 'V0' })
+  verificationLevel!: string;
+
   @Column({ type: 'varchar', length: 64, nullable: true })
   city!: string | null;
 

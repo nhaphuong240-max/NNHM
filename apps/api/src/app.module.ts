@@ -48,6 +48,9 @@ import { PartnerApiModule } from './modules/partner-api/partner-api.module';
 import { AnchorModule } from './modules/anchor/anchor.module';
 import { IntegrationsModule } from './modules/integrations/integrations.module';
 import { EnterpriseModule } from './modules/enterprise/enterprise.module';
+import { CmsModule } from './modules/cms/cms.module';
+import { DsrModule } from './modules/dsr/dsr.module';
+import { OpenDayModule } from './modules/open-day/open-day.module';
 
 /** ADR-001 modular monolith — domain modules only communicate via events/facades. */
 @Module({
@@ -96,6 +99,9 @@ import { EnterpriseModule } from './modules/enterprise/enterprise.module';
     AnchorModule,
     IntegrationsModule,
     EnterpriseModule,
+    CmsModule,
+    DsrModule,
+    OpenDayModule,
   ],
   controllers: [RootController],
   providers: [

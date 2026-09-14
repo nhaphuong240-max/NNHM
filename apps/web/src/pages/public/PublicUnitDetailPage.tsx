@@ -22,6 +22,7 @@ import { PublicTopBar } from '../../components/PublicTopBar';
 import { StickyContactBar } from '../../components/public/StickyContactBar';
 import { TrustStrip } from '../../components/public/TrustStrip';
 import { UnitGallery } from '../../components/public/UnitGallery';
+import { VerificationTrustBadge } from '../../components/public/VerificationTrustBadge';
 import { VerifiedBadge } from '../../components/public/VerifiedBadge';
 
 function statusLabel(status: string) {
@@ -253,6 +254,7 @@ export function PublicUnitDetailPage() {
 
               <div className="flex flex-wrap gap-2 items-center">
                 {attrs.verified && <VerifiedBadge />}
+                <VerificationTrustBadge level={attrs.verified ? 'V2' : 'V0'} />
                 {live && (
                   <span
                     className="text-xs font-bold px-2 py-1 rounded text-white transition-all"

@@ -66,7 +66,13 @@ export class CrmDemandController {
     @CurrentUser() user: AuthUser | undefined,
     @Headers('x-tenant-id') tenantHeader: string | undefined,
     @Param('viewingId') viewingId: string,
-    @Body() body: { status?: ViewingStatus; outcome?: ViewingOutcome; note?: string },
+    @Body()
+    body: {
+      status?: ViewingStatus;
+      outcome?: ViewingOutcome;
+      note?: string;
+      checklist?: Record<string, boolean>;
+    },
   ) {
     return this.demand.patchViewing(
       resolveTenantId(this.config, user, tenantHeader),

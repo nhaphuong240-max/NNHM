@@ -8,6 +8,7 @@ import { useCompareBasket } from '../hooks/useCompareBasket';
 import {
   fetchSearchStats,
   savePublicSearch,
+  parseNlSearch,
   searchUnits,
   trackAnalyticsEvent,
   type SearchHit,
@@ -46,6 +47,9 @@ export function SearchPage() {
     [],
   );
   const [sort, setSort] = useState<'newest' | 'price' | 'verified_first'>('newest');
+  const [nlQuery, setNlQuery] = useState('');
+  const [nlChips, setNlChips] = useState<string[]>([]);
+  const [nlBusy, setNlBusy] = useState(false);
 
   useEffect(() => {
     setDistrict(districtParam);
@@ -115,6 +119,52 @@ export function SearchPage() {
           <p className="text-sm mt-1" style={{ color: brand.muted }}>
             {q ? `Kết quả cho “${q}”` : 'Giá Golden Record · so sánh · giữ chỗ'}
           </p>
+          <div className="mt-4 flex flex-col sm:flex-row gap-2">
+            <input
+              value={nlQuery}
+              onChange={(e) => setNlQuery(e.target.value)}
+              placeholder="Tìm bằng tiếng Việt — vd: 2PN Quận 7 dưới 4 tỷ"
+              className="flex-1 rounded-full border px-4 py-2 text-sm"
+              style={{ borderColor: brand.border }}
+            />
+            <button
+              type="button"
+              disabled={nlBusy || !nlQuery.trim()}
+              className="rounded-full px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+              style={{ background: brand.primaryDark }}
+              onClick={() => {
+                setNlBusy(true);
+                void parseNlSearch(nlQuery)
+                  .then((res) => {
+                    const p = res.data;
+                    setNlChips(p.understood ?? []);
+                    if (p.district) applyDistrict(p.district);
+                    if (p.bedrooms) setBedrooms(p.bedrooms);
+                    if (p.minPrice !== undefined) setMinPrice(p.minPrice);
+                    if (p.maxPrice !== undefined) setMaxPrice(p.maxPrice);
+                    if (p.sort === 'newest' || p.sort === 'price' || p.sort === 'verified_first') {
+                      setSort(p.sort);
+                    }
+                  })
+                  .finally(() => setNlBusy(false));
+              }}
+            >
+              {nlBusy ? 'Đang hiểu…' : 'NL search'}
+            </button>
+          </div>
+          {nlChips.length > 0 && (
+            <div className="flex flex-wrap gap-2 mt-2">
+              {nlChips.map((c) => (
+                <span
+                  key={c}
+                  className="text-xs rounded-full px-3 py-1"
+                  style={{ background: brand.accentSoft, color: brand.primaryDark }}
+                >
+                  {c}
+                </span>
+              ))}
+            </div>
+          )}
           {stats && stats.total > 0 && (
             <p className="text-xs mt-2 font-medium" style={{ color: brand.primary }}>
               {stats.verified} căn Verified · {stats.total} listing trên bảng hàng

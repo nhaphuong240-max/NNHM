@@ -16,6 +16,7 @@ import { CrmService } from './crm.service';
 import { normalizePhone } from './phone.util';
 import { shouldMaskRegistrationPii, type RegistrationViewer } from './registration-abac.util';
 import { hasViewingSlotConflict } from './viewing-slot.util';
+import { assertViewingChecklistComplete, nextTaskForOutcome } from './viewing-checklist.util';
 
 const PROTECTION_DAYS = 30;
 
@@ -187,7 +188,12 @@ export class CrmDemandService {
   async patchViewing(
     tenantId: string,
     viewingId: string,
-    input: { status?: ViewingStatus; outcome?: ViewingOutcome; note?: string },
+    input: {
+      status?: ViewingStatus;
+      outcome?: ViewingOutcome;
+      note?: string;
+      checklist?: Record<string, boolean>;
+    },
     actorId?: string,
   ) {
     const row = await this.viewings.findOne({ where: { id: viewingId, tenantId } });
@@ -210,9 +216,24 @@ export class CrmDemandService {
     } else if (input.status) {
       row.status = input.status;
     }
+    if (input.checklist) {
+      row.checklist = { ...(row.checklist ?? {}), ...input.checklist };
+      const { complete } = assertViewingChecklistComplete(row.checklist);
+      if (complete) row.checklistCompletedAt = new Date();
+    }
     if (input.outcome) {
       if (!VIEWING_OUTCOMES.includes(input.outcome)) {
         throw new UnprocessableEntityException({ detail: 'Invalid viewing outcome' });
+      }
+      if (!input.outcome.startsWith('NO_SHOW') && input.outcome !== 'CANCELED') {
+        const { complete, missing } = assertViewingChecklistComplete(row.checklist);
+        if (!complete) {
+          throwBusinessError(
+            BusinessErrorCode.VIEWING_CHECKLIST_INCOMPLETE,
+            `Complete checklist before outcome: ${missing.join(', ')}`,
+            { missing },
+          );
+        }
       }
       row.outcome = input.outcome;
       if (input.outcome.startsWith('NO_SHOW')) row.status = 'NO_SHOW';
@@ -233,9 +254,21 @@ export class CrmDemandService {
       entityType: 'viewing',
       entityId: row.id,
       action: 'PATCH',
-      payload: { status: row.status, outcome: row.outcome },
+      payload: { status: row.status, outcome: row.outcome, checklist: row.checklist },
       actorId: actorId ?? null,
     });
+
+    if (row.status === 'COMPLETED' && row.outcome) {
+      const next = nextTaskForOutcome(row.outcome);
+      if (next) {
+        await this.crm.createActivity(
+          tenantId,
+          { leadId: row.leadId, type: 'NOTE', summary: `Next: ${next}` },
+          actorId,
+          { skipAudit: true },
+        );
+      }
+    }
 
     return { data: this.mapViewing(row) };
   }

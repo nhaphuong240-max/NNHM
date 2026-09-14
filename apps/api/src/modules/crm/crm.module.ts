@@ -45,6 +45,9 @@ import { CrmHotSlaEscalationJob } from './crm-hot-sla-escalation.job';
 import { ViewingReminderJob } from './viewing-reminder.job';
 import { CrmKpiService } from './crm-kpi.service';
 import { CrmKpiController } from './crm-kpi.controller';
+import { QualificationService } from './qualification.service';
+import { AttributionModule } from '../attribution/attribution.module';
+import { NotifyModule } from '../notify/notify.module';
 import { BookingEntity } from '../../database/entities/booking.entity';
 import { AnalyticsEventEntity } from '../../database/entities/analytics-event.entity';
 import { SearchIndexDocEntity } from '../../database/entities/search-index-doc.entity';
@@ -78,8 +81,10 @@ import { ProjectEntity } from '../../database/entities/project.entity';
     StreamModule,
     AiScoringModule,
     SmsModule,
+    NotifyModule,
     forwardRef(() => ZaloModule),
     forwardRef(() => MobileAgentModule),
+    AttributionModule,
   ],
   controllers: [
     CrmController,
@@ -107,7 +112,8 @@ import { ProjectEntity } from '../../database/entities/project.entity';
     CrmHotSlaEscalationJob,
     ViewingReminderJob,
     CrmKpiService,
+    QualificationService,
   ],
-  exports: [CrmService, CrmInboxService, DemandPolicyService, CrmHotSlaService],
+  exports: [CrmService, CrmInboxService, DemandPolicyService, CrmHotSlaService, QualificationService],
 })
 export class CrmModule {}

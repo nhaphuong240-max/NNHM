@@ -15,12 +15,14 @@ import { Public } from '../identity/decorators/public.decorator';
 import { CurrentUser } from '../identity/decorators/current-user.decorator';
 import type { AuthUser } from '../identity/identity.types';
 import { CrmService } from './crm.service';
+import { QualificationService } from './qualification.service';
 import type { CreateLeadInput, LeadImportCommitInput, LeadImportPreviewInput, PatchLeadInput } from './crm.types';
 
 @Controller('leads')
 export class CrmController {
   constructor(
     private readonly crm: CrmService,
+    private readonly qualification: QualificationService,
     private readonly config: ConfigService,
   ) {}
 
@@ -85,6 +87,22 @@ export class CrmController {
     @Param('leadId') leadId: string,
   ) {
     return this.crm.getLead(resolveTenantId(this.config, user, tenantHeader), leadId);
+  }
+
+  /** P1 FR-LEAD-005b — patch lead qualification requirement fields */
+  @Patch(':leadId/qualification')
+  patchQualification(
+    @CurrentUser() user: AuthUser | undefined,
+    @Headers('x-tenant-id') tenantHeader: string | undefined,
+    @Param('leadId') leadId: string,
+    @Body()
+    body: { budget?: number; timeline?: string; loanIntent?: 'cash' | 'bank_loan' | 'mixed' | 'unknown' },
+  ) {
+    return this.qualification.patchRequirement(
+      resolveTenantId(this.config, user, tenantHeader),
+      leadId,
+      body,
+    );
   }
 
   /** API-044 PATCH /leads/{leadId} — UC-CRM-03 stage update */

@@ -4,11 +4,10 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { LeadEntity } from '../../database/entities/lead.entity';
 import { UserEntity } from '../../database/entities/user.entity';
-import { SmsService } from '../sms/sms.service';
-import { SMS_TEMPLATES } from '../sms/sms.types';
+import { NotifyService } from '../notify/notify.service';
 import { CrmHotSlaService } from './crm-hot-sla.service';
 
-/** P0 §0.2(4) — auto-escalate HOT past due + notify leader (SMS sandbox). */
+/** P1 — auto-escalate HOT past due + notify leader via delivery log. */
 @Injectable()
 export class CrmHotSlaEscalationJob {
   private readonly logger = new Logger(CrmHotSlaEscalationJob.name);
@@ -19,7 +18,7 @@ export class CrmHotSlaEscalationJob {
     @InjectRepository(UserEntity)
     private readonly users: Repository<UserEntity>,
     private readonly hotSla: CrmHotSlaService,
-    private readonly sms: SmsService,
+    private readonly notify: NotifyService,
   ) {}
 
   @Cron('*/60 * * * * *')
@@ -54,15 +53,17 @@ export class CrmHotSlaEscalationJob {
     const leader = leaders[0];
     if (!leader?.email) return;
 
+    const phone = '+84901234567';
     try {
-      await this.sms.sendSms(tenantId, {
-        templateId: SMS_TEMPLATES.TRANSACTION_NOTIFY,
-        phone: '+84901234567',
-        params: { message: `HOT lead ${leadId} quá SLA — đã escalate assignee` },
-        source: { type: 'MANUAL', id: `sla_${leadId}` },
+      await this.notify.sendToLead(tenantId, {
+        leadId,
+        phone,
+        template: 'HOT_SLA_ESCALATE',
+        message: `HOT lead ${leadId} quá SLA — đã escalate assignee`,
+        sourceId: `sla_${leadId}`,
       });
     } catch {
-      this.logger.debug(`SLA leader notify skipped (no SMS binding) tenant=${tenantId}`);
+      this.logger.debug(`SLA leader notify skipped tenant=${tenantId}`);
     }
   }
 }

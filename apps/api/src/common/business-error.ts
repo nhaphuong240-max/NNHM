@@ -25,6 +25,10 @@ export const BusinessErrorCode = {
   VALIDATION_FAILED: 'VALIDATION_FAILED',
   NOT_FOUND: 'NOT_FOUND',
   FORBIDDEN: 'FORBIDDEN',
+  QUALIFICATION_INCOMPLETE: 'QUALIFICATION_INCOMPLETE',
+  VIEWING_CHECKLIST_INCOMPLETE: 'VIEWING_CHECKLIST_INCOMPLETE',
+  CMS_THIN_PAGE: 'CMS_THIN_PAGE',
+  SHARE_LINK_EXPIRED: 'SHARE_LINK_EXPIRED',
 } as const;
 
 export type BusinessErrorCodeValue = (typeof BusinessErrorCode)[keyof typeof BusinessErrorCode];
@@ -109,6 +113,26 @@ const META: Record<
     type: `${PROBLEM_BASE}/forbidden`,
     title: 'Forbidden',
     http: '403',
+  },
+  QUALIFICATION_INCOMPLETE: {
+    type: `${PROBLEM_BASE}/qualification-incomplete`,
+    title: 'Lead qualification incomplete',
+    http: '422',
+  },
+  VIEWING_CHECKLIST_INCOMPLETE: {
+    type: `${PROBLEM_BASE}/viewing-checklist-incomplete`,
+    title: 'Viewing checklist incomplete',
+    http: '422',
+  },
+  CMS_THIN_PAGE: {
+    type: `${PROBLEM_BASE}/cms-thin-page`,
+    title: 'Page not indexable — insufficient inventory',
+    http: '422',
+  },
+  SHARE_LINK_EXPIRED: {
+    type: `${PROBLEM_BASE}/share-link-expired`,
+    title: 'Share link expired',
+    http: '422',
   },
 };
 

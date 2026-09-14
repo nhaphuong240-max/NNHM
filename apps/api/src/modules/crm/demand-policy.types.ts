@@ -32,6 +32,11 @@ export type TenantDemandPolicyPayload = {
     quietHours: { start: string; end: string };
     maxPerDay: number;
   };
+  /** P1 FR-LEAD-005b — qualification before BOOKING */
+  qualification: {
+    requireBeforeBooking: boolean;
+    requiredFields: ('budget' | 'timeline' | 'loanIntent')[];
+  };
 };
 
 export type TenantDemandPolicyPatch = {
@@ -40,6 +45,7 @@ export type TenantDemandPolicyPatch = {
   sla?: Partial<TenantDemandPolicyPayload['sla']>;
   search?: Partial<TenantDemandPolicyPayload['search']>;
   alerts?: Partial<TenantDemandPolicyPayload['alerts']>;
+  qualification?: Partial<TenantDemandPolicyPayload['qualification']>;
 };
 
 export const DEFAULT_TENANT_DEMAND_POLICY: TenantDemandPolicyPayload = {
@@ -66,5 +72,9 @@ export const DEFAULT_TENANT_DEMAND_POLICY: TenantDemandPolicyPayload = {
   alerts: {
     quietHours: { start: '21:00', end: '08:00' },
     maxPerDay: 3,
+  },
+  qualification: {
+    requireBeforeBooking: true,
+    requiredFields: ['budget', 'timeline', 'loanIntent'],
   },
 };

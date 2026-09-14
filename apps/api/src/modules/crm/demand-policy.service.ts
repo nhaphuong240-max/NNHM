@@ -19,7 +19,15 @@ export class DemandPolicyService {
 
   async resolvePayload(tenantId: string): Promise<TenantDemandPolicyPayload> {
     const row = await this.policies.findOne({ where: { tenantId } });
-    return row?.payload ?? { ...DEFAULT_TENANT_DEMAND_POLICY };
+    const base = row?.payload ?? { ...DEFAULT_TENANT_DEMAND_POLICY };
+    return {
+      ...DEFAULT_TENANT_DEMAND_POLICY,
+      ...base,
+      qualification: {
+        ...DEFAULT_TENANT_DEMAND_POLICY.qualification,
+        ...(base.qualification ?? {}),
+      },
+    };
   }
 
   async getPolicy(tenantId: string) {
@@ -53,6 +61,11 @@ export class DemandPolicyService {
       sla: { ...base.sla, ...patch.sla },
       search: { ...base.search, ...patch.search },
       alerts: { ...base.alerts, ...patch.alerts },
+      qualification: {
+        ...DEFAULT_TENANT_DEMAND_POLICY.qualification,
+        ...base.qualification,
+        ...patch.qualification,
+      },
     };
 
     const version = (current?.version ?? 0) + 1;

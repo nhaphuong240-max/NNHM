@@ -61,6 +61,13 @@ export class ViewingEntity {
   @Column({ name: 'reminder_sent_at', type: 'timestamptz', nullable: true })
   reminderSentAt!: Date | null;
 
+  /** P1 FR-VIEW-003b — mandatory checklist when COMPLETED */
+  @Column({ type: 'jsonb', nullable: true })
+  checklist!: Record<string, boolean> | null;
+
+  @Column({ name: 'checklist_completed_at', type: 'timestamptz', nullable: true })
+  checklistCompletedAt!: Date | null;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt!: Date;
 

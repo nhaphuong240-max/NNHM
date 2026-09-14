@@ -28,7 +28,9 @@ import { mapBookingEntity } from './booking.types';
 import { RefundService } from '../payment/refund.service';
 import { BookingEventsService } from './booking-events.service';
 import { TenantWebhookService } from '../tenant-webhooks/tenant-webhook.service';
+import { LeadEntity } from '../../database/entities/lead.entity';
 import { CrmService } from '../crm/crm.service';
+import { QualificationService } from '../crm/qualification.service';
 
 const DEFAULT_EXPIRY_HOURS = 48;
 
@@ -41,12 +43,15 @@ export class BookingService {
     private readonly intents: Repository<PaymentIntentEntity>,
     @InjectRepository(UnitEntity)
     private readonly units: Repository<UnitEntity>,
+    @InjectRepository(LeadEntity)
+    private readonly leads: Repository<LeadEntity>,
     private readonly inventoryLock: InventoryLockService,
     private readonly streamEvents: StreamEventsService,
     private readonly refunds: RefundService,
     private readonly bookingEvents: BookingEventsService,
     private readonly tenantWebhooks: TenantWebhookService,
     private readonly crm: CrmService,
+    private readonly qualification: QualificationService,
   ) {}
 
   status() {
@@ -118,6 +123,11 @@ export class BookingService {
         title: 'Validation failed',
         detail: 'expectedUnitVersion is required',
       });
+    }
+
+    if (input.leadId?.trim()) {
+      const lead = await this.leads.findOne({ where: { id: input.leadId.trim(), tenantId } });
+      if (lead) await this.qualification.assertLeadQualifiedForBooking(tenantId, lead);
     }
 
     if (unit.version !== input.expectedUnitVersion) {

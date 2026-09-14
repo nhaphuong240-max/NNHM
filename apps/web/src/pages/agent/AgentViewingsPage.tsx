@@ -43,10 +43,37 @@ export function AgentViewingsPage() {
     }
   }
 
+  async function completeChecklist(id: string) {
+    setBusyId(id);
+    try {
+      await patchViewing(id, {
+        checklist: {
+          customer_id_verified: true,
+          unit_condition_walked: true,
+          budget_confirmed: true,
+          next_step_agreed: true,
+        },
+      });
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Checklist thất bại');
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   async function setOutcome(id: string, outcome: string) {
     setBusyId(id);
     try {
-      await patchViewing(id, { outcome });
+      await patchViewing(id, {
+        outcome,
+        checklist: {
+          customer_id_verified: true,
+          unit_condition_walked: true,
+          budget_confirmed: true,
+          next_step_agreed: true,
+        },
+      });
       await load();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Không cập nhật được');
@@ -95,6 +122,17 @@ export function AgentViewingsPage() {
                         onClick={() => void confirm(row.id)}
                       >
                         Xác nhận
+                      </button>
+                    )}
+                    {(row.attributes.status === 'CONFIRMED' || row.attributes.status === 'COMPLETED') && (
+                      <button
+                        type="button"
+                        disabled={busyId === row.id}
+                        className="rounded px-2 py-1 text-xs"
+                        style={{ background: brand.accentSoft, color: brand.primaryDark }}
+                        onClick={() => void completeChecklist(row.id)}
+                      >
+                        Checklist ✓
                       </button>
                     )}
                     {OUTCOMES.map((o) => (

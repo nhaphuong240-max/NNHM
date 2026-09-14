@@ -44,6 +44,8 @@ import {
   slaHoursRemaining,
 } from './crm-sla.util';
 import { MobileAgentService } from '../mobile-agent/mobile-agent.service';
+import { AttributionGraphService } from '../attribution/attribution-graph.service';
+import { QualificationService } from './qualification.service';
 
 export const PRIVACY_POLICY_VERSION = '2026-07-01';
 
@@ -61,6 +63,8 @@ export class CrmService {
     private readonly leadConversion: LeadConversionService,
     @Inject(forwardRef(() => MobileAgentService))
     private readonly mobileAgent: MobileAgentService,
+    private readonly qualification: QualificationService,
+    private readonly attribution: AttributionGraphService,
   ) {}
 
   status() {
@@ -178,6 +182,14 @@ export class CrmService {
       },
       actorId: actorId ?? null,
     });
+
+    await this.attribution.recordTouchpoint(tenantId, {
+      leadId: id,
+      channel: source,
+      source: attribution.utmCampaign ?? source,
+      campaignId: attribution.campaignId ?? undefined,
+      metadata: { unitId: row.unitId },
+    }).catch(() => undefined);
 
     if (consentGiven) {
       await this.consentLedger.record(tenantId, {
@@ -580,6 +592,9 @@ export class CrmService {
         detail: 'unitId is required when moving to BOOKING stage',
       });
     }
+    if (nextStatus === 'BOOKING') {
+      await this.qualification.assertLeadQualifiedForBooking(tenantId, row);
+    }
 
     if (nextStatus === 'LOST') {
       const reason = input.lostReason?.trim();
@@ -738,6 +753,7 @@ export class CrmService {
       return;
     }
     if (unitId) row.unitId = unitId;
+    await this.qualification.assertLeadQualifiedForBooking(tenantId, row);
     assertStageTransition(row.status, 'BOOKING');
     row.status = 'BOOKING';
     row.lastActivityAt = new Date();
