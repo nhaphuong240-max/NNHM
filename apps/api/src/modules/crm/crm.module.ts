@@ -52,6 +52,9 @@ import { BookingEntity } from '../../database/entities/booking.entity';
 import { AnalyticsEventEntity } from '../../database/entities/analytics-event.entity';
 import { SearchIndexDocEntity } from '../../database/entities/search-index-doc.entity';
 import { ProjectEntity } from '../../database/entities/project.entity';
+import { CrmRoutingSuggestionEntity } from '../../database/entities/crm-routing-suggestion.entity';
+import { RoutingSuggestionController } from './routing-suggestion.controller';
+import { RoutingSuggestionService } from './routing-suggestion.service';
 
 @Module({
   imports: [
@@ -75,6 +78,7 @@ import { ProjectEntity } from '../../database/entities/project.entity';
       UserEntity,
       MetaLeadEventEntity,
       ZaloLeadEventEntity,
+      CrmRoutingSuggestionEntity,
     ]),
     AuditModule,
     ComplianceModule,
@@ -97,6 +101,7 @@ import { ProjectEntity } from '../../database/entities/project.entity';
     CrmTodayController,
     DealDisputeController,
     CrmKpiController,
+    RoutingSuggestionController,
   ],
   providers: [
     CrmService,
@@ -113,6 +118,7 @@ import { ProjectEntity } from '../../database/entities/project.entity';
     ViewingReminderJob,
     CrmKpiService,
     QualificationService,
+    RoutingSuggestionService,
   ],
   exports: [CrmService, CrmInboxService, DemandPolicyService, CrmHotSlaService, QualificationService],
 })

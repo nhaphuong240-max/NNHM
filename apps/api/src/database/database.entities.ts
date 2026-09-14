@@ -69,6 +69,8 @@ import {
   OpenDayEventEntity,
   OpenDayRsvpEntity,
   CrmNotifyDeliveryEntity,
+  CrmRoutingSuggestionEntity,
+  AiLeadCopilotDraftEntity,
   ProjectEntity,
   TenantEntity,
   UnitEntity,
@@ -151,4 +153,6 @@ export const databaseEntities = [
   OpenDayEventEntity,
   OpenDayRsvpEntity,
   CrmNotifyDeliveryEntity,
+  CrmRoutingSuggestionEntity,
+  AiLeadCopilotDraftEntity,
 ];

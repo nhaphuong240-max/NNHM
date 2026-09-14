@@ -51,6 +51,7 @@ import { EnterpriseModule } from './modules/enterprise/enterprise.module';
 import { CmsModule } from './modules/cms/cms.module';
 import { DsrModule } from './modules/dsr/dsr.module';
 import { OpenDayModule } from './modules/open-day/open-day.module';
+import { MarketInsightModule } from './modules/market-insight/market-insight.module';
 
 /** ADR-001 modular monolith — domain modules only communicate via events/facades. */
 @Module({
@@ -102,6 +103,7 @@ import { OpenDayModule } from './modules/open-day/open-day.module';
     CmsModule,
     DsrModule,
     OpenDayModule,
+    MarketInsightModule,
   ],
   controllers: [RootController],
   providers: [

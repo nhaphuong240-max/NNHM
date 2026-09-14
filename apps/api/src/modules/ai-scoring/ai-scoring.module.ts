@@ -6,6 +6,10 @@ import { LeadEntity } from '../../database/entities/lead.entity';
 import { BookingEntity } from '../../database/entities/booking.entity';
 import { UserEntity } from '../../database/entities/user.entity';
 import { CrmRoutingRuleEntity } from '../../database/entities/crm-routing-rule.entity';
+import { CrmRoutingSuggestionEntity } from '../../database/entities/crm-routing-suggestion.entity';
+import { ListingEntity } from '../../database/entities/listing.entity';
+import { ViewingEntity } from '../../database/entities/viewing.entity';
+import { SearchIndexDocEntity } from '../../database/entities/search-index-doc.entity';
 import { AuditModule } from '../audit/audit.module';
 import { StreamModule } from '../stream/stream.module';
 import { AiEvalController } from './ai-eval.controller';
@@ -15,6 +19,7 @@ import { LeadRoutingService } from './lead-routing.service';
 import { LeadScoringController } from './lead-scoring.controller';
 import { LeadScoringService } from './lead-scoring.service';
 import { LeadScoringWorker } from './lead-scoring.worker';
+import { LeadHealthScoreService } from './lead-health-score.service';
 
 @Module({
   imports: [
@@ -23,6 +28,10 @@ import { LeadScoringWorker } from './lead-scoring.worker';
       LeadEntity,
       UserEntity,
       CrmRoutingRuleEntity,
+      CrmRoutingSuggestionEntity,
+      ListingEntity,
+      ViewingEntity,
+      SearchIndexDocEntity,
       LeadConversionEventEntity,
       BookingEntity,
     ]),
@@ -36,7 +45,8 @@ import { LeadScoringWorker } from './lead-scoring.worker';
     LeadScoringWorker,
     LeadConversionService,
     AiEvalService,
+    LeadHealthScoreService,
   ],
-  exports: [LeadScoringService, LeadConversionService, AiEvalService],
+  exports: [LeadScoringService, LeadConversionService, AiEvalService, LeadHealthScoreService],
 })
 export class AiScoringModule {}

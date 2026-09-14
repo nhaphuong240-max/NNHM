@@ -9,11 +9,13 @@ import {
 export type CrmRoutingRulesPayload = {
   enabled: boolean;
   hotTierMinScore: number;
-  strategy: 'HOT_ROUND_ROBIN';
+  strategy: 'HOT_ROUND_ROBIN' | 'PARTNER_SCORE_AGING';
   assignOnTier: 'HOT';
   maxOpenLeads?: number;
   skillTags?: string[];
   roundRobinCursor?: number;
+  /** P2 FR-REV-002 — human must approve before auto-assign */
+  requireHumanApproval?: boolean;
 };
 
 @Entity({ name: 'crm_routing_rules' })

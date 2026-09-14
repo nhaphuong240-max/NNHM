@@ -1,6 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import type { LeadEntity } from '../../database/entities/lead.entity';
+import { CrmRoutingRuleEntity } from '../../database/entities/crm-routing-rule.entity';
+import { CrmRoutingSuggestionEntity } from '../../database/entities/crm-routing-suggestion.entity';
+import { ListingEntity } from '../../database/entities/listing.entity';
 import { UserEntity } from '../../database/entities/user.entity';
 import { AuditService } from '../audit/audit.service';
 import { LeadConversionService } from './lead-conversion.service';
@@ -9,6 +12,8 @@ import { LeadRoutingService } from './lead-routing.service';
 describe('LeadRoutingService', () => {
   let service: LeadRoutingService;
   let agents: UserEntity[];
+  let routingRulesFindOne: jest.Mock;
+  let suggestionsSave: jest.Mock;
 
   const conversion = {
     record: jest.fn(async () => ({})),
@@ -19,12 +24,16 @@ describe('LeadRoutingService', () => {
   };
 
   beforeEach(async () => {
+    routingRulesFindOne = jest.fn(async () => null);
+    suggestionsSave = jest.fn(async (row) => row);
+
     agents = [
       {
         id: 'usr_agent_01',
         tenantId: 'ten_dev_01',
         role: 'AGENT',
         isActive: true,
+        partnerScore: 70,
         createdAt: new Date('2026-01-01'),
       } as UserEntity,
       {
@@ -32,6 +41,7 @@ describe('LeadRoutingService', () => {
         tenantId: 'ten_dev_01',
         role: 'AGENT',
         isActive: true,
+        partnerScore: 65,
         createdAt: new Date('2026-01-02'),
       } as UserEntity,
     ];
@@ -43,7 +53,20 @@ describe('LeadRoutingService', () => {
           provide: getRepositoryToken(UserEntity),
           useValue: {
             find: jest.fn(async () => agents),
+            findOne: jest.fn(async () => agents[0]),
           },
+        },
+        {
+          provide: getRepositoryToken(CrmRoutingRuleEntity),
+          useValue: { findOne: routingRulesFindOne, save: jest.fn() },
+        },
+        {
+          provide: getRepositoryToken(CrmRoutingSuggestionEntity),
+          useValue: { findOne: jest.fn(async () => null), save: suggestionsSave },
+        },
+        {
+          provide: getRepositoryToken(ListingEntity),
+          useValue: { findOne: jest.fn(async () => null) },
         },
         { provide: AuditService, useValue: audit },
         { provide: LeadConversionService, useValue: conversion },
@@ -69,7 +92,29 @@ describe('LeadRoutingService', () => {
     expect(conversion.record).not.toHaveBeenCalled();
   });
 
-  it('assigns HOT leads round-robin and records conversion event', async () => {
+  it('creates routing suggestion when human approval required (P2)', async () => {
+    const hot = {
+      id: 'ld_hot_p2',
+      tier: 'HOT',
+      score: 90,
+      routingStatus: 'PENDING',
+      assignedTo: null,
+    } as LeadEntity;
+
+    const result = await service.applyRouting('ten_dev_01', hot);
+    expect(result.routingStatus).toBe('PENDING');
+    expect(result.assignedTo).toBeNull();
+    expect(suggestionsSave).toHaveBeenCalled();
+    expect(conversion.record).not.toHaveBeenCalled();
+  });
+
+  it('assigns HOT leads round-robin when approval disabled', async () => {
+    routingRulesFindOne.mockResolvedValue({
+      tenantId: 'ten_dev_01',
+      projectId: '',
+      rules: { enabled: true, requireHumanApproval: false, roundRobinCursor: 0 },
+    });
+
     const hot = {
       id: 'ld_hot_01',
       tier: 'HOT',
@@ -96,6 +141,11 @@ describe('LeadRoutingService', () => {
   });
 
   it('falls back to default agent when pool empty', async () => {
+    routingRulesFindOne.mockResolvedValue({
+      tenantId: 'ten_dev_01',
+      projectId: '',
+      rules: { enabled: true, requireHumanApproval: false, roundRobinCursor: 0 },
+    });
     agents.length = 0;
     const lead = {
       id: 'ld_hot_03',

@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { AgentShell } from '../../components/AgentShell';
+import { LeadCopilotPanel } from '../../components/agent/LeadCopilotPanel';
+import { LeadHealthPanel } from '../../components/agent/LeadHealthPanel';
 import { QualificationPanel } from '../../components/agent/QualificationPanel';
 import {
   createActivity,
@@ -273,6 +275,8 @@ export function AgentLeadDetailPage() {
                 ))}
               </section>
             )}
+            <LeadHealthPanel leadId={lead.id} />
+            <LeadCopilotPanel leadId={lead.id} />
             {scoreExplain && (
               <section
                 className="rounded-xl p-5 space-y-3"

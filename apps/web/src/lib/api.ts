@@ -3550,9 +3550,10 @@ export type RoutingRules = {
   attributes: {
     enabled: boolean;
     hotTierMinScore: number;
-    strategy: 'HOT_ROUND_ROBIN';
+    strategy: 'HOT_ROUND_ROBIN' | 'PARTNER_SCORE_AGING';
     assignOnTier: 'HOT';
-    agentPool: { id: string; email: string; role: string }[];
+    requireHumanApproval?: boolean;
+    agentPool: { id: string; email: string; role: string; organizationId?: string | null }[];
   };
 };
 
@@ -3666,6 +3667,110 @@ export async function fetchLeadScoreExplain(leadId: string) {
   const res = await authFetch(`/ai/scoring/leads/${encodeURIComponent(leadId)}`);
   if (!res.ok) throw new Error(`Lead score explain failed: ${res.status}`);
   return res.json() as Promise<{ data: LeadScoreExplain; meta: { tenantId: string } }>;
+}
+
+export type LeadHealthExplain = {
+  leadId: string;
+  healthScore: number;
+  tier: string;
+  intentScore: number;
+  factors: Array<{ key: string; label: string; score: number; maxScore: number; note: string }>;
+  disclaimer: string;
+  autoRejectForbidden: boolean;
+  modelVersion: string;
+};
+
+export async function fetchLeadHealthExplain(leadId: string) {
+  const res = await authFetch(`/ai/scoring/leads/${encodeURIComponent(leadId)}/health`);
+  if (!res.ok) throw new Error(`Lead health explain failed: ${res.status}`);
+  return res.json() as Promise<{ data: LeadHealthExplain; meta: { tenantId: string } }>;
+}
+
+export type LocalityInsight = {
+  district: string;
+  city: string;
+  slug?: string;
+  listingCount: number;
+  avgPricePerSqm: number | null;
+  narrative: string;
+  source: string;
+  asOf: string;
+  sampleSize: number;
+};
+
+export async function fetchLocalityInsight(slug: string) {
+  const res = await fetch(`${API_BASE}/market/locality/${encodeURIComponent(slug)}`, {
+    headers: { 'X-Tenant-Id': DEFAULT_TENANT_ID },
+  });
+  if (!res.ok) throw new Error(`Locality insight failed: ${res.status}`);
+  return res.json() as Promise<{ data: LocalityInsight | null; meta: Record<string, unknown> }>;
+}
+
+export type RoutingSuggestion = {
+  id: string;
+  leadId: string;
+  suggestedAgentId: string;
+  suggestedAgentEmail: string | null;
+  status: string;
+  partnerScore: number | null;
+  inventoryAgingDays: number | null;
+  reason: Record<string, unknown>;
+  createdAt: string;
+};
+
+export async function fetchRoutingSuggestions() {
+  const res = await authFetch(`${API_BASE}/crm/routing/suggestions`);
+  if (!res.ok) throw new Error(`Routing suggestions failed: ${res.status}`);
+  return res.json() as Promise<{ data: RoutingSuggestion[]; meta: { count: number } }>;
+}
+
+export async function approveRoutingSuggestion(id: string) {
+  const res = await authFetch(`${API_BASE}/crm/routing/suggestions/${encodeURIComponent(id)}/approve`, {
+    method: 'POST',
+  });
+  if (!res.ok) throw new Error(`Approve suggestion failed: ${res.status}`);
+  return res.json();
+}
+
+export async function rejectRoutingSuggestion(id: string) {
+  const res = await authFetch(`${API_BASE}/crm/routing/suggestions/${encodeURIComponent(id)}/reject`, {
+    method: 'POST',
+  });
+  if (!res.ok) throw new Error(`Reject suggestion failed: ${res.status}`);
+  return res.json();
+}
+
+export type LeadCopilotResult = {
+  id: string;
+  attributes: {
+    task: string;
+    title: string;
+    content: string;
+    summary?: string;
+    nextActions?: string[];
+    disclaimer: string;
+    requiresApproval: boolean;
+    outboundReviewRequired?: boolean;
+    draftStatus?: string;
+  };
+};
+
+export async function generateLeadCopilot(leadId: string) {
+  const res = await authFetch(`${API_BASE}/ai/copilot/generate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ task: 'LEAD_SUMMARY', leadId }),
+  });
+  if (!res.ok) throw new Error(`Lead copilot failed: ${res.status}`);
+  return res.json() as Promise<{ data: LeadCopilotResult }>;
+}
+
+export async function approveLeadCopilotDraft(draftId: string) {
+  const res = await authFetch(`${API_BASE}/ai/copilot/drafts/${encodeURIComponent(draftId)}/approve`, {
+    method: 'POST',
+  });
+  if (!res.ok) throw new Error(`Approve copilot draft failed: ${res.status}`);
+  return res.json();
 }
 
 export async function patchLeadStage(

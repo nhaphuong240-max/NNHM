@@ -72,3 +72,5 @@ export { AttributionTouchpointEntity } from './attribution-touchpoint.entity';
 export { OpenDayEventEntity } from './open-day-event.entity';
 export { OpenDayRsvpEntity } from './open-day-rsvp.entity';
 export { CrmNotifyDeliveryEntity } from './crm-notify-delivery.entity';
+export { CrmRoutingSuggestionEntity } from './crm-routing-suggestion.entity';
+export { AiLeadCopilotDraftEntity } from './ai-lead-copilot-draft.entity';

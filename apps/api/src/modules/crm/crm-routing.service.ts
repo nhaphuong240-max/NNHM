@@ -8,7 +8,7 @@ import {
 import { UserEntity } from '../../database/entities/user.entity';
 import { AuditService } from '../audit/audit.service';
 
-export type RoutingStrategy = 'HOT_ROUND_ROBIN';
+export type RoutingStrategy = 'HOT_ROUND_ROBIN' | 'PARTNER_SCORE_AGING';
 
 export type RoutingRules = {
   enabled: boolean;
@@ -17,13 +17,15 @@ export type RoutingRules = {
   assignOnTier: 'HOT';
   maxOpenLeads?: number;
   skillTags?: string[];
+  requireHumanApproval?: boolean;
 };
 
 const DEFAULT_RULES: RoutingRules = {
   enabled: true,
   hotTierMinScore: 85,
-  strategy: 'HOT_ROUND_ROBIN',
+  strategy: 'PARTNER_SCORE_AGING',
   assignOnTier: 'HOT',
+  requireHumanApproval: true,
 };
 
 @Injectable()
@@ -40,10 +42,11 @@ export class CrmRoutingService {
     return {
       enabled: rules.enabled,
       hotTierMinScore: rules.hotTierMinScore,
-      strategy: 'HOT_ROUND_ROBIN',
+      strategy: rules.strategy ?? 'PARTNER_SCORE_AGING',
       assignOnTier: 'HOT',
       maxOpenLeads: rules.maxOpenLeads,
       skillTags: rules.skillTags,
+      requireHumanApproval: rules.requireHumanApproval ?? true,
     };
   }
 
@@ -51,10 +54,11 @@ export class CrmRoutingService {
     return {
       enabled: payload.enabled,
       hotTierMinScore: payload.hotTierMinScore,
-      strategy: 'HOT_ROUND_ROBIN',
+      strategy: payload.strategy ?? 'PARTNER_SCORE_AGING',
       assignOnTier: 'HOT',
       maxOpenLeads: payload.maxOpenLeads,
       skillTags: payload.skillTags,
+      requireHumanApproval: payload.requireHumanApproval ?? true,
     };
   }
 
@@ -100,7 +104,7 @@ export class CrmRoutingService {
     const next: RoutingRules = {
       ...current,
       ...patch,
-      strategy: 'HOT_ROUND_ROBIN',
+      strategy: patch.strategy ?? current.strategy ?? 'PARTNER_SCORE_AGING',
       assignOnTier: 'HOT',
     };
 

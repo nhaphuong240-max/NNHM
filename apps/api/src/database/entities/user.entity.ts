@@ -25,6 +25,10 @@ export class UserEntity {
   @Column({ name: 'is_active', type: 'boolean', default: true })
   isActive!: boolean;
 
+  /** P2 FR-REV-002 — partner routing score (0–100) */
+  @Column({ name: 'partner_score', type: 'int', default: 50 })
+  partnerScore!: number;
+
   /** Base32 TOTP secret — UC-ID-03 staging MFA (when MFA_SANDBOX=false) */
   @Column({ name: 'mfa_secret', type: 'varchar', length: 64, nullable: true })
   mfaSecret!: string | null;

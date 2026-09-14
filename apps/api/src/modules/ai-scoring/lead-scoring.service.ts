@@ -14,6 +14,7 @@ import {
   SCORING_MODEL_VERSION,
 } from './lead-scoring.engine';
 import { buildLeadScoreExplainFactors } from './lead-scoring-explain.util';
+import { LeadHealthScoreService } from './lead-health-score.service';
 import { LeadRoutingService } from './lead-routing.service';
 
 @Injectable()
@@ -26,6 +27,7 @@ export class LeadScoringService {
     @InjectRepository(LeadEntity)
     private readonly leads: Repository<LeadEntity>,
     private readonly routing: LeadRoutingService,
+    private readonly health: LeadHealthScoreService,
     private readonly audit: AuditService,
     private readonly streamEvents: StreamEventsService,
   ) {}
@@ -104,6 +106,7 @@ export class LeadScoringService {
 
       await this.routing.applyRouting(row.tenantId, lead);
       await this.leads.save(lead);
+      await this.health.computeAndPersist(row.tenantId, lead.id);
 
       await this.audit.append({
         tenantId: row.tenantId,

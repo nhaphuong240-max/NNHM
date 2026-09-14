@@ -124,6 +124,13 @@ export class LeadEntity {
   @Column({ name: 'hot_sla_breached', type: 'boolean', default: false })
   hotSlaBreached!: boolean;
 
+  /** P2 FR-LEAD-007b — explainable health score (never auto-reject) */
+  @Column({ name: 'health_score', type: 'int', nullable: true })
+  healthScore!: number | null;
+
+  @Column({ name: 'health_meta', type: 'jsonb', nullable: true })
+  healthMeta!: Record<string, unknown> | null;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt!: Date;
 

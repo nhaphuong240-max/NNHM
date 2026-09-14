@@ -1,11 +1,12 @@
-export type CopilotTask = 'LISTING_DESCRIPTION' | 'LISTING_TITLE';
+export type CopilotTask = 'LISTING_DESCRIPTION' | 'LISTING_TITLE' | 'LEAD_SUMMARY';
 export type CopilotTone = 'premium' | 'standard' | 'investment';
 
 export const COPILOT_DISCLAIMER =
   'Nội dung AI — cần agent duyệt trước publish (NFR-C04 · BR-06 · BR-16)';
 
 export interface CopilotGenerateInput {
-  unitId: string;
+  unitId?: string;
+  leadId?: string;
   listingId?: string;
   task: CopilotTask;
   tone?: CopilotTone;
@@ -32,11 +33,15 @@ export interface CopilotGenerateResult {
     task: CopilotTask;
     title: string;
     content: string;
+    summary?: string;
+    nextActions?: string[];
     disclaimer: string;
     requiresApproval: true;
+    outboundReviewRequired?: boolean;
     modelVersion: string;
-    tone: CopilotTone;
+    tone?: CopilotTone;
     language: 'vi' | 'en';
     latencyMs: number;
+    draftStatus?: 'PENDING' | 'APPROVED' | 'REJECTED';
   };
 }

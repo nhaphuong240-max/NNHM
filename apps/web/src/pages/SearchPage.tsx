@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { ContactLeadModal } from '../components/public/ContactLeadModal';
+import { LocalityInsightPanel } from '../components/public/LocalityInsightPanel';
 import { SearchMapPanel } from '../components/public/SearchMapPanel';
 import { DISTRICT_FILTERS, ListingCard } from '../components/public/ListingCard';
 import { PublicTopBar } from '../components/PublicTopBar';
@@ -13,6 +14,7 @@ import {
   trackAnalyticsEvent,
   type SearchHit,
 } from '../lib/api';
+import { DISTRICTS } from '../lib/districts';
 import { intentToApiTransactionType } from '../lib/search-intent';
 import { getVisitorId } from '../lib/visitor';
 import { brand } from '../theme/tokens';
@@ -50,6 +52,10 @@ export function SearchPage() {
   const [nlQuery, setNlQuery] = useState('');
   const [nlChips, setNlChips] = useState<string[]>([]);
   const [nlBusy, setNlBusy] = useState(false);
+
+  const districtSlug = district
+    ? DISTRICTS.find((d) => d.label === district)?.slug
+    : undefined;
 
   useEffect(() => {
     setDistrict(districtParam);
@@ -231,6 +237,7 @@ export function SearchPage() {
                   {d.label}
                 </label>
               ))}
+              <LocalityInsightPanel slug={districtSlug} />
             </div>
             <div>
               <p className="text-xs font-medium mb-2" style={{ color: brand.muted }}>

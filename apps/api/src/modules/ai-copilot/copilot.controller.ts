@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Headers, HttpCode, Post } from '@nestjs/common';
+import { Body, Controller, Get, Headers, HttpCode, Param, Post } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { resolveTenantId } from '../../common/resolve-tenant-id';
 import { CurrentUser } from '../identity/decorators/current-user.decorator';
@@ -18,7 +18,7 @@ export class CopilotController {
     return this.copilot.status();
   }
 
-  /** API-067 · UC-AI-01 · FR-AI-01,03,04 */
+  /** API-067 · UC-AI-01 · FR-AI-01,03,04 · P2 FR-AI-002 LEAD_SUMMARY */
   @Post('generate')
   @HttpCode(200)
   generate(
@@ -28,5 +28,20 @@ export class CopilotController {
   ) {
     const tenantId = resolveTenantId(this.config, user, tenantHeader);
     return this.copilot.generate(tenantId, body, user?.userId);
+  }
+
+  /** P2 FR-AI-002 — approve outbound copilot draft */
+  @Post('drafts/:id/approve')
+  @HttpCode(200)
+  approveDraft(
+    @CurrentUser() user: AuthUser | undefined,
+    @Headers('x-tenant-id') tenantHeader: string | undefined,
+    @Param('id') id: string,
+  ) {
+    return this.copilot.approveLeadDraft(
+      resolveTenantId(this.config, user, tenantHeader),
+      id,
+      user?.userId ?? 'system',
+    );
   }
 }

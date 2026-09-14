@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { AgentShell } from '../../components/AgentShell';
+import { RoutingSuggestionsPanel } from '../../components/agent/RoutingSuggestionsPanel';
 import { fetchRoutingRules, patchRoutingRules, type RoutingRules } from '../../lib/api';
 import { brand } from '../../theme/tokens';
 
@@ -8,6 +9,7 @@ export function AgentRoutingSettingsPage() {
   const [rules, setRules] = useState<RoutingRules['attributes'] | null>(null);
   const [hotScore, setHotScore] = useState(85);
   const [enabled, setEnabled] = useState(true);
+  const [requireApproval, setRequireApproval] = useState(true);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -21,6 +23,7 @@ export function AgentRoutingSettingsPage() {
       setRules(res.data.attributes);
       setHotScore(res.data.attributes.hotTierMinScore);
       setEnabled(res.data.attributes.enabled);
+      setRequireApproval(res.data.attributes.requireHumanApproval !== false);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Không tải routing rules');
     } finally {
@@ -40,6 +43,8 @@ export function AgentRoutingSettingsPage() {
       const res = await patchRoutingRules({
         enabled,
         hotTierMinScore: hotScore,
+        requireHumanApproval: requireApproval,
+        strategy: 'PARTNER_SCORE_AGING',
       });
       setRules(res.data.attributes);
       setMessage('Đã lưu routing rules (pilot in-memory)');
@@ -83,6 +88,14 @@ export function AgentRoutingSettingsPage() {
             <label className="flex items-center gap-2 text-sm">
               <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} />
               Bật auto-routing HOT leads
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={requireApproval}
+                onChange={(e) => setRequireApproval(e.target.checked)}
+              />
+              Yêu cầu duyệt người trước assign (P2)
             </label>
 
             <label className="block text-sm">
@@ -131,9 +144,11 @@ export function AgentRoutingSettingsPage() {
               )}
             </ul>
             <p className="text-xs mt-3" style={{ color: brand.muted }}>
-              Round-robin gán lead HOT sau AI scoring (UC-AI-02). Skill-based routing — S2.
+              Partner score + aging tồn kho (P2 FR-REV-002). Duyệt suggestion trước khi assign.
             </p>
           </section>
+
+          <RoutingSuggestionsPanel />
         </div>
       )}
     </AgentShell>
