@@ -5,6 +5,7 @@ import { CrmRoutingRuleEntity } from '../../database/entities/crm-routing-rule.e
 import { CrmRoutingSuggestionEntity } from '../../database/entities/crm-routing-suggestion.entity';
 import { ListingEntity } from '../../database/entities/listing.entity';
 import { UserEntity } from '../../database/entities/user.entity';
+import { ViewingEntity } from '../../database/entities/viewing.entity';
 import { AuditService } from '../audit/audit.service';
 import { LeadConversionService } from './lead-conversion.service';
 import { LeadRoutingService } from './lead-routing.service';
@@ -54,6 +55,7 @@ describe('LeadRoutingService', () => {
           useValue: {
             find: jest.fn(async () => agents),
             findOne: jest.fn(async () => agents[0]),
+            manager: { query: jest.fn(async () => []) },
           },
         },
         {
@@ -67,6 +69,10 @@ describe('LeadRoutingService', () => {
         {
           provide: getRepositoryToken(ListingEntity),
           useValue: { findOne: jest.fn(async () => null) },
+        },
+        {
+          provide: getRepositoryToken(ViewingEntity),
+          useValue: { find: jest.fn(async () => []) },
         },
         { provide: AuditService, useValue: audit },
         { provide: LeadConversionService, useValue: conversion },

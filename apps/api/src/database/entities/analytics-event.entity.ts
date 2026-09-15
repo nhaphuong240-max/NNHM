@@ -8,7 +8,8 @@ export type AnalyticsEventName =
   | 'saved'
   | 'contact_started'
   | 'lead_created'
-  | 'viewing_requested';
+  | 'viewing_requested'
+  | 'share_link_opened';
 
 @Entity({ name: 'analytics_events' })
 export class AnalyticsEventEntity {

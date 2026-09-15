@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { AgentShell } from '../../components/AgentShell';
-import { fetchCrmKpi, type CrmKpiPack } from '../../lib/api';
+import { fetchCrmKpiWeekly, type CrmKpiPack } from '../../lib/api';
 import { brand } from '../../theme/tokens';
 
 function pct(value: number | null, digits = 1) {
@@ -49,7 +49,7 @@ export function AgentKpiPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    void fetchCrmKpi()
+    void fetchCrmKpiWeekly()
       .then((res) => setKpi(res.data.attributes))
       .catch((e) => setError(e instanceof Error ? e.message : 'Không tải KPI'))
       .finally(() => setLoading(false));
@@ -68,6 +68,24 @@ export function AgentKpiPage() {
 
       {kpi && (
         <div className="space-y-8">
+          {kpi.beachheadReady !== undefined && (
+            <div
+              className="rounded-2xl p-4 text-sm font-semibold"
+              style={{
+                background: kpi.beachheadReady ? '#ECFDF5' : '#FEF3C7',
+                color: kpi.beachheadReady ? brand.success : brand.warning,
+                border: `1px solid ${brand.border}`,
+              }}
+            >
+              Beachhead gate: {kpi.beachheadReady ? 'PASS' : 'CHƯA ĐẠT'}
+              {kpi.gatePassRate !== null && kpi.gatePassRate !== undefined && (
+                <span className="font-normal ml-2">
+                  ({Math.round(kpi.gatePassRate * 100)}% KPI đạt ngưỡng)
+                </span>
+              )}
+            </div>
+          )}
+
           <section>
             <h2 className="text-sm font-bold mb-3" style={{ color: brand.primaryDark }}>
               North Star

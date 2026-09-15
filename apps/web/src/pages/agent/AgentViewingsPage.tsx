@@ -110,7 +110,14 @@ export function AgentViewingsPage() {
                     ? new Date(row.attributes.requestedSlot).toLocaleString('vi-VN')
                     : row.attributes.mode}
                 </td>
-                <td className="p-3 text-xs font-bold">{row.attributes.status}</td>
+                <td className="p-3 text-xs">
+                  <span className="font-bold">{row.attributes.status}</span>
+                  {row.attributes.nextTask && (
+                    <p className="mt-1 font-normal" style={{ color: brand.primary }}>
+                      Next: {row.attributes.nextTask}
+                    </p>
+                  )}
+                </td>
                 <td className="p-3">
                   <div className="flex flex-wrap gap-1">
                     {row.attributes.status === 'REQUESTED' && (

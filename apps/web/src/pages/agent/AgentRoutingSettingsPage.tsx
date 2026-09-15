@@ -10,6 +10,8 @@ export function AgentRoutingSettingsPage() {
   const [hotScore, setHotScore] = useState(85);
   const [enabled, setEnabled] = useState(true);
   const [requireApproval, setRequireApproval] = useState(true);
+  const [maxOpenLeads, setMaxOpenLeads] = useState(15);
+  const [skillTags, setSkillTags] = useState('high-rise');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -24,6 +26,8 @@ export function AgentRoutingSettingsPage() {
       setHotScore(res.data.attributes.hotTierMinScore);
       setEnabled(res.data.attributes.enabled);
       setRequireApproval(res.data.attributes.requireHumanApproval !== false);
+      setMaxOpenLeads(res.data.attributes.maxOpenLeads ?? 15);
+      setSkillTags((res.data.attributes.skillTags ?? []).join(', '));
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Không tải routing rules');
     } finally {
@@ -44,10 +48,15 @@ export function AgentRoutingSettingsPage() {
         enabled,
         hotTierMinScore: hotScore,
         requireHumanApproval: requireApproval,
+        maxOpenLeads,
+        skillTags: skillTags
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean),
         strategy: 'PARTNER_SCORE_AGING',
       });
       setRules(res.data.attributes);
-      setMessage('Đã lưu routing rules (pilot in-memory)');
+      setMessage('Đã lưu routing rules (DB persist · Phase B)');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Lưu thất bại');
     } finally {
@@ -99,6 +108,31 @@ export function AgentRoutingSettingsPage() {
             </label>
 
             <label className="block text-sm">
+              <span className="font-medium">Max open leads / agent</span>
+              <input
+                type="number"
+                min={1}
+                max={100}
+                value={maxOpenLeads}
+                onChange={(e) => setMaxOpenLeads(Number(e.target.value))}
+                className="mt-1 w-full rounded-lg border px-3 py-2"
+                style={{ borderColor: brand.border }}
+              />
+            </label>
+
+            <label className="block text-sm">
+              <span className="font-medium">Skill tags (comma)</span>
+              <input
+                type="text"
+                value={skillTags}
+                onChange={(e) => setSkillTags(e.target.value)}
+                className="mt-1 w-full rounded-lg border px-3 py-2"
+                style={{ borderColor: brand.border }}
+                placeholder="high-rise, sunrise"
+              />
+            </label>
+
+            <label className="block text-sm">
               <span className="font-medium">Ngưỡng HOT (score ≥)</span>
               <input
                 type="number"
@@ -136,9 +170,14 @@ export function AgentRoutingSettingsPage() {
                 <li style={{ color: brand.muted }}>Chưa có agent active</li>
               ) : (
                 rules.agentPool.map((a) => (
-                  <li key={a.id} className="flex justify-between gap-2 font-mono text-xs">
-                    <span>{a.email}</span>
-                    <span style={{ color: brand.muted }}>{a.id}</span>
+                  <li key={a.id} className="text-xs border-b py-2" style={{ borderColor: brand.border }}>
+                    <div className="flex justify-between gap-2">
+                      <span>{a.email}</span>
+                      <span style={{ color: brand.muted }}>open {a.openLeadCount ?? 0}</span>
+                    </div>
+                    <p className="font-mono mt-0.5" style={{ color: brand.muted }}>
+                      {a.id} · score {a.partnerScore ?? '—'} · {(a.skillTags ?? []).join(', ') || '—'}
+                    </p>
                   </li>
                 ))
               )}

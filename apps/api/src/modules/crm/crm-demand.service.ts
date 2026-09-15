@@ -59,6 +59,8 @@ export class CrmDemandService {
   }
 
   mapViewing(row: ViewingEntity) {
+    const nextTask =
+      row.status === 'COMPLETED' && row.outcome ? nextTaskForOutcome(row.outcome) : null;
     return {
       id: row.id,
       attributes: {
@@ -72,6 +74,7 @@ export class CrmDemandService {
         outcome: row.outcome,
         note: row.note,
         assignedTo: row.assignedTo,
+        nextTask,
         createdAt: row.createdAt.toISOString(),
         updatedAt: row.updatedAt.toISOString(),
       },

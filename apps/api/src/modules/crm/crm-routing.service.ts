@@ -78,6 +78,18 @@ export class CrmRoutingService {
       order: { email: 'ASC' },
     });
 
+    const openRows = await this.users.manager.query(
+      `SELECT assigned_to AS id, COUNT(*)::int AS cnt
+       FROM leads
+       WHERE tenant_id = $1 AND assigned_to IS NOT NULL
+         AND status NOT IN ('WON','LOST')
+       GROUP BY assigned_to`,
+      [tenantId],
+    );
+    const openMap = new Map<string, number>(
+      openRows.map((r: { id: string; cnt: number }) => [r.id, r.cnt]),
+    );
+
     return {
       data: {
         attributes: {
@@ -87,10 +99,13 @@ export class CrmRoutingService {
             email: a.email,
             role: a.role,
             organizationId: a.organizationId,
+            skillTags: a.skillTags ?? [],
+            partnerScore: a.partnerScore,
+            openLeadCount: openMap.get(a.id) ?? 0,
           })),
         },
       },
-      meta: { tenantId, uc: 'UC-CRM-02', screen: 'SCR-AGENT-015', persisted: true },
+      meta: { tenantId, uc: 'UC-CRM-02', screen: 'SCR-AGENT-015', persisted: true, phase: 'B' },
     };
   }
 

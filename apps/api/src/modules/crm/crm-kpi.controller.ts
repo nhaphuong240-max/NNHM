@@ -17,4 +17,13 @@ export class CrmKpiController {
   getKpi(@CurrentUser() user: AuthUser, @Query('projectId') projectId?: string) {
     return this.kpi.getKpiPack(resolveTenantId(this.config, user), projectId?.trim() || undefined);
   }
+
+  /** Phase B — weekly KPI + beachhead gate */
+  @Get('kpi/weekly')
+  getWeeklyKpi(@CurrentUser() user: AuthUser, @Query('projectId') projectId?: string) {
+    return this.kpi.getWeeklyKpiPack(
+      resolveTenantId(this.config, user),
+      projectId?.trim() || undefined,
+    );
+  }
 }

@@ -111,34 +111,116 @@ export class CrmKpiService {
     const bookingLeadLinkRate = allBookings ? bookingsWithLead / allBookings : null;
     const listingFreshnessRate = indexCount ? freshListings / indexCount : null;
 
+    const attributes = this.buildAttributes({
+      qualifiedViewingsWeek,
+      zeroResultRate,
+      hotFirstTouchRate,
+      viewingShowUp,
+      bookingLeadLinkRate,
+      listingFreshnessRate,
+      activeRegs,
+      openDisputes,
+      closedDisputes,
+      searchEvents,
+      projectId,
+    });
+
+    return {
+      data: { attributes },
+      meta: { tenantId, source: 'real-db', screen: 'SCR-AGENT-KPI', uc: 'SRS-§16' },
+    };
+  }
+
+  /** Phase B — weekly KPI pack + beachhead gate (SRS §16 / P0-S3). */
+  async getWeeklyKpiPack(tenantId: string, projectId?: string) {
+    const pack = await this.getKpiPack(tenantId, projectId);
+    const attrs = pack.data.attributes;
+    const t = attrs.targets;
+
+    const gates = {
+      zeroResultOk:
+        attrs.zeroResultRate === null ? null : attrs.zeroResultRate <= t.zeroResultRateMax,
+      hotFirstTouchOk:
+        attrs.hotFirstTouchRate === null ? null : attrs.hotFirstTouchRate >= 0.7,
+      viewingShowUpOk:
+        attrs.viewingShowUpRate === null ? null : attrs.viewingShowUpRate >= t.viewingShowUpMin,
+      bookingLeadOk:
+        attrs.bookingLeadLinkRate === null ? null : attrs.bookingLeadLinkRate >= t.bookingLeadLinkMin,
+      freshnessOk:
+        attrs.listingFreshnessRate === null
+          ? null
+          : attrs.listingFreshnessRate >= t.listingFreshnessMin,
+      northStarMin: attrs.northStarQualifiedViewingsPerWeek >= 1,
+    };
+
+    const scored = Object.values(gates).filter((v) => v !== null) as boolean[];
+    const passCount = scored.filter(Boolean).length;
+    const beachheadReady = scored.length > 0 && passCount / scored.length >= 0.7;
+
+    const now = new Date();
+    const weekStart = new Date(now);
+    weekStart.setDate(now.getDate() - 7);
+
     return {
       data: {
         attributes: {
-          northStarQualifiedViewingsPerWeek: qualifiedViewingsWeek,
-          zeroResultRate,
-          hotFirstTouchRate,
-          viewingShowUpRate: viewingShowUp,
-          bookingLeadLinkRate,
-          listingFreshnessRate,
-          activeRegistrations: activeRegs,
-          openDisputes,
-          closedDisputes7d: closedDisputes,
-          searchSubmittedTotal: searchEvents,
-          projectId: projectId ?? null,
-          targets: {
-            zeroResultRateMax: 0.15,
-            hotFirstTouchP95Minutes: 5,
-            viewingShowUpMin: 0.6,
-            bookingLeadLinkMin: 1,
-            listingFreshnessMin: 0.95,
+          ...attrs,
+          period: {
+            label: '7d rolling',
+            from: weekStart.toISOString(),
+            to: now.toISOString(),
           },
-          notes: {
-            searchP95: 'n/a — cần APM trace',
-            detailToContact: 'n/a — đo baseline P1',
-          },
+          gates,
+          beachheadReady,
+          gatePassRate: scored.length ? passCount / scored.length : null,
         },
       },
-      meta: { tenantId, source: 'real-db', screen: 'SCR-AGENT-KPI', uc: 'SRS-§16' },
+      meta: {
+        tenantId,
+        source: 'real-db',
+        screen: 'SCR-AGENT-KPI-WEEKLY',
+        uc: 'SRS-§16',
+        phase: 'B',
+      },
+    };
+  }
+
+  private buildAttributes(input: {
+    qualifiedViewingsWeek: number;
+    zeroResultRate: number | null;
+    hotFirstTouchRate: number | null;
+    viewingShowUp: number | null;
+    bookingLeadLinkRate: number | null;
+    listingFreshnessRate: number | null;
+    activeRegs: number;
+    openDisputes: number;
+    closedDisputes: number;
+    searchEvents: number;
+    projectId?: string;
+  }) {
+    return {
+      northStarQualifiedViewingsPerWeek: input.qualifiedViewingsWeek,
+      zeroResultRate: input.zeroResultRate,
+      hotFirstTouchRate: input.hotFirstTouchRate,
+      viewingShowUpRate: input.viewingShowUp,
+      bookingLeadLinkRate: input.bookingLeadLinkRate,
+      listingFreshnessRate: input.listingFreshnessRate,
+      activeRegistrations: input.activeRegs,
+      openDisputes: input.openDisputes,
+      closedDisputes7d: input.closedDisputes,
+      searchSubmittedTotal: input.searchEvents,
+      projectId: input.projectId ?? null,
+      targets: {
+        zeroResultRateMax: 0.15,
+        hotFirstTouchP95Minutes: 5,
+        viewingShowUpMin: 0.6,
+        bookingLeadLinkMin: 1,
+        listingFreshnessMin: 0.95,
+      },
+      notes: {
+        searchP95: 'n/a — cần APM trace',
+        detailToContact: 'n/a — đo baseline P1',
+      },
     };
   }
 }

@@ -29,6 +29,10 @@ export class UserEntity {
   @Column({ name: 'partner_score', type: 'int', default: 50 })
   partnerScore!: number;
 
+  /** Phase B FR-LEAD-003b — routing skill tags */
+  @Column({ name: 'skill_tags', type: 'jsonb', default: () => "'[]'" })
+  skillTags!: string[];
+
   /** Base32 TOTP secret — UC-ID-03 staging MFA (when MFA_SANDBOX=false) */
   @Column({ name: 'mfa_secret', type: 'varchar', length: 64, nullable: true })
   mfaSecret!: string | null;

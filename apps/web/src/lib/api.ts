@@ -78,6 +78,10 @@ export type CrmKpiPack = {
   activeRegistrations: number;
   openDisputes: number;
   closedDisputes7d: number;
+  gates?: Record<string, boolean | null>;
+  beachheadReady?: boolean;
+  gatePassRate?: number | null;
+  period?: { label: string; from: string; to: string };
   searchSubmittedTotal: number;
   projectId: string | null;
   targets: {
@@ -95,8 +99,15 @@ export type CrmKpiPack = {
 
 export async function fetchCrmKpi(projectId?: string) {
   const qs = projectId ? `?projectId=${encodeURIComponent(projectId)}` : '';
-  const res = await authFetch(`${API_BASE}/crm/kpi${qs}`);
+  const res = await authFetch(`/crm/kpi${qs}`);
   if (!res.ok) throw new Error(`KPI failed: ${res.status}`);
+  return res.json() as Promise<{ data: { attributes: CrmKpiPack } }>;
+}
+
+export async function fetchCrmKpiWeekly(projectId?: string) {
+  const qs = projectId ? `?projectId=${encodeURIComponent(projectId)}` : '';
+  const res = await authFetch(`/crm/kpi/weekly${qs}`);
+  if (!res.ok) throw new Error(`KPI weekly failed: ${res.status}`);
   return res.json() as Promise<{ data: { attributes: CrmKpiPack } }>;
 }
 
@@ -197,6 +208,47 @@ export async function fetchDsrMasterplan(projectId: string) {
       units: Array<{ unitId: string; code: string; basePrice: number; status: string }>;
     };
   }>;
+}
+
+export async function fetchDsrDrillDown(
+  projectId: string,
+  tower?: string,
+  floor?: string,
+) {
+  const params = new URLSearchParams();
+  if (tower) params.set('tower', tower);
+  if (floor) params.set('floor', floor);
+  const qs = params.toString() ? `?${params.toString()}` : '';
+  const res = await fetch(
+    `${API_BASE}/dsr/projects/${encodeURIComponent(projectId)}/drill${qs}`,
+    { headers: { 'X-Tenant-Id': DEFAULT_TENANT_ID } },
+  );
+  if (!res.ok) throw new Error(`DSR drill failed: ${res.status}`);
+  return res.json() as Promise<{
+    data: {
+      breadcrumbs: { level: string; refId: string; label: string }[];
+      children: Array<{ id: string; level: string; refId: string; label: string }>;
+      units: Array<{ unitId: string; code: string; basePrice: number; status: string }>;
+      shareStats: { linkCount: number; totalOpens: number };
+    };
+  }>;
+}
+
+export async function createDsrShareLink(input: {
+  projectId?: string;
+  unitId?: string;
+  visitorId?: string;
+}) {
+  const res = await fetch(`${API_BASE}/dsr/share-links`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Tenant-Id': DEFAULT_TENANT_ID,
+    },
+    body: JSON.stringify(input),
+  });
+  if (!res.ok) throw new Error(`Share link failed: ${res.status}`);
+  return res.json() as Promise<{ data: { token: string; url: string; expiresAt: string } }>;
 }
 
 export async function openShareLink(token: string) {
@@ -2831,6 +2883,7 @@ export type ViewingRecord = {
     status: string;
     outcome: string | null;
     note: string | null;
+    nextTask?: string | null;
     createdAt: string;
   };
 };
@@ -3594,7 +3647,17 @@ export type RoutingRules = {
     strategy: 'HOT_ROUND_ROBIN' | 'PARTNER_SCORE_AGING';
     assignOnTier: 'HOT';
     requireHumanApproval?: boolean;
-    agentPool: { id: string; email: string; role: string; organizationId?: string | null }[];
+    maxOpenLeads?: number;
+    skillTags?: string[];
+    agentPool: {
+      id: string;
+      email: string;
+      role: string;
+      organizationId?: string | null;
+      skillTags?: string[];
+      partnerScore?: number;
+      openLeadCount?: number;
+    }[];
   };
 };
 

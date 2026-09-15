@@ -10,8 +10,13 @@ import {
 import { CrmRoutingSuggestionEntity } from '../../database/entities/crm-routing-suggestion.entity';
 import { ListingEntity } from '../../database/entities/listing.entity';
 import { UserEntity } from '../../database/entities/user.entity';
+import { ViewingEntity } from '../../database/entities/viewing.entity';
 import { AuditService } from '../audit/audit.service';
 import { DEFAULT_TENANT_DEMAND_POLICY } from '../crm/demand-policy.types';
+import {
+  filterRoutingCandidates,
+  requiredSkillsForLead,
+} from '../crm/routing-candidate.util';
 import { hotFirstTouchDeadline, isBusinessTime } from '../crm/sla-calendar.util';
 import { LeadConversionService } from './lead-conversion.service';
 
@@ -37,6 +42,8 @@ export class LeadRoutingService {
     private readonly suggestions: Repository<CrmRoutingSuggestionEntity>,
     @InjectRepository(ListingEntity)
     private readonly listings: Repository<ListingEntity>,
+    @InjectRepository(ViewingEntity)
+    private readonly viewings: Repository<ViewingEntity>,
     private readonly audit: AuditService,
     private readonly conversion: LeadConversionService,
   ) {}
@@ -65,10 +72,16 @@ export class LeadRoutingService {
 
     const requireApproval = rules.requireHumanApproval !== false;
     const agingDays = await this.inventoryAgingDays(tenantId, lead.listingId);
-    const agentId = await this.pickAgentId(tenantId, rules, rulesRow ?? fallbackRow, agingDays);
+    const { agentId, filterMeta } = await this.pickAgentId(
+      tenantId,
+      lead,
+      rules,
+      rulesRow ?? fallbackRow,
+      agingDays,
+    );
 
     if (requireApproval) {
-      await this.createSuggestion(tenantId, lead, agentId, agingDays);
+      await this.createSuggestion(tenantId, lead, agentId, agingDays, filterMeta);
       lead.routingStatus = 'PENDING';
       lead.assignedTo = null;
       lead.hotSlaDueAt = null;
@@ -115,6 +128,7 @@ export class LeadRoutingService {
     lead: LeadEntity,
     agentId: string,
     agingDays: number,
+    filterMeta?: Record<string, unknown>,
   ) {
     const existing = await this.suggestions.findOne({
       where: { tenantId, leadId: lead.id, status: 'PENDING' },
@@ -135,6 +149,7 @@ export class LeadRoutingService {
         partnerScore: agent?.partnerScore,
         inventoryAgingDays: agingDays,
         requiresHumanApproval: true,
+        ...filterMeta,
       },
     });
   }
@@ -148,28 +163,91 @@ export class LeadRoutingService {
 
   private async pickAgentId(
     tenantId: string,
+    lead: LeadEntity,
     rules: CrmRoutingRulesPayload,
     row: CrmRoutingRuleEntity | null,
     agingDays: number,
-  ) {
+  ): Promise<{ agentId: string; filterMeta: Record<string, unknown> }> {
     const agents = await this.users.find({
       where: { tenantId, role: 'AGENT', isActive: true },
       order: { partnerScore: 'DESC', createdAt: 'ASC' },
     });
 
     if (agents.length === 0) {
-      return DEFAULT_HOT_AGENT_ID;
+      return { agentId: DEFAULT_HOT_AGENT_ID, filterMeta: { fallback: 'empty_pool' } };
     }
 
+    const ruleSkills = rules.skillTags?.length ? rules.skillTags : [];
+    const projectSkills = requiredSkillsForLead(lead.projectId);
+    const requiredSkills = [...new Set([...ruleSkills, ...projectSkills])];
+
+    const openRows = await this.users.manager.query(
+      `SELECT assigned_to AS id, COUNT(*)::int AS cnt
+       FROM leads
+       WHERE tenant_id = $1 AND assigned_to IS NOT NULL
+         AND status NOT IN ('WON','LOST')
+       GROUP BY assigned_to`,
+      [tenantId],
+    );
+    const openLeadCounts = new Map<string, number>(
+      openRows.map((r: { id: string; cnt: number }) => [r.id, r.cnt]),
+    );
+
+    const activeViewings = await this.viewings.find({
+      where: { tenantId },
+    });
+
+    let { eligible, excluded } = filterRoutingCandidates({
+      agents,
+      requiredSkills,
+      maxOpenLeads: rules.maxOpenLeads,
+      openLeadCounts,
+      viewings: activeViewings,
+    });
+
+    let relaxed: string[] = [];
+    if (eligible.length === 0) {
+      ({ eligible, excluded } = filterRoutingCandidates({
+        agents,
+        requiredSkills,
+        maxOpenLeads: rules.maxOpenLeads,
+        openLeadCounts,
+        viewings: [],
+      }));
+      if (eligible.length > 0) relaxed.push('calendar');
+    }
+    if (eligible.length === 0) {
+      ({ eligible, excluded } = filterRoutingCandidates({
+        agents,
+        requiredSkills: [],
+        maxOpenLeads: rules.maxOpenLeads,
+        openLeadCounts,
+        viewings: [],
+      }));
+      if (eligible.length > 0) relaxed.push('skill');
+    }
+    if (eligible.length === 0) {
+      eligible = agents;
+      relaxed.push('workload');
+    }
+
+    const filterMeta = {
+      requiredSkills,
+      excluded,
+      relaxed,
+      phase: 'B',
+    };
+
     if (rules.strategy === 'PARTNER_SCORE_AGING' && agingDays >= 30) {
-      return agents.reduce(
-        (best, a) => (a.partnerScore > best.partnerScore ? a : best),
-        agents[0]!,
-      ).id;
+      const best = eligible.reduce(
+        (b, a) => (a.partnerScore > b.partnerScore ? a : b),
+        eligible[0]!,
+      );
+      return { agentId: best.id, filterMeta };
     }
 
     const cursor = rules.roundRobinCursor ?? 0;
-    const agent = agents[cursor % agents.length];
+    const agent = eligible[cursor % eligible.length]!;
 
     if (row) {
       row.rules = { ...row.rules, roundRobinCursor: cursor + 1 };
@@ -184,7 +262,7 @@ export class LeadRoutingService {
       });
     }
 
-    return agent.id;
+    return { agentId: agent.id, filterMeta };
   }
 }
 
