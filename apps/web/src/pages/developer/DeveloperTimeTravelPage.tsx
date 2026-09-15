@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
+import { ProjectSelect } from '../../components/developer/ProjectSelect';
 import { DeveloperShell } from '../../components/DeveloperShell';
+import { useProjectIdSelection } from '../../hooks/useDeveloperProjects';
 import {
   downloadUnitVersionsCsv,
   fetchGrUnits,
@@ -11,8 +13,6 @@ import {
   type UnitVersionRow,
 } from '../../lib/api';
 import { brand, formatVnd } from '../../theme/tokens';
-
-const PROJECTS = [{ id: 'prj_sunrise', name: 'Sunrise Tower A' }] as const;
 
 function toDateInputValue(iso: string) {
   return iso.slice(0, 10);
@@ -42,7 +42,7 @@ export function DeveloperTimeTravelPage() {
   const initialUnitId = searchParams.get('unitId') ?? 'un_01';
   const initialAt = searchParams.get('at') ?? '2026-07-10';
 
-  const [projectId, setProjectId] = useState<string>(PROJECTS[0].id);
+  const { projectId, setProjectId } = useProjectIdSelection();
   const [units, setUnits] = useState<GrUnit[]>([]);
   const [unitId, setUnitId] = useState(initialUnitId);
   const [atDate, setAtDate] = useState(initialAt.slice(0, 10));
@@ -56,6 +56,7 @@ export function DeveloperTimeTravelPage() {
   const selectedUnit = useMemo(() => units.find((u) => u.id === unitId), [units, unitId]);
 
   const loadUnits = useCallback(async () => {
+    if (!projectId) return;
     const res = await fetchGrUnits({ projectId, limit: 200 });
     setUnits(res.data);
     if (!res.data.some((u) => u.id === unitId) && res.data[0]) {
@@ -148,18 +149,11 @@ export function DeveloperTimeTravelPage() {
       <div className="grid lg:grid-cols-3 gap-4 mb-6">
         <label className="block text-sm">
           <span style={{ color: brand.muted }}>Dự án</span>
-          <select
+          <ProjectSelect
             value={projectId}
-            onChange={(e) => setProjectId(e.target.value)}
+            onChange={setProjectId}
             className="mt-1 w-full rounded-lg border px-3 py-2"
-            style={{ borderColor: brand.border, background: brand.surface }}
-          >
-            {PROJECTS.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
+          />
         </label>
 
         <label className="block text-sm">

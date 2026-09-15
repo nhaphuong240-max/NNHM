@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { ProjectSelect } from '../../components/developer/ProjectSelect';
 import { DeveloperShell } from '../../components/DeveloperShell';
+import { useProjectIdSelection } from '../../hooks/useDeveloperProjects';
 import {
   fetchIntelligenceBilling,
   fetchIntelligenceHeatmap,
@@ -8,11 +10,6 @@ import {
   fetchIntelligencePricingReport,
 } from '../../lib/api';
 import { brand, layout } from '../../theme/tokens';
-
-const PROJECTS = [
-  { id: 'prj_sunrise', name: 'Sunrise Tower A' },
-  { id: 'prj_thanglong_01', name: 'Thăng Long Central' },
-] as const;
 
 type HeatmapPoint = {
   code?: string;
@@ -22,7 +19,7 @@ type HeatmapPoint = {
 };
 
 export function DeveloperIntelligencePage() {
-  const [projectId, setProjectId] = useState<string>(PROJECTS[0].id);
+  const { projectId, setProjectId } = useProjectIdSelection();
   const [tab, setTab] = useState<'overview' | 'billing'>('overview');
   const [districts, setDistricts] = useState<HeatmapPoint[]>([]);
   const [pricingBand, setPricingBand] = useState<string>('—');
@@ -33,6 +30,7 @@ export function DeveloperIntelligencePage() {
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
+    if (!projectId) return;
     setLoading(true);
     setError(null);
     try {
@@ -95,17 +93,11 @@ export function DeveloperIntelligencePage() {
       <div className="flex flex-wrap items-end gap-4 mb-6">
         <label className="text-sm">
           <span style={{ color: brand.muted }}>Dự án</span>
-          <select
+          <ProjectSelect
             value={projectId}
-            onChange={(e) => setProjectId(e.target.value)}
+            onChange={setProjectId}
             className="ml-2 border rounded px-2 py-1"
-          >
-            {PROJECTS.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
+          />
         </label>
         <button type="button" onClick={() => void load()} className="text-sm px-3 py-1 rounded border">
           Refresh

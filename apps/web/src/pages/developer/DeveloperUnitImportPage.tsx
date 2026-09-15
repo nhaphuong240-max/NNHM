@@ -1,6 +1,8 @@
 import { useCallback, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
+import { ProjectSelect } from '../../components/developer/ProjectSelect';
 import { DeveloperShell } from '../../components/DeveloperShell';
+import { useProjectIdSelection } from '../../hooks/useDeveloperProjects';
 import {
   commitUnitImport,
   previewUnitImport,
@@ -8,11 +10,6 @@ import {
   type UnitImportPreviewRow,
 } from '../../lib/api';
 import { brand, formatVnd } from '../../theme/tokens';
-
-const PROJECTS = [
-  { id: 'prj_sunrise', name: 'Sunrise Tower A' },
-  { id: 'prj_thanglong_01', name: 'Thăng Long Central' },
-] as const;
 
 const SAMPLE_CSV = `code,floor,area,bedrooms,basePrice,status
 A-12-05,12,68,2,3900000000,AVAILABLE
@@ -39,12 +36,9 @@ function DiffBadge({ action }: { action?: UnitImportPreviewRow['diffAction'] }) 
 
 export function DeveloperUnitImportPage() {
   const [searchParams] = useSearchParams();
-  const initialProject = searchParams.get('projectId') ?? PROJECTS[0].id;
+  const { projectId, setProjectId } = useProjectIdSelection(searchParams.get('projectId'));
 
   const [step, setStep] = useState<Step>('upload');
-  const [projectId, setProjectId] = useState<string>(
-    PROJECTS.some((p) => p.id === initialProject) ? initialProject : PROJECTS[0].id,
-  );
   const [csvText, setCsvText] = useState('');
   const [rows, setRows] = useState<UnitImportPreviewRow[]>([]);
   const [meta, setMeta] = useState<{
@@ -149,19 +143,11 @@ export function DeveloperUnitImportPage() {
       <div className="flex flex-wrap gap-3 items-center mb-6">
         <label className="text-sm">
           Dự án
-          <select
+          <ProjectSelect
             value={projectId}
-            onChange={(e) => setProjectId(e.target.value)}
-            disabled={step !== 'upload'}
+            onChange={setProjectId}
             className="ml-2 rounded-lg border px-3 py-1.5 text-sm"
-            style={{ borderColor: brand.border }}
-          >
-            {PROJECTS.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
+          />
         </label>
       </div>
 

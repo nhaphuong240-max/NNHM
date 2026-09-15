@@ -3089,6 +3089,63 @@ export async function registerLeadCustomer(input: {
   return res.json() as Promise<{ data: LeadRegistrationRecord; meta: { result: string } }>;
 }
 
+export type GrProject = {
+  id: string;
+  attributes: {
+    code: string;
+    name: string;
+    city: string | null;
+    district: string | null;
+    latitude: number | null;
+    longitude: number | null;
+    unitCount: number;
+    createdAt: string;
+  };
+};
+
+export type CreateGrProjectInput = {
+  code: string;
+  name: string;
+  city?: string | null;
+  district?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+};
+
+export type UpdateGrProjectInput = Partial<CreateGrProjectInput>;
+
+export async function fetchGrProjects() {
+  const res = await authFetch('/projects');
+  return res.json() as Promise<{ data: GrProject[]; meta: { count: number; tenantId: string } }>;
+}
+
+export async function fetchGrProject(projectId: string) {
+  const res = await authFetch(`/projects/${encodeURIComponent(projectId)}`);
+  return res.json() as Promise<{ data: GrProject; meta: { tenantId: string; projectId: string } }>;
+}
+
+export async function createGrProject(input: CreateGrProjectInput) {
+  const res = await authFetch('/projects', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  return res.json() as Promise<{ data: GrProject }>;
+}
+
+export async function updateGrProject(projectId: string, input: UpdateGrProjectInput) {
+  const res = await authFetch(`/projects/${encodeURIComponent(projectId)}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  return res.json() as Promise<{ data: GrProject }>;
+}
+
+export async function deleteGrProject(projectId: string) {
+  await authFetch(`/projects/${encodeURIComponent(projectId)}`, { method: 'DELETE' });
+}
+
 export type GrUnit = {
   id: string;
   attributes: {

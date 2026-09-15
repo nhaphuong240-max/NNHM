@@ -1,4 +1,55 @@
+import type { ProjectEntity } from '../../database/entities/project.entity';
 import type { UnitEntity } from '../../database/entities/unit.entity';
+
+export interface ProjectAttributes {
+  code: string;
+  name: string;
+  city: string | null;
+  district: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  unitCount: number;
+  createdAt: string;
+}
+
+export interface ProjectApiRow {
+  id: string;
+  attributes: ProjectAttributes;
+}
+
+export interface CreateProjectInput {
+  code: string;
+  name: string;
+  city?: string | null;
+  district?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+}
+
+export interface UpdateProjectInput {
+  code?: string;
+  name?: string;
+  city?: string | null;
+  district?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+}
+
+export function mapProjectToApiRow(project: ProjectEntity, unitCount = 0): ProjectApiRow {
+  return {
+    id: project.id,
+    attributes: {
+      code: project.code,
+      name: project.name,
+      city: project.city,
+      district: project.district,
+      latitude: project.latitude != null ? Number(project.latitude) : null,
+      longitude: project.longitude != null ? Number(project.longitude) : null,
+      unitCount,
+      createdAt: project.createdAt.toISOString(),
+    },
+  };
+}
 
 export interface UnitAttributes {
   code: string;

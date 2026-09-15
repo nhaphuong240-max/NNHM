@@ -1,19 +1,20 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { ProjectSelect } from '../../components/developer/ProjectSelect';
 import { DeveloperShell } from '../../components/DeveloperShell';
+import { useProjectIdSelection } from '../../hooks/useDeveloperProjects';
 import { fetchAbsorptionForecast, type ForecastReportData } from '../../lib/api';
 import { brand, formatPercent } from '../../theme/tokens';
 
-const PROJECTS = [{ id: 'prj_sunrise', name: 'Sunrise Tower A' }] as const;
-
 export function DeveloperForecastPage() {
-  const [projectId, setProjectId] = useState<string>(PROJECTS[0].id);
+  const { projectId, setProjectId } = useProjectIdSelection();
   const [months, setMonths] = useState(6);
   const [data, setData] = useState<ForecastReportData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
+    if (!projectId) return;
     setLoading(true);
     setError(null);
     try {
@@ -46,18 +47,11 @@ export function DeveloperForecastPage() {
       <div className="flex flex-wrap items-end gap-4 mb-6">
         <label className="text-sm">
           <span style={{ color: brand.muted }}>Dự án</span>
-          <select
+          <ProjectSelect
             value={projectId}
-            onChange={(e) => setProjectId(e.target.value)}
+            onChange={setProjectId}
             className="mt-1 block rounded-lg border px-3 py-2"
-            style={{ borderColor: brand.border, background: brand.surface }}
-          >
-            {PROJECTS.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
+          />
         </label>
 
         <label className="text-sm">

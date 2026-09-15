@@ -16,6 +16,7 @@ import { ListingService } from '../listing/listing.service';
 import { SearchIndexService } from '../search/search-index.service';
 import { StreamEventsService } from '../stream/stream-events.service';
 import type {
+  CreateProjectInput,
   ListUnitsQuery,
   ListUnitsResult,
   PatchUnitInput,
@@ -23,7 +24,9 @@ import type {
   ProductGraphResult,
   UnitImportCommitInput,
   UnitImportPreviewInput,
+  UpdateProjectInput,
 } from './golden-record.types';
+import { mapProjectToApiRow } from './golden-record.types';
 import { buildProductGraph, mapUnitToApiRow, parseBuildingCode } from './golden-record.types';
 import { parseUnitImportCsv } from './gr-unit-import.util';
 import {
@@ -83,6 +86,239 @@ export class GoldenRecordService {
       throw new NotFoundException({ detail: `Unit ${unitId} not found` });
     }
     return { data: mapUnitToApiRow(unit) };
+  }
+
+  private assertDeveloperAdmin(actorRole?: string) {
+    if (actorRole !== 'DEVELOPER_ADMIN') {
+      throw new ForbiddenException({
+        type: 'https://wereal.dev/problems/gr-project-forbidden',
+        title: 'Project mutation forbidden',
+        detail: 'Chỉ DEVELOPER_ADMIN (admin CĐT) được quản lý dự án Golden Record',
+      });
+    }
+  }
+
+  private slugifyProjectCode(code: string): string {
+    const slug = code
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '_')
+      .replace(/^_|_$/g, '')
+      .slice(0, 24);
+    return slug || 'new';
+  }
+
+  private async generateProjectId(tenantId: string, code: string): Promise<string> {
+    const base = `prj_${this.slugifyProjectCode(code)}`;
+    let id = base;
+    let suffix = 0;
+    while (await this.projects.findOne({ where: { id, tenantId } })) {
+      suffix += 1;
+      id = `${base}_${suffix}`;
+    }
+    return id;
+  }
+
+  private async assertUniqueProjectCode(
+    tenantId: string,
+    code: string,
+    excludeId?: string,
+  ): Promise<void> {
+    const normalized = code.trim().toUpperCase();
+    const existing = await this.projects
+      .createQueryBuilder('p')
+      .where('p.tenant_id = :tenantId', { tenantId })
+      .andWhere('UPPER(p.code) = :code', { code: normalized })
+      .getOne();
+    if (existing && existing.id !== excludeId) {
+      throw new ConflictException({
+        detail: `Mã dự án "${normalized}" đã tồn tại trong tenant`,
+        code: normalized,
+      });
+    }
+  }
+
+  private async projectUnitCount(tenantId: string, projectId: string): Promise<number> {
+    return this.units.count({ where: { tenantId, projectId } });
+  }
+
+  /** API-014 — list projects for developer portal */
+  async listProjects(tenantId: string) {
+    const rows = await this.projects.find({
+      where: { tenantId },
+      order: { name: 'ASC' },
+    });
+    const unitCounts = await Promise.all(
+      rows.map((row) => this.projectUnitCount(tenantId, row.id)),
+    );
+
+    return {
+      data: rows.map((row, index) => mapProjectToApiRow(row, unitCounts[index])),
+      meta: {
+        count: rows.length,
+        tenantId,
+        source: 'postgres',
+        fr: 'FR-GR-01',
+        screen: 'SCR-DEV-013',
+      },
+    };
+  }
+
+  /** API-016 — project detail */
+  async getProject(tenantId: string, projectId: string) {
+    const project = await this.projects.findOne({ where: { id: projectId, tenantId } });
+    if (!project) {
+      throw new NotFoundException({ detail: `Project ${projectId} not found` });
+    }
+    const unitCount = await this.projectUnitCount(tenantId, projectId);
+    return {
+      data: mapProjectToApiRow(project, unitCount),
+      meta: { tenantId, projectId, fr: 'FR-GR-01' },
+    };
+  }
+
+  /** API-015 — create project */
+  async createProject(
+    tenantId: string,
+    input: CreateProjectInput,
+    actorRole?: string,
+    actorId?: string,
+  ) {
+    this.assertDeveloperAdmin(actorRole);
+
+    const name = input.name?.trim();
+    const code = input.code?.trim().toUpperCase();
+    if (!name || !code) {
+      throw new UnprocessableEntityException({ detail: 'name và code là bắt buộc' });
+    }
+    if (code.length > 32 || name.length > 255) {
+      throw new UnprocessableEntityException({ detail: 'name hoặc code vượt giới hạn độ dài' });
+    }
+
+    await this.assertUniqueProjectCode(tenantId, code);
+
+    const id = await this.generateProjectId(tenantId, code);
+    const project = await this.projects.save({
+      id,
+      tenantId,
+      code,
+      name,
+      city: input.city?.trim() || null,
+      district: input.district?.trim() || null,
+      latitude: input.latitude != null ? String(input.latitude) : null,
+      longitude: input.longitude != null ? String(input.longitude) : null,
+    });
+
+    await this.audit.append({
+      tenantId,
+      entityType: 'project',
+      entityId: project.id,
+      action: 'CREATE',
+      payload: { code, name, city: project.city, district: project.district },
+      actorId: actorId ?? null,
+    });
+
+    return {
+      data: mapProjectToApiRow(project, 0),
+      meta: { tenantId, fr: 'FR-GR-01', screen: 'SCR-DEV-013' },
+    };
+  }
+
+  /** API-017 — update project */
+  async updateProject(
+    tenantId: string,
+    projectId: string,
+    input: UpdateProjectInput,
+    actorRole?: string,
+    actorId?: string,
+  ) {
+    this.assertDeveloperAdmin(actorRole);
+
+    const project = await this.projects.findOne({ where: { id: projectId, tenantId } });
+    if (!project) {
+      throw new NotFoundException({ detail: `Project ${projectId} not found` });
+    }
+
+    const before = {
+      code: project.code,
+      name: project.name,
+      city: project.city,
+      district: project.district,
+      latitude: project.latitude,
+      longitude: project.longitude,
+    };
+
+    if (input.code !== undefined) {
+      const code = input.code.trim().toUpperCase();
+      if (!code) throw new UnprocessableEntityException({ detail: 'code không được rỗng' });
+      await this.assertUniqueProjectCode(tenantId, code, projectId);
+      project.code = code;
+    }
+    if (input.name !== undefined) {
+      const name = input.name.trim();
+      if (!name) throw new UnprocessableEntityException({ detail: 'name không được rỗng' });
+      project.name = name;
+    }
+    if (input.city !== undefined) project.city = input.city?.trim() || null;
+    if (input.district !== undefined) project.district = input.district?.trim() || null;
+    if (input.latitude !== undefined) {
+      project.latitude = input.latitude != null ? String(input.latitude) : null;
+    }
+    if (input.longitude !== undefined) {
+      project.longitude = input.longitude != null ? String(input.longitude) : null;
+    }
+
+    await this.projects.save(project);
+
+    await this.audit.append({
+      tenantId,
+      entityType: 'project',
+      entityId: project.id,
+      action: 'PATCH',
+      payload: { before, after: { ...before, ...input } },
+      actorId: actorId ?? null,
+    });
+
+    const unitCount = await this.projectUnitCount(tenantId, projectId);
+    return {
+      data: mapProjectToApiRow(project, unitCount),
+      meta: { tenantId, projectId, fr: 'FR-GR-01', screen: 'SCR-DEV-013' },
+    };
+  }
+
+  /** API-018 — delete project (only when no units) */
+  async deleteProject(
+    tenantId: string,
+    projectId: string,
+    actorRole?: string,
+    actorId?: string,
+  ): Promise<void> {
+    this.assertDeveloperAdmin(actorRole);
+
+    const project = await this.projects.findOne({ where: { id: projectId, tenantId } });
+    if (!project) {
+      throw new NotFoundException({ detail: `Project ${projectId} not found` });
+    }
+
+    const unitCount = await this.projectUnitCount(tenantId, projectId);
+    if (unitCount > 0) {
+      throw new ConflictException({
+        detail: `Không thể xóa dự án còn ${unitCount} căn trên bảng hàng`,
+        projectId,
+        unitCount,
+      });
+    }
+
+    await this.projects.delete({ id: projectId, tenantId });
+
+    await this.audit.append({
+      tenantId,
+      entityType: 'project',
+      entityId: projectId,
+      action: 'DELETE',
+      payload: { code: project.code, name: project.name },
+      actorId: actorId ?? null,
+    });
   }
 
   /** UC-GR-04 / SCR-DEV-010 — Product Graph from GR units */

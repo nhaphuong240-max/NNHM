@@ -3,6 +3,7 @@ import { brand, portalThemes } from '../theme/tokens';
 
 const P0 = [
   { to: '/developer', label: 'Tổng quan' },
+  { to: '/developer/projects', label: 'Dự án' },
   { to: '/developer/units', label: 'Bảng hàng GR' },
   { to: '/developer/units/import', label: 'Import' },
   { to: '/developer/commission', label: 'Hoa hồng' },

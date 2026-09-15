@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { ProjectSelect } from '../../components/developer/ProjectSelect';
 import { DeveloperShell } from '../../components/DeveloperShell';
+import { useDeveloperProjects, useProjectIdSelection } from '../../hooks/useDeveloperProjects';
 import { fetchDeveloperDashboard, type DeveloperDashboardData } from '../../lib/api';
 import { brand, formatPercent, formatVnd } from '../../theme/tokens';
-
-const PROJECTS = [{ id: 'prj_sunrise', name: 'Sunrise Tower A' }] as const;
 
 function statusColor(status: string) {
   switch (status) {
@@ -69,12 +69,15 @@ function QuickLink({ to, label, desc, soon }: { to: string; label: string; desc:
 }
 
 export function DeveloperHomePage() {
-  const [projectId, setProjectId] = useState<string>(PROJECTS[0].id);
+  const { projects } = useDeveloperProjects();
+  const { projectId, setProjectId } = useProjectIdSelection();
+  const projectName = projects.find((p) => p.id === projectId)?.attributes.name;
   const [data, setData] = useState<DeveloperDashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
+    if (!projectId) return;
     setError(null);
     const res = await fetchDeveloperDashboard(projectId);
     setData(res.data);
@@ -107,18 +110,7 @@ export function DeveloperHomePage() {
         <label className="text-sm" style={{ color: brand.muted }}>
           Dự án
         </label>
-        <select
-          value={projectId}
-          onChange={(e) => setProjectId(e.target.value)}
-          className="rounded-lg border px-3 py-2 text-sm"
-          style={{ borderColor: brand.border, background: brand.surface }}
-        >
-          {PROJECTS.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.name}
-            </option>
-          ))}
-        </select>
+        <ProjectSelect value={projectId} onChange={setProjectId} className="rounded-lg border px-3 py-2 text-sm" />
         <Link
           to={`/developer/units?projectId=${encodeURIComponent(projectId)}`}
           className="text-sm font-medium underline"
@@ -138,7 +130,7 @@ export function DeveloperHomePage() {
       {inv && data && (
         <div className="space-y-8">
           <section className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <KpiCard label="Tổng căn" value={inv.total} hint={PROJECTS.find((p) => p.id === projectId)?.name} />
+            <KpiCard label="Tổng căn" value={inv.total} hint={projectName} />
             <KpiCard label="Còn hàng" value={inv.available} hint={`${formatPercent(inv.available / Math.max(inv.total, 1))} inventory`} />
             <KpiCard label="Giữ / Cọc" value={inv.reserved} />
             <KpiCard
@@ -151,6 +143,7 @@ export function DeveloperHomePage() {
           <section>
             <h3 className="font-semibold mb-3">Module nghiệp vụ</h3>
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              <QuickLink to="/developer/projects" label="Dự án" desc="FR-GR-01 · Thêm / sửa / xóa dự án" />
               <QuickLink to="/developer/units" label="Bảng hàng GR" desc="UC-GR-01 · Quản lý unit gốc" />
               <QuickLink to="/developer/product-graph" label="Product Graph" desc="UC-GR-04 · Building → Floor → Unit" />
               <QuickLink to="/developer/commission" label="Hoa hồng" desc="UC-COM-01 · Chính sách split" />

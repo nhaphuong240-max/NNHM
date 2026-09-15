@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
+import { ProjectSelect } from '../../components/developer/ProjectSelect';
 import { DeveloperShell } from '../../components/DeveloperShell';
+import { useProjectIdSelection } from '../../hooks/useDeveloperProjects';
 import {
   fetchGrUnits,
   fetchUnitAudit,
@@ -9,11 +11,6 @@ import {
   type GrUnit,
 } from '../../lib/api';
 import { brand, formatVnd } from '../../theme/tokens';
-
-const PROJECTS = [
-  { id: 'prj_sunrise', name: 'Sunrise Tower A' },
-  { id: 'prj_thanglong_01', name: 'Thăng Long Central' },
-] as const;
 
 const STATUS_OPTIONS = ['ALL', 'AVAILABLE', 'RESERVED', 'SOLD', 'HOLD'] as const;
 
@@ -67,8 +64,7 @@ function KpiCard({ label, value, hint }: { label: string; value: number | string
 export function DeveloperUnitsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const highlightId = searchParams.get('unitId') ?? '';
-
-  const [projectId, setProjectId] = useState<string>(PROJECTS[0].id);
+  const { projectId, setProjectId } = useProjectIdSelection(searchParams.get('projectId'));
   const [statusFilter, setStatusFilter] = useState<(typeof STATUS_OPTIONS)[number]>('ALL');
   const [units, setUnits] = useState<GrUnit[]>([]);
   const [loading, setLoading] = useState(true);
@@ -87,6 +83,7 @@ export function DeveloperUnitsPage() {
   const rowRefs = useRef<Record<string, HTMLTableRowElement | null>>({});
 
   const load = useCallback(async () => {
+    if (!projectId) return;
     setLoading(true);
     setError(null);
     try {
@@ -198,18 +195,7 @@ export function DeveloperUnitsPage() {
             <label className="text-xs font-medium" style={{ color: brand.muted }}>
               Project (ABAC)
             </label>
-            <select
-              value={projectId}
-              onChange={(e) => setProjectId(e.target.value)}
-              className="block mt-1 h-10 px-3 rounded-lg border text-sm min-w-[200px]"
-              style={{ borderColor: brand.border, background: brand.surface }}
-            >
-              {PROJECTS.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
+            <ProjectSelect value={projectId} onChange={setProjectId} />
           </div>
           <div>
             <label className="text-xs font-medium" style={{ color: brand.muted }}>

@@ -1,10 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { DeveloperShell } from '../../components/DeveloperShell';
+import { useDeveloperProjects, useProjectIdSelection } from '../../hooks/useDeveloperProjects';
 import { fetchAbsorptionReport, type AbsorptionReportData } from '../../lib/api';
 import { brand, formatPercent, formatVnd } from '../../theme/tokens';
-
-const PROJECTS = [{ id: 'prj_sunrise', name: 'Sunrise Tower A' }] as const;
 
 function statusColor(status: string) {
   switch (status) {
@@ -22,12 +21,14 @@ function statusColor(status: string) {
 }
 
 export function DeveloperAbsorptionPage() {
-  const [projectId, setProjectId] = useState(PROJECTS[0].id);
+  const { projects } = useDeveloperProjects();
+  const { projectId, setProjectId } = useProjectIdSelection();
   const [data, setData] = useState<AbsorptionReportData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
+    if (!projectId) return;
     setLoading(true);
     setError(null);
     try {
@@ -55,7 +56,7 @@ export function DeveloperAbsorptionPage() {
       </Link>
 
       <div className="mb-4 flex flex-wrap gap-2">
-        {PROJECTS.map((p) => (
+        {projects.map((p) => (
           <button
             key={p.id}
             type="button"
@@ -67,7 +68,7 @@ export function DeveloperAbsorptionPage() {
               color: projectId === p.id ? brand.primary : brand.muted,
             }}
           >
-            {p.name}
+            {p.attributes.name}
           </button>
         ))}
       </div>

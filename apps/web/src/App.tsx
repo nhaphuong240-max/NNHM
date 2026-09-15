@@ -24,6 +24,7 @@ import { DeveloperIntelligencePage } from './pages/developer/DeveloperIntelligen
 import { DeveloperAnchorPage } from './pages/developer/DeveloperAnchorPage';
 import { DeveloperTimeTravelPage } from './pages/developer/DeveloperTimeTravelPage';
 import { DeveloperUnitImportPage } from './pages/developer/DeveloperUnitImportPage';
+import { DeveloperProjectsPage } from './pages/developer/DeveloperProjectsPage';
 import { DeveloperUnitsPage } from './pages/developer/DeveloperUnitsPage';
 import { DeveloperLeaderboardPage } from './pages/developer/DeveloperLeaderboardPage';
 import { DeveloperWebhooksPage } from './pages/developer/DeveloperWebhooksPage';
@@ -234,6 +235,14 @@ export default function App() {
         }
       />
       <Route path="/developer/import" element={<Navigate to="/developer/units/import" replace />} />
+      <Route
+        path="/developer/projects"
+        element={
+          <RequireAuth loginPath="/auth/login">
+            <DeveloperProjectsPage />
+          </RequireAuth>
+        }
+      />
       <Route
         path="/developer/units/import"
         element={
