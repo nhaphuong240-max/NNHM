@@ -1252,8 +1252,16 @@ export type RoleDefinition = {
   permissions: string[];
 };
 
+export type PermissionDefinition = {
+  id: string;
+  label: string;
+  group: string;
+  description?: string;
+};
+
 export type TenantRolePolicy = {
   projectScopes: { role: string; projectIds: string[] }[];
+  permissionMatrix: Record<string, string[]>;
   updatedAt: string;
 };
 
@@ -1262,16 +1270,24 @@ export async function fetchRoleCatalog() {
   return res.json() as Promise<{ data: RoleDefinition[]; meta: { count: number } }>;
 }
 
+export async function fetchPermissionCatalog() {
+  const res = await authFetch('/roles/permissions');
+  return res.json() as Promise<{ data: PermissionDefinition[]; meta: { count: number } }>;
+}
+
 export async function fetchRolePolicy() {
   const res = await authFetch('/roles/policy');
   return res.json() as Promise<{ data: TenantRolePolicy; meta: { tenantId: string } }>;
 }
 
-export async function patchRolePolicy(projectScopes: TenantRolePolicy['projectScopes']) {
+export async function patchRolePolicy(input: {
+  projectScopes?: TenantRolePolicy['projectScopes'];
+  permissionMatrix?: TenantRolePolicy['permissionMatrix'];
+}) {
   const res = await authFetch('/roles/policy', {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ projectScopes }),
+    body: JSON.stringify(input),
   });
   return res.json() as Promise<{ data: TenantRolePolicy; meta: { tenantId: string } }>;
 }

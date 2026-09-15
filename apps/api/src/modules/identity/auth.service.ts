@@ -24,6 +24,7 @@ import type {
 import { MFA_LOGIN_ROLES } from './identity.types';
 import { MfaChallengeStore } from './mfa-challenge.store';
 import { RefreshTokenStore } from './refresh-token.store';
+import { RoleService } from './role.service';
 import { TenantService } from './tenant.service';
 import { verifyTotp } from './mfa-totp.util';
 
@@ -40,6 +41,7 @@ export class AuthService {
     private readonly tenants: TenantService,
     private readonly rails: RailResolverService,
     private readonly mfaChallenges: MfaChallengeStore,
+    private readonly roles: RoleService,
   ) {}
 
   async login(input: LoginInput): Promise<{ data: LoginResponseData }> {
@@ -117,7 +119,7 @@ export class AuthService {
           roles: [entity.role],
         },
         tenant: tenant.data,
-        permissions: permissionsForRole(entity.role),
+        permissions: this.roles.getPermissionsForRole(entity.tenantId, entity.role),
       },
     };
   }
@@ -259,21 +261,5 @@ export class AuthService {
         roles: [user.role],
       },
     };
-  }
-}
-
-function permissionsForRole(role: string): string[] {
-  switch (role) {
-    case 'DEVELOPER_ADMIN':
-      return ['gr.units.read', 'gr.units.write', 'iam.users.read', 'commission.manage'];
-    case 'AGENT':
-      return ['gr.units.read', 'listings.write', 'bookings.write', 'leads.read'];
-    case 'FINANCE_ADMIN':
-      return ['ledger.read', 'reconciliation.run', 'refunds.write'];
-    case 'OPS_ADMIN':
-    case 'ADMIN':
-      return ['listings.moderate', 'audit.read', 'iam.users.read'];
-    default:
-      return ['portal.read'];
   }
 }

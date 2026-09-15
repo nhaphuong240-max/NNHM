@@ -9,6 +9,13 @@ export const TENANT_ROLES = [
 
 export type TenantRole = (typeof TENANT_ROLES)[number];
 
+export type PermissionDefinition = {
+  id: string;
+  label: string;
+  group: string;
+  description?: string;
+};
+
 export type RoleDefinition = {
   id: TenantRole;
   label: string;
@@ -16,7 +23,30 @@ export type RoleDefinition = {
   permissions: string[];
 };
 
-const PERMISSION_MATRIX: Record<TenantRole, string[]> = {
+/** Master permission catalog — rows of the RBAC matrix. */
+export const PERMISSION_CATALOG: PermissionDefinition[] = [
+  { id: 'portal.read', label: 'Truy cập portal', group: 'Portal', description: 'Đăng nhập và xem shell ứng dụng' },
+  { id: 'iam.users.read', label: 'Xem danh sách user', group: 'IAM' },
+  { id: 'iam.roles.manage', label: 'Quản lý ma trận quyền', group: 'IAM' },
+  { id: 'gr.units.read', label: 'Xem bảng hàng GR', group: 'Golden Record' },
+  { id: 'gr.units.write', label: 'Sửa giá / trạng thái GR', group: 'Golden Record' },
+  { id: 'gr.projects.manage', label: 'Quản lý dự án GR', group: 'Golden Record' },
+  { id: 'listings.write', label: 'Tạo / sửa listing', group: 'Listing' },
+  { id: 'listings.moderate', label: 'Duyệt listing (moderation)', group: 'Listing' },
+  { id: 'bookings.write', label: 'Giữ chỗ / booking', group: 'Booking' },
+  { id: 'bookings.replay', label: 'Replay booking (evidence)', group: 'Booking' },
+  { id: 'leads.read', label: 'Xem CRM / leads', group: 'CRM' },
+  { id: 'commission.manage', label: 'Chính sách hoa hồng', group: 'Commission' },
+  { id: 'commission.export', label: 'Xuất commission', group: 'Commission' },
+  { id: 'ledger.read', label: 'Xem sổ cái', group: 'Finance' },
+  { id: 'reconciliation.run', label: 'Chạy đối soát', group: 'Finance' },
+  { id: 'refunds.write', label: 'Hoàn tiền', group: 'Finance' },
+  { id: 'audit.read', label: 'Audit explorer', group: 'Ops' },
+  { id: 'disputes.manage', label: 'Quản lý tranh chấp', group: 'Ops' },
+  { id: 'analytics.read', label: 'Analytics / KPI', group: 'Analytics' },
+];
+
+export const PERMISSION_MATRIX: Record<TenantRole, string[]> = {
   ADMIN: [
     'portal.read',
     'iam.users.read',
@@ -38,6 +68,7 @@ const PERMISSION_MATRIX: Record<TenantRole, string[]> = {
     'portal.read',
     'gr.units.read',
     'gr.units.write',
+    'gr.projects.manage',
     'iam.users.read',
     'commission.manage',
     'analytics.read',
@@ -58,12 +89,24 @@ const PERMISSION_MATRIX: Record<TenantRole, string[]> = {
   ],
 };
 
-export function roleCatalog(): RoleDefinition[] {
+export function permissionCatalog(): PermissionDefinition[] {
+  return PERMISSION_CATALOG.map((row) => ({ ...row }));
+}
+
+export function defaultPermissionMatrix(): Record<TenantRole, string[]> {
+  const matrix = {} as Record<TenantRole, string[]>;
+  for (const role of TENANT_ROLES) {
+    matrix[role] = [...PERMISSION_MATRIX[role]];
+  }
+  return matrix;
+}
+
+export function roleCatalog(matrix?: Partial<Record<TenantRole, string[]>>): RoleDefinition[] {
   return TENANT_ROLES.map((id) => ({
     id,
     label: ROLE_LABELS[id],
     description: ROLE_DESCRIPTIONS[id],
-    permissions: PERMISSION_MATRIX[id],
+    permissions: matrix?.[id] ?? PERMISSION_MATRIX[id],
   }));
 }
 
@@ -79,17 +122,17 @@ export function isValidTenantRole(role: string): role is TenantRole {
 }
 
 const ROLE_LABELS: Record<TenantRole, string> = {
-  ADMIN: 'Platform / Tenant Admin',
-  OPS_ADMIN: 'Ops Admin',
-  DEVELOPER_ADMIN: 'Developer Admin',
-  AGENT: 'Sales Agent',
-  FINANCE_ADMIN: 'Finance Admin',
+  ADMIN: 'Quản trị viên',
+  OPS_ADMIN: 'Vận hành (Ops)',
+  DEVELOPER_ADMIN: 'Chủ đầu tư (CĐT)',
+  AGENT: 'Môi giới / Sales',
+  FINANCE_ADMIN: 'Tài chính',
 };
 
 const ROLE_DESCRIPTIONS: Record<TenantRole, string> = {
-  ADMIN: 'Full tenant administration · moderation · audit',
-  OPS_ADMIN: 'Moderation · disputes · booking replay evidence',
-  DEVELOPER_ADMIN: 'Golden Record · commission · developer analytics',
-  AGENT: 'Listings · bookings · CRM pipeline',
-  FINANCE_ADMIN: 'Ledger · reconciliation · refunds · commission export',
+  ADMIN: 'Quản trị tenant · moderation · audit · IAM',
+  OPS_ADMIN: 'Moderation · tranh chấp · replay booking',
+  DEVELOPER_ADMIN: 'Golden Record · dự án · hoa hồng · analytics',
+  AGENT: 'Listing · giữ chỗ · CRM pipeline',
+  FINANCE_ADMIN: 'Sổ cái · đối soát · hoàn tiền · xuất commission',
 };

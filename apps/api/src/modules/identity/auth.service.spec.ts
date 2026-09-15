@@ -11,6 +11,7 @@ import { isMfaChallengeResult } from './identity.types';
 import { MfaChallengeStore } from './mfa-challenge.store';
 import { generateTotp } from './mfa-totp.util';
 import { RefreshTokenStore } from './refresh-token.store';
+import { RoleService } from './role.service';
 import { TenantService } from './tenant.service';
 
 describe('AuthService', () => {
@@ -98,6 +99,17 @@ describe('AuthService', () => {
               if (key === 'JWT_REFRESH_EXPIRES_IN') return 604800;
               if (key === 'MFA_SANDBOX') return 'true';
               return fallback;
+            }),
+          },
+        },
+        {
+          provide: RoleService,
+          useValue: {
+            getPermissionsForRole: jest.fn((_tenantId: string, role: string) => {
+              if (role === 'AGENT') {
+                return ['portal.read', 'gr.units.read', 'listings.write', 'bookings.write', 'leads.read'];
+              }
+              return ['portal.read'];
             }),
           },
         },
