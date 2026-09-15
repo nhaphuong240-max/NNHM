@@ -507,13 +507,13 @@ export async function fetchHomepagePack() {
 }
 
 export async function fetchHomepageConfigAdmin() {
-  const res = await authFetch(`${API_BASE}/cms/homepage/config`);
+  const res = await authFetch('/cms/homepage/config');
   if (!res.ok) throw new Error(`Homepage config failed: ${res.status}`);
   return res.json() as Promise<{ data: HomepageConfigPayload }>;
 }
 
 export async function saveHomepageConfigAdmin(payload: HomepageConfigPayload) {
-  const res = await authFetch(`${API_BASE}/cms/homepage/config`, {
+  const res = await authFetch('/cms/homepage/config', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
