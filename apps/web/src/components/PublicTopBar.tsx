@@ -48,6 +48,12 @@ export function PublicTopBar() {
           <Link to="/public/map" className="rounded-full px-3 py-1.5 hover:bg-black/5">
             Bản đồ
           </Link>
+          <Link to="/public/chat" className="rounded-full px-3 py-1.5 hover:bg-black/5">
+            Tư vấn AI
+          </Link>
+          <Link to="/buyer/deals" className="rounded-full px-3 py-1.5 hover:bg-black/5">
+            Giao dịch
+          </Link>
           <Link to="/public/tools/emi" className="rounded-full px-3 py-1.5 hover:bg-black/5">
             Trả góp
           </Link>

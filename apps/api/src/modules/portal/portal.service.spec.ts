@@ -13,6 +13,9 @@ import { ZaloLeadEventEntity } from '../../database/entities/zalo-lead-event.ent
 import { ZaloOaBindingEntity } from '../../database/entities/zalo-oa-binding.entity';
 import { ZaloZnsDeliveryEntity } from '../../database/entities/zalo-zns-delivery.entity';
 import { PaymentIntentEntity } from '../../database/entities/payment-intent.entity';
+import { MobileDeviceEntity } from '../../database/entities/mobile-device.entity';
+import { BookingContractService } from '../booking/booking-contract.service';
+import { PaymentBnplService } from '../payment/payment-bnpl.service';
 import { PortalService } from './portal.service';
 import { BuyerDealNotifyService } from './buyer-deal-notify.service';
 import { AnalyticsService } from '../analytics/analytics.service';
@@ -103,7 +106,10 @@ describe('PortalService', () => {
         },
         { provide: getRepositoryToken(CommissionPolicyEntity), useValue: mockRepo(1) },
         { provide: getRepositoryToken(PaymentIntentEntity), useValue: mockRepo(0) },
+        { provide: getRepositoryToken(MobileDeviceEntity), useValue: mockRepo(0) },
         { provide: BuyerDealNotifyService, useValue: buyerDealNotifyMock },
+        { provide: BookingContractService, useValue: {} },
+        { provide: PaymentBnplService, useValue: {} },
       ],
     }).compile();
 
@@ -140,12 +146,14 @@ describe('PortalService', () => {
       },
     ]);
     const unitsRepo = mockRepo(0, [{ id: 'un_03', tenantId: 'ten_dev_01', code: 'C-12-05' }]);
-
-    const module = await Test.createTestingModule({
+    const leadsRepo = mockRepo(0, [
+      { id: 'ld_04', tenantId: 'ten_dev_01', phone: '+84955667788' },
+    ]);
+    const moduleWithLeads = await Test.createTestingModule({
       providers: [
         PortalService,
         { provide: AnalyticsService, useValue: analyticsMock },
-        { provide: getRepositoryToken(LeadEntity), useValue: mockRepo(0) },
+        { provide: getRepositoryToken(LeadEntity), useValue: leadsRepo },
         { provide: getRepositoryToken(BookingEntity), useValue: bookingsRepo },
         { provide: getRepositoryToken(ListingEntity), useValue: mockRepo(0) },
         { provide: getRepositoryToken(KycProfileEntity), useValue: mockRepo(0) },
@@ -159,11 +167,14 @@ describe('PortalService', () => {
         { provide: getRepositoryToken(CommissionPolicyEntity), useValue: mockRepo(0) },
         { provide: getRepositoryToken(PaymentIntentEntity), useValue: mockRepo(0) },
         { provide: BuyerDealNotifyService, useValue: buyerDealNotifyMock },
+        { provide: BookingContractService, useValue: {} },
+        { provide: PaymentBnplService, useValue: {} },
+        { provide: getRepositoryToken(MobileDeviceEntity), useValue: mockRepo(0) },
       ],
     }).compile();
 
-    const buyerService = module.get(PortalService);
-    const result = await buyerService.getBuyerDeals('ten_dev_01');
+    const buyerService = moduleWithLeads.get(PortalService);
+    const result = await buyerService.getBuyerDeals('ten_dev_01', '0955667788');
     expect(result.data).toHaveLength(1);
     expect(result.data[0].unitCode).toBe('C-12-05');
     expect(result.data[0].currentStep).toBe('DEPOSITED');
@@ -268,7 +279,10 @@ describe('PortalService', () => {
         { provide: getRepositoryToken(UnitEntity), useValue: mockRepo(0) },
         { provide: getRepositoryToken(CommissionPolicyEntity), useValue: mockRepo(0) },
         { provide: getRepositoryToken(PaymentIntentEntity), useValue: mockRepo(0) },
+        { provide: getRepositoryToken(MobileDeviceEntity), useValue: mockRepo(0) },
         { provide: BuyerDealNotifyService, useValue: buyerDealNotifyMock },
+        { provide: BookingContractService, useValue: {} },
+        { provide: PaymentBnplService, useValue: {} },
       ],
     }).compile();
 

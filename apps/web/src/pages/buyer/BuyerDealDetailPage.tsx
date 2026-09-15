@@ -1,7 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { BuyerShell } from '../../components/BuyerShell';
+import { SeekerOtpModal } from '../../components/public/SeekerOtpModal';
 import { fetchBuyerDeal, sendBuyerDealNotifyStub, type BuyerDealDetail } from '../../lib/api';
+import { getSeekerSession } from '../../lib/seeker';
 import { brand, formatVnd } from '../../theme/tokens';
 
 export function BuyerDealDetailPage() {
@@ -11,31 +13,64 @@ export function BuyerDealDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [notifyBusy, setNotifyBusy] = useState(false);
   const [notifyMsg, setNotifyMsg] = useState<string | null>(null);
+  const [showOtp, setShowOtp] = useState(false);
+  const [needsAuth, setNeedsAuth] = useState(false);
 
-  useEffect(() => {
+  const loadDeal = useCallback(async () => {
     if (!bookingId) return;
-    let active = true;
     setLoading(true);
-    fetchBuyerDeal(bookingId)
-      .then((res) => {
-        if (active) setDeal(res.data.attributes);
-      })
-      .catch((e) => {
-        if (active) setError(e instanceof Error ? e.message : 'Không tải deal');
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-    return () => {
-      active = false;
-    };
+    setError(null);
+    setNeedsAuth(false);
+    try {
+      const res = await fetchBuyerDeal(bookingId);
+      setDeal(res.data.attributes);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Không tải deal';
+      if (msg.includes('403') || !getSeekerSession()) {
+        setNeedsAuth(true);
+      }
+      setError(msg);
+      setDeal(null);
+    } finally {
+      setLoading(false);
+    }
   }, [bookingId]);
 
+  useEffect(() => {
+    void loadDeal();
+  }, [loadDeal]);
+
   return (
-    <BuyerShell title={`Deal ${bookingId}`} subtitle="UC-BK-02 · UC-UX-02 · Deal tracker + notifications">
+    <BuyerShell title={`Deal ${bookingId}`} subtitle="FR-BUY-001 · UC-BK-02 · Deal tracker + notifications">
+      {showOtp && (
+        <SeekerOtpModal
+          onClose={() => setShowOtp(false)}
+          onVerified={() => {
+            void loadDeal();
+          }}
+        />
+      )}
+
       <Link to="/buyer/deals" className="text-sm underline mb-4 inline-block" style={{ color: brand.primary }}>
         ← Tất cả deals
       </Link>
+
+      {needsAuth && (
+        <div
+          className="rounded-xl p-4 mb-4 space-y-2"
+          style={{ background: brand.accentSoft, border: `1px solid ${brand.accent}` }}
+        >
+          <p className="text-sm">Xác minh SĐT seeker để xem chi tiết giao dịch này.</p>
+          <button
+            type="button"
+            onClick={() => setShowOtp(true)}
+            className="rounded-lg px-3 py-2 text-sm font-semibold text-white"
+            style={{ background: brand.primary }}
+          >
+            Xác minh OTP
+          </button>
+        </div>
+      )}
 
       {loading && <p style={{ color: brand.muted }}>Đang tải…</p>}
       {error && (

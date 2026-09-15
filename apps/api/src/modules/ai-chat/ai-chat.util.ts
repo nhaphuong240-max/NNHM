@@ -22,6 +22,12 @@ export function detectChatIntent(text: string): ChatIntent {
   return 'general';
 }
 
+/** Detect VN mobile in free text (090x, +84, 84…). */
+export function extractPhoneFromText(text: string): string | undefined {
+  const match = text.match(/(?:\+?84|0)(?:3|5|7|8|9)\d{8}\b/);
+  return match?.[0];
+}
+
 export function composeChatReply(intent: ChatIntent, userText: string): string {
   switch (intent) {
     case 'price':

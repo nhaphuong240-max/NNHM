@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+  UnprocessableEntityException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { randomUUID } from 'crypto';
 import { In, Repository } from 'typeorm';
@@ -28,6 +33,7 @@ import type {
   OmnichannelChannelStats,
   OmnichannelDashboardAttributes,
 } from './portal.types';
+import { phonesMatch } from '../crm/phone.util';
 import { BuyerDealNotifyService } from './buyer-deal-notify.service';
 import {
   groupBuildingsFromPins,
@@ -399,10 +405,57 @@ export class PortalService {
     };
   }
 
-  /** UC-BK-02 · SCR-BUYER-002 — buyer deal list */
-  async getBuyerDeals(tenantId: string) {
-    const rows = await this.bookings.find({
+  private async leadIdsForSeekerPhone(tenantId: string, seekerPhone: string): Promise<string[]> {
+    const rows = await this.leads.find({
       where: { tenantId },
+      select: { id: true, phone: true },
+      take: 500,
+    });
+    return rows.filter((l) => phonesMatch(l.phone, seekerPhone)).map((l) => l.id);
+  }
+
+  private async assertBookingOwnedBySeeker(
+    tenantId: string,
+    booking: BookingEntity,
+    seekerPhone?: string,
+  ): Promise<void> {
+    if (!seekerPhone?.trim()) {
+      throw new ForbiddenException({ detail: 'Seeker OTP verification required' });
+    }
+    if (!booking.leadId) {
+      throw new ForbiddenException({ detail: 'Booking is not linked to your profile' });
+    }
+    const lead = await this.leads.findOne({ where: { id: booking.leadId, tenantId } });
+    if (!lead || !phonesMatch(lead.phone, seekerPhone)) {
+      throw new ForbiddenException({ detail: 'Deal not available for this phone' });
+    }
+  }
+
+  /** UC-BK-02 · SCR-BUYER-002 — buyer deal list (seeker-scoped) */
+  async getBuyerDeals(tenantId: string, seekerPhone?: string) {
+    if (!seekerPhone?.trim()) {
+      return {
+        data: [],
+        meta: {
+          tenantId,
+          count: 0,
+          uc: 'UC-BK-02',
+          screen: 'SCR-BUYER-002',
+          requiresSeekerAuth: true,
+        },
+      };
+    }
+
+    const leadIds = await this.leadIdsForSeekerPhone(tenantId, seekerPhone);
+    if (leadIds.length === 0) {
+      return {
+        data: [],
+        meta: { tenantId, count: 0, uc: 'UC-BK-02', screen: 'SCR-BUYER-002', seekerPhone },
+      };
+    }
+
+    const rows = await this.bookings.find({
+      where: { tenantId, leadId: In(leadIds) },
       order: { createdAt: 'DESC' },
       take: 20,
     });
@@ -420,15 +473,16 @@ export class PortalService {
 
     return {
       data,
-      meta: { tenantId, count: data.length, uc: 'UC-BK-02', screen: 'SCR-BUYER-002' },
+      meta: { tenantId, count: data.length, uc: 'UC-BK-02', screen: 'SCR-BUYER-002', seekerPhone },
     };
   }
 
-  async getBuyerDeal(tenantId: string, bookingId: string) {
+  async getBuyerDeal(tenantId: string, bookingId: string, seekerPhone?: string) {
     const row = await this.bookings.findOne({ where: { id: bookingId.trim(), tenantId } });
     if (!row) {
       throw new NotFoundException({ detail: `Booking ${bookingId} not found` });
     }
+    await this.assertBookingOwnedBySeeker(tenantId, row, seekerPhone);
 
     const unit = await this.units.findOne({ where: { id: row.unitId, tenantId } });
     const intents = await this.paymentIntents.find({

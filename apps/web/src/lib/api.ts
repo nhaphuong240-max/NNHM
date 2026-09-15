@@ -1,5 +1,6 @@
 import { getSession, type AuthSession } from './auth';
 import { DEFAULT_TENANT_ID, PRIVACY_POLICY_VERSION } from './constants';
+import { getSeekerSession } from './seeker';
 
 export { DEFAULT_TENANT_ID, PRIVACY_POLICY_VERSION };
 
@@ -283,6 +284,59 @@ export async function rsvpOpenDay(eventId: string, body: { fullName: string; pho
   });
   if (!res.ok) throw new Error(`RSVP failed: ${res.status}`);
   return res.json() as Promise<{ data: { qrToken: string } }>;
+}
+
+export type WalkInGallery = {
+  id: string;
+  projectId: string;
+  title: string;
+  token: string;
+  publicUrl: string;
+  status: string;
+};
+
+export type WalkInCheckIn = {
+  id: string;
+  fullName: string;
+  phone: string;
+  leadId: string | null;
+  checkedInAt: string;
+  checkedInBy: string | null;
+};
+
+export async function fetchWalkInGallery(token: string) {
+  const res = await fetch(`${API_BASE}/walk-in/galleries/${encodeURIComponent(token)}`, {
+    headers: { 'X-Tenant-Id': DEFAULT_TENANT_ID },
+  });
+  if (!res.ok) throw new Error(`Walk-in gallery failed: ${res.status}`);
+  return res.json() as Promise<{ data: { id: string; title: string; projectId: string; token: string } }>;
+}
+
+export async function walkInCheckIn(
+  token: string,
+  body: { fullName: string; phone: string; consent?: { privacyAccepted?: boolean; privacyPolicyVersion?: string } },
+) {
+  const res = await fetch(`${API_BASE}/walk-in/galleries/${encodeURIComponent(token)}/check-in`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Tenant-Id': DEFAULT_TENANT_ID },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`Walk-in check-in failed: ${res.status}`);
+  return res.json() as Promise<{
+    data: { checkInId: string; leadId: string; galleryTitle: string; checkedInAt: string; replay: boolean };
+  }>;
+}
+
+export async function fetchWalkInGalleries() {
+  const res = await authFetch(`${API_BASE}/walk-in/galleries`);
+  if (!res.ok) throw new Error(`Walk-in galleries failed: ${res.status}`);
+  return res.json() as Promise<{ data: WalkInGallery[] }>;
+}
+
+export async function fetchWalkInCheckIns(galleryId: string) {
+  const res = await authFetch(`${API_BASE}/walk-in/galleries/${encodeURIComponent(galleryId)}/check-ins`);
+  if (!res.ok) throw new Error(`Walk-in check-ins failed: ${res.status}`);
+  return res.json() as Promise<{ data: WalkInCheckIn[] }>;
 }
 
 export async function fetchAttributionGraph(campaignId?: string) {
@@ -1605,6 +1659,7 @@ export async function sendPublicChatMessage(input: {
       messages: ChatMessage[];
       recommendations: { unitId: string; code: string; title: string; basePrice: number; reason: string }[];
       leadId?: string;
+      suggestCapture?: boolean;
     };
   }>;
 }
@@ -3718,17 +3773,29 @@ export type BuyerDealDetail = BuyerDealSummary & {
   notifications?: BuyerDealNotification[];
 };
 
+function buyerPortalHeaders(): Record<string, string> {
+  const headers: Record<string, string> = { 'X-Tenant-Id': DEFAULT_TENANT_ID };
+  const seeker = getSeekerSession();
+  if (seeker?.accessToken) {
+    headers.Authorization = `Bearer ${seeker.accessToken}`;
+  }
+  return headers;
+}
+
 export async function fetchBuyerDeals() {
   const res = await fetch(`${API_BASE}/portal/buyer/deals`, {
-    headers: { 'X-Tenant-Id': DEFAULT_TENANT_ID },
+    headers: buyerPortalHeaders(),
   });
   if (!res.ok) throw new Error(`Buyer deals failed: ${res.status}`);
-  return res.json() as Promise<{ data: BuyerDealSummary[]; meta: { count: number } }>;
+  return res.json() as Promise<{
+    data: BuyerDealSummary[];
+    meta: { count: number; requiresSeekerAuth?: boolean };
+  }>;
 }
 
 export async function fetchBuyerDeal(bookingId: string) {
   const res = await fetch(`${API_BASE}/portal/buyer/deals/${encodeURIComponent(bookingId)}`, {
-    headers: { 'X-Tenant-Id': DEFAULT_TENANT_ID },
+    headers: buyerPortalHeaders(),
   });
   if (!res.ok) throw new Error(`Buyer deal failed: ${res.status}`);
   return res.json() as Promise<{ data: { attributes: BuyerDealDetail }; meta: { tenantId: string } }>;

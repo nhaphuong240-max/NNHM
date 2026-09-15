@@ -47,8 +47,10 @@ import { AgentAiLegalPage } from './pages/agent/AgentAiLegalPage';
 import { AgentAiReplyPage } from './pages/agent/AgentAiReplyPage';
 import { AgentInboxPage } from './pages/agent/AgentInboxPage';
 import { AgentViewingsPage } from './pages/agent/AgentViewingsPage';
+import { AgentWalkInPage } from './pages/agent/AgentWalkInPage';
 import { AgentRegistrationsPage } from './pages/agent/AgentRegistrationsPage';
 import { PublicChatPage } from './pages/public/PublicChatPage';
+import { PublicWalkInPage } from './pages/public/PublicWalkInPage';
 import { PublicMapPage } from './pages/public/PublicMapPage';
 import { PublicDsrPage } from './pages/public/PublicDsrPage';
 import { PublicOpenDayPage } from './pages/public/PublicOpenDayPage';
@@ -105,6 +107,7 @@ export default function App() {
       <Route path="/public/search" element={<SearchPage />} />
       <Route path="/public/recommendations" element={<PublicRecommendationsPage />} />
       <Route path="/public/chat" element={<PublicChatPage />} />
+      <Route path="/public/walk-in/:token" element={<PublicWalkInPage />} />
       <Route path="/public/map" element={<PublicMapPage />} />
       <Route path="/public/dsr/:projectId" element={<PublicDsrPage />} />
       <Route path="/public/open-day" element={<PublicOpenDayPage />} />
@@ -347,6 +350,14 @@ export default function App() {
         element={
           <RequireAuth loginPath="/auth/login">
             <AgentViewingsPage />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/agent/walk-in"
+        element={
+          <RequireAuth loginPath="/auth/login">
+            <AgentWalkInPage />
           </RequireAuth>
         }
       />

@@ -8,6 +8,7 @@ import { CrmService } from '../crm/crm.service';
 import {
   composeChatReply,
   detectChatIntent,
+  extractPhoneFromText,
   type ChatMessage,
   type ChatRecommendation,
 } from './ai-chat.util';
@@ -79,14 +80,19 @@ export class AiChatService {
     }));
 
     let leadId: string | undefined;
-    if (input.captureLead?.phone?.trim()) {
+    let suggestCapture = false;
+    const capturePhone =
+      input.captureLead?.phone?.trim() || extractPhoneFromText(input.text);
+    if (capturePhone) {
       const lead = await this.crm.createLead(tenantId, {
-        fullName: input.captureLead.fullName?.trim() || 'Chat visitor',
-        phone: input.captureLead.phone.trim(),
+        fullName: input.captureLead?.fullName?.trim() || 'Chat visitor',
+        phone: capturePhone,
         source: 'PUBLIC_CHAT',
         message: `UC-AI-07 session ${sessionId}`,
       });
       leadId = lead.data.id;
+    } else if (intent === 'visit' || intent === 'price') {
+      suggestCapture = true;
     }
 
     await this.audit.append({
@@ -105,8 +111,9 @@ export class AiChatService {
         intent,
         recommendations,
         leadId,
+        suggestCapture,
       },
-      meta: { uc: ['UC-AI-07'], screen: 'SCR-PUBLIC-001', recommendationCount: recommendations.length },
+      meta: { uc: ['UC-AI-07', 'UC-LEAD-01'], screen: 'SCR-PUBLIC-001', recommendationCount: recommendations.length },
     };
   }
 }

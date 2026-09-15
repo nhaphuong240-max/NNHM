@@ -1,7 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { BuyerShell } from '../../components/BuyerShell';
+import { SeekerOtpModal } from '../../components/public/SeekerOtpModal';
 import { fetchBuyerDeals, type BuyerDealSummary } from '../../lib/api';
+import { getSeekerSession } from '../../lib/seeker';
 import { brand, formatVnd } from '../../theme/tokens';
 
 function statusColor(status: string) {
@@ -19,26 +21,73 @@ export function BuyerDealsPage() {
   const [deals, setDeals] = useState<BuyerDealSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [needsAuth, setNeedsAuth] = useState(false);
+  const [showOtp, setShowOtp] = useState(false);
+  const [verifiedPhone, setVerifiedPhone] = useState<string | null>(() => getSeekerSession()?.phone ?? null);
 
-  useEffect(() => {
-    let active = true;
-    fetchBuyerDeals()
-      .then((res) => {
-        if (active) setDeals(res.data);
-      })
-      .catch((e) => {
-        if (active) setError(e instanceof Error ? e.message : 'Không tải được deals');
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-    return () => {
-      active = false;
-    };
+  const loadDeals = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetchBuyerDeals();
+      if (res.meta.requiresSeekerAuth) {
+        setNeedsAuth(true);
+        setDeals([]);
+      } else {
+        setNeedsAuth(false);
+        setDeals(res.data);
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Không tải được deals');
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
+  useEffect(() => {
+    void loadDeals();
+  }, [loadDeals]);
+
+  function onVerified(phone: string) {
+    setVerifiedPhone(phone);
+    void loadDeals();
+  }
+
   return (
-    <BuyerShell title="Theo dõi giao dịch" subtitle="UC-BK-02 · SCR-BUYER-002">
+    <BuyerShell title="Theo dõi giao dịch" subtitle="FR-BUY-001 · UC-BK-02 · SCR-BUYER-002">
+      {showOtp && (
+        <SeekerOtpModal onClose={() => setShowOtp(false)} onVerified={onVerified} />
+      )}
+
+      {needsAuth && !verifiedPhone && (
+        <div
+          className="rounded-xl p-5 mb-4 space-y-3"
+          style={{ background: brand.accentSoft, border: `1px solid ${brand.accent}` }}
+        >
+          <p className="text-sm font-medium">Xác minh SĐT để xem giao dịch của bạn</p>
+          <p className="text-xs" style={{ color: brand.muted }}>
+            Chỉ hiển thị booking gắn với số điện thoại đã xác minh — không lộ deal của người khác.
+          </p>
+          <button
+            type="button"
+            onClick={() => setShowOtp(true)}
+            className="rounded-xl px-4 py-2.5 text-sm font-bold text-white"
+            style={{ background: brand.primary }}
+          >
+            Xác minh OTP
+          </button>
+        </div>
+      )}
+
+      {verifiedPhone && (
+        <p className="text-xs mb-4" style={{ color: brand.muted }}>
+          SĐT đã xác minh: {verifiedPhone}{' '}
+          <button type="button" className="underline ml-1" onClick={() => setShowOtp(true)}>
+            Đổi số
+          </button>
+        </p>
+      )}
+
       {loading && <p style={{ color: brand.muted }}>Đang tải…</p>}
       {error && (
         <p className="text-sm rounded-lg p-3 mb-4" style={{ background: '#FEE2E2', color: brand.destructive }}>
@@ -46,9 +95,9 @@ export function BuyerDealsPage() {
         </p>
       )}
 
-      {!loading && deals.length === 0 && (
+      {!loading && !needsAuth && deals.length === 0 && verifiedPhone && (
         <p className="text-sm" style={{ color: brand.muted }}>
-          Chưa có booking. Agent tạo booking và gửi link thanh toán cho bạn.
+          Chưa có booking cho SĐT {verifiedPhone}. Agent tạo booking và gửi link thanh toán cho bạn.
         </p>
       )}
 
@@ -81,10 +130,6 @@ export function BuyerDealsPage() {
           </li>
         ))}
       </ul>
-
-      <p className="text-xs mt-6" style={{ color: brand.muted }}>
-        Demo seed: <Link to="/buyer/deals/bk_settle01" className="underline">bk_settle01</Link> (DEPOSITED)
-      </p>
     </BuyerShell>
   );
 }

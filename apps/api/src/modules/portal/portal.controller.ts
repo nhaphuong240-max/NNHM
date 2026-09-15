@@ -5,6 +5,7 @@ import { Public } from '../identity/decorators/public.decorator';
 import { CurrentUser } from '../identity/decorators/current-user.decorator';
 import type { AuthUser } from '../identity/identity.types';
 import { PortalService } from './portal.service';
+import { resolveSeekerPhone } from './seeker-phone.util';
 
 @Controller('portal')
 export class PortalController {
@@ -46,21 +47,22 @@ export class PortalController {
   @Public()
   @Get('buyer/deals')
   buyerDeals(
+    @CurrentUser() user: AuthUser | undefined,
     @Headers('x-tenant-id') tenantHeader: string | undefined,
   ) {
-    return this.portal.getBuyerDeals(resolveTenantId(this.config, undefined, tenantHeader));
+    const tenantId = resolveTenantId(this.config, user, tenantHeader);
+    return this.portal.getBuyerDeals(tenantId, resolveSeekerPhone(user));
   }
 
   @Public()
   @Get('buyer/deals/:bookingId')
   buyerDeal(
+    @CurrentUser() user: AuthUser | undefined,
     @Headers('x-tenant-id') tenantHeader: string | undefined,
     @Param('bookingId') bookingId: string,
   ) {
-    return this.portal.getBuyerDeal(
-      resolveTenantId(this.config, undefined, tenantHeader),
-      bookingId,
-    );
+    const tenantId = resolveTenantId(this.config, user, tenantHeader);
+    return this.portal.getBuyerDeal(tenantId, bookingId, resolveSeekerPhone(user));
   }
 
   /** UC-UX-02 — demo ZNS notify stub for buyer deal tracker */

@@ -23,6 +23,10 @@ export function PublicChatPage() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [leadId, setLeadId] = useState<string | null>(null);
+  const [showCapture, setShowCapture] = useState(false);
+  const [captureName, setCaptureName] = useState('');
+  const [capturePhone, setCapturePhone] = useState('');
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -47,7 +51,7 @@ export function PublicChatPage() {
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  }, [messages, showCapture]);
 
   async function handleSend(e: FormEvent) {
     e.preventDefault();
@@ -57,10 +61,20 @@ export function PublicChatPage() {
     setError(null);
     setInput('');
     try {
-      const res = await sendPublicChatMessage({ sessionId, text });
+      const captureLead =
+        capturePhone.trim() && !leadId
+          ? { fullName: captureName.trim() || undefined, phone: capturePhone.trim() }
+          : undefined;
+      const res = await sendPublicChatMessage({ sessionId, text, captureLead });
       setMessages(res.data.messages);
       if (res.data.recommendations?.length) {
         setRecommendations(res.data.recommendations);
+      }
+      if (res.data.leadId) {
+        setLeadId(res.data.leadId);
+        setShowCapture(false);
+      } else if (res.data.suggestCapture) {
+        setShowCapture(true);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Gửi tin nhắn thất bại');
@@ -75,7 +89,7 @@ export function PublicChatPage() {
       <header className="text-white px-4 py-4 shrink-0" style={{ background: brand.primary }}>
         <div className="max-w-2xl mx-auto flex items-center justify-between gap-4">
           <div>
-            <p className="text-xs opacity-80">UC-AI-07 · SCR-PUBLIC-001</p>
+            <p className="text-xs opacity-80">UC-AI-07 · FR-LEAD-001</p>
             <h1 className="text-xl font-bold">Tư vấn AI</h1>
           </div>
           <Link to="/public/search" className="text-sm underline opacity-90">
@@ -87,6 +101,15 @@ export function PublicChatPage() {
       <main className="flex-1 max-w-2xl w-full mx-auto p-4 flex flex-col gap-4">
         {error && (
           <div className="rounded-lg bg-red-50 text-red-700 p-3 text-sm">{error}</div>
+        )}
+
+        {leadId && (
+          <div
+            className="rounded-lg p-3 text-sm"
+            style={{ background: brand.accentSoft, border: `1px solid ${brand.accent}` }}
+          >
+            Đã ghi nhận liên hệ · Lead <span className="font-mono">{leadId}</span> — agent sẽ gọi lại sớm.
+          </div>
         )}
 
         <div
@@ -142,6 +165,33 @@ export function PublicChatPage() {
                 </Link>
               ))}
             </div>
+          </section>
+        )}
+
+        {showCapture && !leadId && (
+          <section
+            className="rounded-xl p-4 space-y-3"
+            style={{ background: brand.surface, border: `1px solid ${brand.border}` }}
+          >
+            <p className="text-sm font-medium">Để lại SĐT — em gửi bảng giá / đặt lịch xem nhà</p>
+            <input
+              value={captureName}
+              onChange={(e) => setCaptureName(e.target.value)}
+              placeholder="Họ tên (tuỳ chọn)"
+              className="w-full rounded-lg border px-3 py-2 text-sm"
+              style={{ borderColor: brand.border }}
+            />
+            <input
+              value={capturePhone}
+              onChange={(e) => setCapturePhone(e.target.value)}
+              type="tel"
+              placeholder="0901234567"
+              className="w-full rounded-lg border px-3 py-2 text-sm"
+              style={{ borderColor: brand.border }}
+            />
+            <p className="text-xs" style={{ color: brand.muted }}>
+              Hoặc nhập SĐT trực tiếp trong tin nhắn — hệ thống tự nhận diện.
+            </p>
           </section>
         )}
 
