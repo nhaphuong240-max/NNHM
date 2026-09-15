@@ -430,6 +430,98 @@ export async function fetchSearchStats() {
   }>;
 }
 
+export type HomepageTrendingItem = {
+  label: string;
+  intent?: 'buy' | 'rent' | 'project';
+  q?: string;
+  district?: string;
+  bedrooms?: number;
+  minPrice?: number;
+  maxPrice?: number;
+};
+
+export type HomepageFeaturedProject = {
+  id: string;
+  name: string;
+  code: string;
+  city: string;
+  district: string;
+  unitCount: number;
+  verifiedCount: number;
+  minPrice: number;
+  maxPrice: number;
+  thumbnailUrl: string | null;
+  developer: string;
+  tagline: string;
+  art: 'river' | 'tower' | 'bay';
+};
+
+export type HomepageDistrictChip = {
+  id: string;
+  slug: string;
+  label: string;
+  city: string;
+  listingCount: number;
+};
+
+export type HomepageConfigPayload = {
+  trending: HomepageTrendingItem[];
+  featuredProjects: {
+    projectId: string;
+    developer?: string;
+    tagline?: string;
+    art?: 'river' | 'tower' | 'bay';
+    sortOrder?: number;
+  }[];
+  quickChips: HomepageTrendingItem[];
+  newsItems: { id: string; title: string; excerpt: string; date: string; href?: string }[];
+  trustFallback: { headline: string; items: { value: string; label: string }[] };
+  mapBanner: { enabled: boolean; title: string; subtitle: string };
+  sections: {
+    trending: boolean;
+    picks: boolean;
+    projects: boolean;
+    quickChips: boolean;
+    districts: boolean;
+    map: boolean;
+    tools: boolean;
+    news: boolean;
+  };
+  picksLimit: number;
+};
+
+export type HomepagePack = {
+  config: HomepageConfigPayload;
+  stats: { totalListings: number; verifiedListings: number; hasLiveListings: boolean };
+  picks: SearchHit[];
+  districts: HomepageDistrictChip[];
+  featuredProjects: HomepageFeaturedProject[];
+};
+
+export async function fetchHomepagePack() {
+  const res = await fetch(`${API_BASE}/cms/homepage`, {
+    headers: { 'X-Tenant-Id': DEFAULT_TENANT_ID },
+  });
+  if (!res.ok) throw new Error(`Homepage pack failed: ${res.status}`);
+  return res.json() as Promise<{ data: HomepagePack; meta: { tenantId: string } }>;
+}
+
+export async function fetchHomepageConfigAdmin() {
+  const res = await authFetch(`${API_BASE}/cms/homepage/config`);
+  if (!res.ok) throw new Error(`Homepage config failed: ${res.status}`);
+  return res.json() as Promise<{ data: HomepageConfigPayload }>;
+}
+
+export async function saveHomepageConfigAdmin(payload: HomepageConfigPayload) {
+  const res = await authFetch(`${API_BASE}/cms/homepage/config`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error(`Save homepage config failed: ${res.status}`);
+  return res.json() as Promise<{ data: HomepageConfigPayload; meta: { updatedAt: string } }>;
+}
+
 export type ProjectDetailResponse = {
   data: {
     id: string;

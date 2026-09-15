@@ -66,6 +66,7 @@ export { DealDisputeEntity } from './deal-dispute.entity';
 export { DealDisputeEventEntity } from './deal-dispute-event.entity';
 export { GeoAreaEntity } from './geo-area.entity';
 export { CmsPageEntity } from './cms-page.entity';
+export { CmsHomepageConfigEntity } from './cms-homepage-config.entity';
 export { DsrPolygonEntity } from './dsr-polygon.entity';
 export { DsrShareLinkEntity } from './dsr-share-link.entity';
 export { AttributionTouchpointEntity } from './attribution-touchpoint.entity';

@@ -4,6 +4,7 @@ import { portalThemes } from '../theme/tokens';
 
 const P0 = [
   { to: '/admin/ops', label: 'Ops' },
+  { to: '/admin/homepage', label: 'Homepage' },
   { to: '/admin/moderation', label: 'Moderation' },
   { to: '/admin/users', label: 'Users' },
   { to: '/admin/audit', label: 'Audit' },

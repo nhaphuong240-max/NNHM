@@ -4,12 +4,15 @@ import { resolveTenantId } from '../../common/resolve-tenant-id';
 import { Public } from '../identity/decorators/public.decorator';
 import { CurrentUser } from '../identity/decorators/current-user.decorator';
 import type { AuthUser } from '../identity/identity.types';
+import { CmsHomepageService } from './cms-homepage.service';
+import type { HomepageConfigPayload } from './homepage.types';
 import { CmsService } from './cms.service';
 
 @Controller('cms')
 export class CmsController {
   constructor(
     private readonly cms: CmsService,
+    private readonly homepage: CmsHomepageService,
     private readonly config: ConfigService,
   ) {}
 
@@ -29,6 +32,29 @@ export class CmsController {
     @Param('slug') slug: string,
   ) {
     return this.cms.getAreaLanding(resolveTenantId(this.config, user), slug);
+  }
+
+  /** Phase Homepage — public pack (config + live picks/stats/districts) */
+  @Public()
+  @Get('homepage')
+  homepagePack(@CurrentUser() user: AuthUser | undefined) {
+    return this.homepage.getHomepagePack(resolveTenantId(this.config, user));
+  }
+
+  @Get('homepage/config')
+  homepageConfig(@CurrentUser() user: AuthUser) {
+    return this.homepage.getConfig(resolveTenantId(this.config, user)).then((data) => ({
+      data,
+      meta: { tenantId: resolveTenantId(this.config, user) },
+    }));
+  }
+
+  @Post('homepage/config')
+  saveHomepageConfig(
+    @CurrentUser() user: AuthUser,
+    @Body() body: HomepageConfigPayload,
+  ) {
+    return this.homepage.updateConfig(resolveTenantId(this.config, user), body, user.userId);
   }
 
   @Post('pages')

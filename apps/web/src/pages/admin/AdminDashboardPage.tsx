@@ -269,6 +269,7 @@ export function AdminDashboardPage() {
               <QuickLink to="/admin/duplicates" label="Duplicates" desc="UC-LS-06 · SCR-ADMIN-009" />
               <QuickLink to="/admin/kyc" label="KYC queue" desc="UC-ID-05 · BR-23" />
               <QuickLink to="/admin/moderation" label="Moderation" desc="UC-GR-03 · Anti-drift" />
+              <QuickLink to="/admin/homepage" label="Homepage CMS" desc="FR-CNT-004 · Trending · rails" />
               <QuickLink to="/admin/ai/anomaly" label="AI Anomaly" desc="UC-AI-05 · SCR-ADMIN-002" />
               <QuickLink to="/admin/api-marketplace" label="API Marketplace" desc="UC-NW-04 · SCR-ADMIN-004" />
               <QuickLink to="/admin/marketplace" label="Marketplace SLA" desc="UC-MKT-04 · SCR-ADMIN-015" />

@@ -70,6 +70,7 @@ import { AdminMetaIntegrationPage } from './pages/admin/AdminMetaIntegrationPage
 import { AdminSmsIntegrationPage } from './pages/admin/AdminSmsIntegrationPage';
 import { AdminZaloIntegrationPage } from './pages/admin/AdminZaloIntegrationPage';
 import { AdminModerationPage } from './pages/admin/AdminModerationPage';
+import { AdminHomepagePage } from './pages/admin/AdminHomepagePage';
 import { AdminOmnichannelPage } from './pages/admin/AdminOmnichannelPage';
 import { AdminAuditExplorerPage } from './pages/admin/AdminAuditExplorerPage';
 import { AdminDashboardPage } from './pages/admin/AdminDashboardPage';
@@ -574,6 +575,14 @@ export default function App() {
         element={
           <RequireAuth loginPath="/auth/login">
             <AdminModerationPage />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/admin/homepage"
+        element={
+          <RequireAuth loginPath="/auth/login">
+            <AdminHomepagePage />
           </RequireAuth>
         }
       />
