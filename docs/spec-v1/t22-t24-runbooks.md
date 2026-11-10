@@ -24,9 +24,9 @@ Checklist, chưa thực hiện:
 
 | Mã | Khung | Số liệu |
 | --- | --- | --- |
-| KP01 | Tỷ lệ lead đủ consent trước khi giao | Chưa đo |
-| KP02 | Một hold active trên một căn | Chưa đo trên production |
-| KP03 | Đối soát sandbox cân bằng | Chưa đo |
-| KP04 | Export có người duyệt và TTL | Chưa đo |
+| KP01 | Trust và inventory: nguồn còn hiệu lực, lag projection, CTA cũ, vi phạm giữ chỗ đôi | Chưa đo |
+| KP02 | Sales: cohort lead → viewing → hold → cọc đối soát → hợp đồng, SLA giờ làm việc, tranh chấp, no-show | Chưa đo |
+| KP03 | Finance: chứng từ chưa khớp, thời gian đối soát, hoàn/chi đang chờ, aging earned/payable/paid | Chưa đo |
+| KP04 | Adoption và AI: agency còn tác vụ hữu ích, thời gian xử lý ngoại lệ, citation và chi phí AI | Chưa đo |
 
 Không đề xuất expand, hold, hay stop từ các ô trống này.
