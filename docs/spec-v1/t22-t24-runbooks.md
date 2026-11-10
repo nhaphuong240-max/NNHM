@@ -4,8 +4,8 @@ Các tài liệu này không triển khai production và không bật pilot.
 
 ## T22 — restore trên sandbox
 
-- RPO mục tiêu sandbox: 24 giờ, đo bằng bản `pg_dump` của database thử, không phải database thật.
-- RTO mục tiêu sandbox: thời gian restore cộng `migration:run` trên database trống tên `wereal_t02`.
+- RPO và RTO chưa có chữ ký. SPEC chỉ đề xuất pilot RPO không quá 15 phút và RTO không quá 4 giờ khi hạ tầng cho phép; owner ký sau khi đo. Bản này không ghi một số đã đo.
+- Diễn tập restore, nếu làm, chỉ dùng `pg_dump` của database thử. Không restore database thật.
 - `DB_SYNCHRONIZE` không được `true`. URL giống production bị harness từ chối.
 - Demo rails (`mfaSandbox`, `vnpaySandbox`, `smsSandbox`) phải tắt được bằng cấu hình tenant. Tắt thì luồng sandbox dừng, không ghi `PAID`.
 - App cũ đọc được cột mới vì migration chỉ thêm bảng và nới index, không xóa cột cũ.
