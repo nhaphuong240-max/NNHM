@@ -1,11 +1,11 @@
 import { Column, CreateDateColumn, Entity, Index, PrimaryColumn } from 'typeorm';
 
 @Entity({ name: 'data_product_entitlements' })
+@Index(['tenantId', 'productCode'], { unique: true })
 export class DataProductEntitlementEntity {
   @PrimaryColumn({ type: 'varchar', length: 32 })
   id!: string;
 
-  @Index(['tenantId', 'productCode'], { unique: true })
   @Column({ name: 'tenant_id', type: 'varchar', length: 32 })
   tenantId!: string;
 

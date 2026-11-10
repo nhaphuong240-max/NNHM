@@ -3,6 +3,7 @@ import { Column, CreateDateColumn, Entity, Index, PrimaryColumn } from 'typeorm'
 export type DocumentAccessAction = 'UPLOAD' | 'DOWNLOAD' | 'DELETE' | 'PRESIGN';
 
 @Entity({ name: 'document_access_logs' })
+@Index(['tenantId', 'documentId', 'createdAt'])
 export class DocumentAccessLogEntity {
   @PrimaryColumn({ type: 'varchar', length: 32 })
   id!: string;
@@ -22,7 +23,6 @@ export class DocumentAccessLogEntity {
   @Column({ type: 'jsonb', nullable: true })
   metadata!: Record<string, unknown> | null;
 
-  @Index(['tenantId', 'documentId', 'createdAt'])
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt!: Date;
 }

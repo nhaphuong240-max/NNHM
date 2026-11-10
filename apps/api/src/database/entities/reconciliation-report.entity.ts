@@ -19,6 +19,7 @@ export interface ReconciliationDiscrepancy {
 }
 
 @Entity({ name: 'reconciliation_reports' })
+@Index(['tenantId', 'reportDate'], { unique: true })
 export class ReconciliationReportEntity {
   @PrimaryColumn({ type: 'varchar', length: 32 })
   id!: string;
@@ -26,7 +27,6 @@ export class ReconciliationReportEntity {
   @Column({ name: 'tenant_id', type: 'varchar', length: 32 })
   tenantId!: string;
 
-  @Index(['tenantId', 'reportDate'], { unique: true })
   @Column({ name: 'report_date', type: 'date' })
   reportDate!: string;
 

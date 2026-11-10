@@ -10,6 +10,7 @@ import {
 export type AgencyApplicationStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
 
 @Entity({ name: 'agency_applications' })
+@Index(['agencyTenantId', 'projectId', 'distributionPolicyId'], { unique: true })
 export class AgencyApplicationEntity {
   @PrimaryColumn({ type: 'varchar', length: 32 })
   id!: string;
@@ -41,7 +42,6 @@ export class AgencyApplicationEntity {
   @Column({ name: 'reviewed_at', type: 'timestamptz', nullable: true })
   reviewedAt!: Date | null;
 
-  @Index(['agencyTenantId', 'projectId', 'distributionPolicyId'], { unique: true })
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt!: Date;
 

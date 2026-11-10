@@ -1,6 +1,7 @@
-import { Column, CreateDateColumn, Entity, PrimaryColumn } from 'typeorm';
+import { Column, CreateDateColumn, Entity, Index, PrimaryColumn } from 'typeorm';
 
 @Entity({ name: 'walk_in_checkins' })
+@Index(['tenantId', 'galleryId', 'checkedInAt'])
 export class WalkInCheckinEntity {
   @PrimaryColumn({ type: 'varchar', length: 32 })
   id!: string;

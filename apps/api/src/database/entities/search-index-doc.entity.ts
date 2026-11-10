@@ -18,6 +18,9 @@ export type SearchIndexDetail = {
 };
 
 @Entity({ name: 'search_index_docs' })
+@Index(['tenantId', 'bedrooms'])
+@Index(['tenantId', 'district'])
+@Index(['tenantId', 'transactionType'])
 export class SearchIndexDocEntity {
   /** Public search key — unit id */
   @PrimaryColumn({ type: 'varchar', length: 32 })
@@ -42,7 +45,6 @@ export class SearchIndexDocEntity {
   @Column({ name: 'base_price', type: 'numeric', precision: 18, scale: 0 })
   basePrice!: string;
 
-  @Index(['tenantId', 'bedrooms'])
   @Column({ type: 'int' })
   bedrooms!: number;
 
@@ -58,11 +60,9 @@ export class SearchIndexDocEntity {
   @Column({ type: 'varchar', length: 64, nullable: true })
   city!: string | null;
 
-  @Index(['tenantId', 'district'])
   @Column({ type: 'varchar', length: 64, nullable: true })
   district!: string | null;
 
-  @Index(['tenantId', 'transactionType'])
   @Column({ name: 'transaction_type', type: 'varchar', length: 16, default: 'sale' })
   transactionType!: 'sale' | 'rent' | 'project';
 

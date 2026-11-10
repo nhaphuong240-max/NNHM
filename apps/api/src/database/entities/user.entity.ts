@@ -40,7 +40,7 @@ export class UserEntity {
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt!: Date;
 
-  @ManyToOne(() => TenantEntity, (tenant) => tenant.users)
+  @ManyToOne(() => TenantEntity, (tenant) => tenant.users, { onDelete: 'RESTRICT' })
   @JoinColumn({ name: 'tenant_id' })
   tenant?: TenantEntity;
 }

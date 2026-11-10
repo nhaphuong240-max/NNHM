@@ -9,6 +9,7 @@ import {
 export type RefundStatus = 'PENDING' | 'SUCCEEDED' | 'FAILED';
 
 @Entity({ name: 'refunds' })
+@Index(['tenantId', 'idempotencyKey'], { unique: true })
 export class RefundEntity {
   @PrimaryColumn({ type: 'varchar', length: 32 })
   id!: string;
@@ -37,7 +38,6 @@ export class RefundEntity {
   @Column({ type: 'text', nullable: true })
   reason!: string | null;
 
-  @Index(['tenantId', 'idempotencyKey'], { unique: true })
   @Column({ name: 'idempotency_key', type: 'varchar', length: 128, nullable: true })
   idempotencyKey!: string | null;
 

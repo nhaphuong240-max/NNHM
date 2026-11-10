@@ -13,6 +13,7 @@ export type DocumentScanStatus = 'PENDING' | 'CLEAN' | 'QUARANTINE';
 export type DocumentStorageProvider = 'LOCAL' | 'S3';
 
 @Entity({ name: 'documents' })
+@Index(['tenantId', 'entityType', 'entityId'])
 export class DocumentEntity {
   @PrimaryColumn({ type: 'varchar', length: 32 })
   id!: string;
@@ -65,7 +66,6 @@ export class DocumentEntity {
   @Column({ name: 'created_by', type: 'varchar', length: 32, nullable: true })
   createdBy!: string | null;
 
-  @Index(['tenantId', 'entityType', 'entityId'])
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt!: Date;
 

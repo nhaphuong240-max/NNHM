@@ -7,18 +7,18 @@ export type LeadConversionEventType =
   | 'DEPOSITED';
 
 @Entity({ name: 'lead_conversion_events' })
+@Index(['tenantId', 'leadId'])
+@Index(['tenantId', 'eventType'])
 export class LeadConversionEventEntity {
   @PrimaryColumn({ type: 'varchar', length: 32 })
   id!: string;
 
-  @Index(['tenantId', 'leadId'])
   @Column({ name: 'tenant_id', type: 'varchar', length: 32 })
   tenantId!: string;
 
   @Column({ name: 'lead_id', type: 'varchar', length: 32 })
   leadId!: string;
 
-  @Index(['tenantId', 'eventType'])
   @Column({ name: 'event_type', type: 'varchar', length: 16 })
   eventType!: LeadConversionEventType;
 

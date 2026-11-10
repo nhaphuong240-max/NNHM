@@ -1,11 +1,11 @@
 import { Column, Entity, Index, PrimaryColumn } from 'typeorm';
 
 @Entity({ name: 'data_mart_daily' })
+@Index(['tenantId', 'reportDate', 'projectId'], { unique: true })
 export class DataMartDailyEntity {
   @PrimaryColumn({ type: 'varchar', length: 32 })
   id!: string;
 
-  @Index(['tenantId', 'reportDate', 'projectId'], { unique: true })
   @Column({ name: 'tenant_id', type: 'varchar', length: 32 })
   tenantId!: string;
 

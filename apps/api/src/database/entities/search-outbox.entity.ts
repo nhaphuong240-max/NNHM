@@ -10,11 +10,11 @@ export type SearchOutboxStatus = 'PENDING' | 'PROCESSED' | 'FAILED';
 export type SearchOutboxOperation = 'UPSERT' | 'DELETE';
 
 @Entity({ name: 'search_outbox' })
+@Index(['status', 'createdAt'])
 export class SearchOutboxEntity {
   @PrimaryColumn({ type: 'varchar', length: 32 })
   id!: string;
 
-  @Index(['status', 'createdAt'])
   @Column({ name: 'tenant_id', type: 'varchar', length: 32 })
   tenantId!: string;
 

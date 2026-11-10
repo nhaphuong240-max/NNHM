@@ -9,11 +9,11 @@ import {
 export type LeadScoringOutboxStatus = 'PENDING' | 'PROCESSED' | 'FAILED';
 
 @Entity({ name: 'lead_scoring_outbox' })
+@Index(['status', 'createdAt'])
 export class LeadScoringOutboxEntity {
   @PrimaryColumn({ type: 'varchar', length: 32 })
   id!: string;
 
-  @Index(['status', 'createdAt'])
   @Column({ name: 'tenant_id', type: 'varchar', length: 32 })
   tenantId!: string;
 

@@ -75,13 +75,38 @@ set +e
 classify_exit=$?
 set -e
 echo "classify_exit=$classify_exit"
-echo "NOT-RUN redis ping"
-echo "NOT-RUN migration:run"
-echo "NOT-RUN cluster dispose"
+if [ "$classify_exit" -ne 0 ]; then
+  echo "NOT-RUN redis ping"
+  echo "NOT-RUN migration:run"
+  echo "NOT-RUN cluster dispose"
+  echo "FAIL schema evidence is missing or the baseline file hash does not match SHA=$SHA"
+  exit 1
+fi
+
+echo "=== redis ping ==="
+(
+  cd "$ROOT/apps/api"
+  node -e "const Redis=require('ioredis'); const redis=new Redis(process.env.REDIS_URL); redis.ping().then((value)=>{console.log('redis='+value); return redis.quit();}).catch((error)=>{console.error(error); process.exit(1);});"
+)
+echo "PASS redis ping"
+
+echo "=== migration:run ==="
+(
+  cd "$ROOT/apps/api"
+  npm run migration:run
+)
+echo "PASS migration:run"
+
+echo "=== schema compare ==="
+(
+  cd "$ROOT/apps/api"
+  NODE_PATH="$ROOT/apps/api/node_modules" node "$ROOT/scripts/t02-schema-compare.js"
+)
+echo "PASS schema compare"
+
 if [ -n "${T02_HARNESS_SESSION:-}" ] && [ -f "${T02_HARNESS_SESSION}" ]; then
-  echo "REFUSE dispose: session file is not a delete authorization while evidence is missing"
+  echo "REFUSE dispose: session file is recorded and is not used as a delete"
 else
   echo "REFUSE dispose: no confirmed harness session file"
 fi
-echo "FAIL schema classify blocked DDL SHA=$SHA"
-exit 1
+echo "PASS isolated database SHA=$SHA"

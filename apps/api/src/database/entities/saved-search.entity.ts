@@ -8,6 +8,7 @@ import {
 } from 'typeorm';
 
 @Entity({ name: 'saved_searches' })
+@Index(['tenantId', 'visitorId'])
 export class SavedSearchEntity {
   @PrimaryColumn({ type: 'varchar', length: 32 })
   id!: string;
@@ -15,7 +16,6 @@ export class SavedSearchEntity {
   @Column({ name: 'tenant_id', type: 'varchar', length: 32 })
   tenantId!: string;
 
-  @Index(['tenantId', 'visitorId'])
   @Column({ name: 'visitor_id', type: 'varchar', length: 64 })
   visitorId!: string;
 

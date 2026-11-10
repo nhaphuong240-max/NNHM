@@ -1,11 +1,11 @@
 import { Column, CreateDateColumn, Entity, Index, PrimaryColumn } from 'typeorm';
 
 @Entity({ name: 'seeker_otp_challenges' })
+@Index(['tenantId', 'phoneNormalized', 'createdAt'])
 export class SeekerOtpChallengeEntity {
   @PrimaryColumn({ type: 'varchar', length: 32 })
   id!: string;
 
-  @Index(['tenantId', 'phoneNormalized'])
   @Column({ name: 'tenant_id', type: 'varchar', length: 32 })
   tenantId!: string;
 

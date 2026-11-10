@@ -17,11 +17,11 @@ export type BnplApplicationStatus =
   | 'COMPLETED';
 
 @Entity({ name: 'bnpl_applications' })
+@Index(['tenantId', 'bookingId'])
 export class BnplApplicationEntity {
   @PrimaryColumn({ type: 'varchar', length: 32 })
   id!: string;
 
-  @Index(['tenantId', 'bookingId'])
   @Column({ name: 'tenant_id', type: 'varchar', length: 32 })
   tenantId!: string;
 

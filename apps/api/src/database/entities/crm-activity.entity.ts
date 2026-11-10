@@ -9,6 +9,7 @@ import {
 export type CrmActivityType = 'CALL' | 'NOTE' | 'VISIT' | 'ZALO' | 'MEETING';
 
 @Entity({ name: 'crm_activities' })
+@Index(['tenantId', 'leadId'])
 export class CrmActivityEntity {
   @PrimaryColumn({ type: 'varchar', length: 32 })
   id!: string;
@@ -16,7 +17,6 @@ export class CrmActivityEntity {
   @Column({ name: 'tenant_id', type: 'varchar', length: 32 })
   tenantId!: string;
 
-  @Index(['tenantId', 'leadId'])
   @Column({ name: 'lead_id', type: 'varchar', length: 32 })
   leadId!: string;
 

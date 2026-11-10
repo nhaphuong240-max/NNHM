@@ -18,11 +18,11 @@ export type DealDisputeStatus =
   | 'CLOSED';
 
 @Entity({ name: 'deal_disputes' })
+@Index(['tenantId', 'status'])
 export class DealDisputeEntity {
   @PrimaryColumn({ type: 'varchar', length: 32 })
   id!: string;
 
-  @Index(['tenantId', 'status'])
   @Column({ name: 'tenant_id', type: 'varchar', length: 32 })
   tenantId!: string;
 

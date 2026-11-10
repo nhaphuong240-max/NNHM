@@ -17,6 +17,7 @@ export interface CommissionSplitRuleRow {
 }
 
 @Entity({ name: 'commission_policies' })
+@Index(['tenantId', 'projectId', 'version'], { unique: true })
 export class CommissionPolicyEntity {
   @PrimaryColumn({ type: 'varchar', length: 32 })
   id!: string;
@@ -54,7 +55,6 @@ export class CommissionPolicyEntity {
   @Column({ name: 'published_at', type: 'timestamptz', nullable: true })
   publishedAt!: Date | null;
 
-  @Index(['tenantId', 'projectId', 'version'], { unique: true })
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt!: Date;
 

@@ -1,6 +1,7 @@
-import { Column, CreateDateColumn, Entity, PrimaryColumn, UpdateDateColumn } from 'typeorm';
+import { Column, CreateDateColumn, Entity, PrimaryColumn, Unique, UpdateDateColumn } from 'typeorm';
 
 @Entity({ name: 'geo_areas' })
+@Unique(['tenantId', 'slug'])
 export class GeoAreaEntity {
   @PrimaryColumn({ type: 'varchar', length: 32 })
   id!: string;

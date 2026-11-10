@@ -1,9 +1,10 @@
-import { Column, CreateDateColumn, Entity, PrimaryColumn, UpdateDateColumn } from 'typeorm';
+import { Column, CreateDateColumn, Entity, PrimaryColumn, Unique, UpdateDateColumn } from 'typeorm';
 
 export type CmsPageStatus = 'DRAFT' | 'LEGAL_REVIEW' | 'PUBLISHED';
 export type CmsPageType = 'area' | 'project' | 'faq' | 'landing';
 
 @Entity({ name: 'cms_pages' })
+@Unique(['tenantId', 'slug'])
 export class CmsPageEntity {
   @PrimaryColumn({ type: 'varchar', length: 32 })
   id!: string;

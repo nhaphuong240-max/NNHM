@@ -9,6 +9,7 @@ import {
 export type SettlementRunStatus = 'PENDING' | 'SUBMITTED' | 'COMPLETED' | 'FAILED';
 
 @Entity({ name: 'commission_settlement_runs' })
+@Index(['tenantId', 'status'])
 export class CommissionSettlementRunEntity {
   @PrimaryColumn({ type: 'varchar', length: 32 })
   id!: string;
@@ -16,7 +17,6 @@ export class CommissionSettlementRunEntity {
   @Column({ name: 'tenant_id', type: 'varchar', length: 32 })
   tenantId!: string;
 
-  @Index(['tenantId', 'status'])
   @Column({ type: 'varchar', length: 16, default: 'PENDING' })
   status!: SettlementRunStatus;
 

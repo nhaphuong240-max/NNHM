@@ -21,6 +21,9 @@ export type LeadRoutingStatus = 'PENDING' | 'ASSIGNED' | 'CLOSED';
 export type LeadScoreStatus = 'PENDING' | 'SCORED' | 'UNSCORED';
 
 @Entity({ name: 'leads' })
+@Index(['tenantId', 'idempotencyKey'], { unique: true })
+@Index(['tenantId', 'utmCampaign'])
+@Index(['tenantId', 'campaignId'])
 export class LeadEntity {
   @PrimaryColumn({ type: 'varchar', length: 32 })
   id!: string;
@@ -82,7 +85,6 @@ export class LeadEntity {
   @Column({ type: 'text', nullable: true })
   message!: string | null;
 
-  @Index(['tenantId', 'idempotencyKey'], { unique: true })
   @Column({ name: 'idempotency_key', type: 'varchar', length: 128, nullable: true })
   idempotencyKey!: string | null;
 
@@ -99,12 +101,10 @@ export class LeadEntity {
   marketingConsent!: boolean;
 
   /** UC-AN-04 — marketing UTM campaign tag (indexed for attribution) */
-  @Index(['tenantId', 'utmCampaign'])
   @Column({ name: 'utm_campaign', type: 'varchar', length: 128, nullable: true })
   utmCampaign!: string | null;
 
   /** UC-AN-04 — platform campaign id (Meta/Zalo/Ads) */
-  @Index(['tenantId', 'campaignId'])
   @Column({ name: 'campaign_id', type: 'varchar', length: 128, nullable: true })
   campaignId!: string | null;
 

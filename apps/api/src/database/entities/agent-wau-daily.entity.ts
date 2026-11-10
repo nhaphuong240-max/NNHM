@@ -1,11 +1,11 @@
 import { Column, Entity, Index, PrimaryColumn } from 'typeorm';
 
 @Entity({ name: 'agent_wau_daily' })
+@Index(['tenantId', 'reportDate'], { unique: true })
 export class AgentWauDailyEntity {
   @PrimaryColumn({ type: 'varchar', length: 32 })
   id!: string;
 
-  @Index(['tenantId', 'reportDate'], { unique: true })
   @Column({ name: 'tenant_id', type: 'varchar', length: 32 })
   tenantId!: string;
 

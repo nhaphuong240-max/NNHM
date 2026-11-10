@@ -3,11 +3,11 @@ import { Column, CreateDateColumn, Entity, Index, PrimaryColumn } from 'typeorm'
 export type AgentActivitySource = 'MOBILE' | 'WEB';
 
 @Entity({ name: 'agent_activity_events' })
+@Index(['tenantId', 'userId', 'createdAt'])
 export class AgentActivityEventEntity {
   @PrimaryColumn({ type: 'varchar', length: 32 })
   id!: string;
 
-  @Index(['tenantId', 'userId', 'createdAt'])
   @Column({ name: 'tenant_id', type: 'varchar', length: 32 })
   tenantId!: string;
 

@@ -4,18 +4,18 @@ import { BnplApplicationEntity } from './bnpl-application.entity';
 export type BnplInstallmentStatus = 'PENDING' | 'PAID' | 'OVERDUE';
 
 @Entity({ name: 'bnpl_installments' })
+@Index(['tenantId', 'applicationId'])
 export class BnplInstallmentEntity {
   @PrimaryColumn({ type: 'varchar', length: 32 })
   id!: string;
 
-  @Index(['tenantId', 'applicationId'])
   @Column({ name: 'tenant_id', type: 'varchar', length: 32 })
   tenantId!: string;
 
   @Column({ name: 'application_id', type: 'varchar', length: 32 })
   applicationId!: string;
 
-  @ManyToOne(() => BnplApplicationEntity, (app) => app.installments, { onDelete: 'CASCADE' })
+  @ManyToOne(() => BnplApplicationEntity, (app) => app.installments, { onDelete: 'RESTRICT' })
   @JoinColumn({ name: 'application_id' })
   application!: BnplApplicationEntity;
 

@@ -9,6 +9,7 @@ import {
 export type CommissionSnapshotStatus = 'CALCULATED' | 'HOLDBACK' | 'RELEASED' | 'PAID';
 
 @Entity({ name: 'commission_snapshots' })
+@Index(['tenantId', 'bookingId'], { unique: true })
 export class CommissionSnapshotEntity {
   @PrimaryColumn({ type: 'varchar', length: 32 })
   id!: string;
@@ -16,7 +17,6 @@ export class CommissionSnapshotEntity {
   @Column({ name: 'tenant_id', type: 'varchar', length: 32 })
   tenantId!: string;
 
-  @Index(['tenantId', 'bookingId'], { unique: true })
   @Column({ name: 'booking_id', type: 'varchar', length: 32 })
   bookingId!: string;
 

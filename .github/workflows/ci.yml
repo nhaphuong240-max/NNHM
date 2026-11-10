@@ -69,11 +69,9 @@ jobs:
       - run: npm run typecheck
       - run: npm test
 
-  # Chỉ chạy khi bấm tay. Harness vẫn dừng trước DDL vì chưa có bằng chứng schema
-  # trước RLS và baseline chưa được duyệt. Pull request và push không chạy job này,
-  # để lần fail có chủ đích không làm đỏ CI.
+  # Baseline 1738339100000 là bằng chứng schema. Job chạy lại trên pull request.
+  # Harness vẫn từ chối bootstrap và không xóa cluster.
   t02-isolated-db:
-    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -114,6 +112,55 @@ jobs:
       - run: npm ci
         working-directory: apps/api
       - run: chmod +x scripts/t02-harness.sh && ./scripts/t02-harness.sh
+      - name: Revert migrations until the baseline tables are gone
+        working-directory: apps/api
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 30); do
+            echo "REVERT $i"
+            set +e
+            output=$(npm run migration:revert 2>&1)
+            code=$?
+            set -e
+            printf '%s\n' "$output"
+            echo "REVERT_EXIT $i $code"
+            if [ "$code" -ne 0 ]; then
+              exit "$code"
+            fi
+            if printf '%s\n' "$output" | grep -q "Nothing to revert"; then
+              break
+            fi
+          done
+          node <<'EOF'
+          const fs = require('fs');
+          const { Client } = require('pg');
+          const sql = fs.readFileSync('src/database/migrations/1738339100000-BaselineCoreSchema.ts', 'utf8');
+          const names = [...sql.matchAll(/CREATE TABLE "([a-z0-9_]+)"/g)].map((match) => match[1]);
+          if (names.length !== 56) {
+            console.error(`expected 56 baseline tables, found ${names.length}`);
+            process.exit(1);
+          }
+          (async () => {
+            const client = new Client({ connectionString: process.env.DATABASE_URL });
+            await client.connect();
+            const left = await client.query(
+              `SELECT table_name FROM information_schema.tables
+               WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
+                 AND table_name = ANY($1::text[])
+               ORDER BY table_name`,
+              [names],
+            );
+            await client.end();
+            if (left.rows.length) {
+              console.error(left.rows.map((row) => row.table_name).join(','));
+              process.exit(1);
+            }
+            console.log('BASELINE_TABLES=0');
+          })().catch((error) => {
+            console.error(error);
+            process.exit(1);
+          });
+          EOF
 
   observability-gate:
     runs-on: ubuntu-latest

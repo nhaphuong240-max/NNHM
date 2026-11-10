@@ -1,6 +1,7 @@
 import { Column, Entity, Index, PrimaryColumn } from 'typeorm';
 
 @Entity({ name: 'attribution_touchpoints' })
+@Index(['tenantId', 'leadId'])
 export class AttributionTouchpointEntity {
   @PrimaryColumn({ type: 'varchar', length: 32 })
   id!: string;
@@ -8,7 +9,6 @@ export class AttributionTouchpointEntity {
   @Column({ name: 'tenant_id', type: 'varchar', length: 32 })
   tenantId!: string;
 
-  @Index(['tenantId', 'leadId'])
   @Column({ name: 'lead_id', type: 'varchar', length: 32 })
   leadId!: string;
 
