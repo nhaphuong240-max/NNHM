@@ -366,11 +366,15 @@ export async function openDealDispute(registrationId: string, summary?: string) 
   return res.json();
 }
 
-export async function requestSeekerOtp(phone: string, visitorId?: string) {
+export async function requestSeekerOtp(phone: string, visitorId?: string, entryToken?: string) {
   const res = await fetch(`${API_BASE}/auth/seeker/otp/request`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-Tenant-Id': DEFAULT_TENANT_ID },
-    body: JSON.stringify({ phone, visitorId }),
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      phone,
+      visitorId,
+      entryToken: entryToken ?? 'v1.ten_dev_01.catalogpublic',
+    }),
   });
   if (!res.ok) throw new Error(`OTP request failed: ${res.status}`);
   return res.json() as Promise<{ data: { challengeId: string; expiresIn: number } }>;
@@ -384,7 +388,7 @@ export async function verifySeekerOtp(input: {
 }) {
   const res = await fetch(`${API_BASE}/auth/seeker/otp/verify`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-Tenant-Id': DEFAULT_TENANT_ID },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(input),
   });
   if (!res.ok) throw new Error(`OTP verify failed: ${res.status}`);

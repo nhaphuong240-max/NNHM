@@ -1,30 +1,27 @@
-import { Body, Controller, Headers, Post } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { resolveTenantId } from '../../common/resolve-tenant-id';
+import { Body, Controller, Post, Req, UseGuards } from '@nestjs/common';
+import { PublicTokenTenantGuard } from '../../common/public-token-tenant.guard';
 import { Public } from './decorators/public.decorator';
 import { SeekerAuthService } from './seeker-auth.service';
 
 @Controller('auth/seeker')
 export class SeekerAuthController {
-  constructor(
-    private readonly seeker: SeekerAuthService,
-    private readonly config: ConfigService,
-  ) {}
+  constructor(private readonly seeker: SeekerAuthService) {}
 
   @Public()
+  @UseGuards(PublicTokenTenantGuard)
   @Post('otp/request')
   requestOtp(
-    @Headers('x-tenant-id') tenantHeader: string | undefined,
-    @Body() body: { phone: string; visitorId?: string },
+    @Req() request: { tenantId: string },
+    @Body() body: { phone: string; visitorId?: string; entryToken?: string },
   ) {
-    const tenantId = resolveTenantId(this.config, undefined, tenantHeader);
-    return this.seeker.requestOtp(tenantId, body.phone, body.visitorId);
+    return this.seeker.requestOtp(request.tenantId, body.phone, body.visitorId, body.entryToken);
   }
 
   @Public()
+  @UseGuards(PublicTokenTenantGuard)
   @Post('otp/verify')
   verifyOtp(
-    @Headers('x-tenant-id') tenantHeader: string | undefined,
+    @Req() request: { tenantId: string },
     @Body()
     body: {
       challengeId: string;
@@ -34,7 +31,6 @@ export class SeekerAuthController {
       fullName?: string;
     },
   ) {
-    const tenantId = resolveTenantId(this.config, undefined, tenantHeader);
-    return this.seeker.verifyOtp(tenantId, body);
+    return this.seeker.verifyOtp(request.tenantId, body);
   }
 }

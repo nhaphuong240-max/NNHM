@@ -2,7 +2,15 @@ import { Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcryptjs';
-import { createHash, randomInt, randomUUID } from 'crypto';
+import { createHash, randomBytes, randomInt, randomUUID } from 'crypto';
+import { DataSource } from 'typeorm';
+import { InjectDataSource } from '@nestjs/typeorm';
+import {
+  configuredCatalogToken,
+  mintPublicTenantToken,
+  secretFromPublicToken,
+  tenantIdFromPublicToken,
+} from '../../common/public-tenant-token';
 import { Repository } from 'typeorm';
 import { BusinessErrorCode, throwBusinessError } from '../../common/business-error';
 import { SavedSearchEntity } from '../../database/entities/saved-search.entity';
@@ -34,9 +42,19 @@ export class SeekerAuthService {
     private readonly jwt: JwtService,
     private readonly rails: RailResolverService,
     private readonly sms: SmsService,
+    @InjectDataSource() private readonly dataSource: DataSource,
   ) {}
 
-  async requestOtp(tenantId: string, phone: string, visitorId?: string) {
+  async requestOtp(tenantId: string, phone: string, visitorId?: string, entryToken?: string) {
+    const tokenTenant = tenantIdFromPublicToken(entryToken);
+    if (!tokenTenant || tokenTenant !== tenantId) {
+      throwBusinessError(BusinessErrorCode.VALIDATION_FAILED, 'entry token does not carry this tenant');
+    }
+    const catalog = configuredCatalogToken();
+    const known = entryToken === catalog || (await this.tokenExists(tenantId, entryToken!));
+    if (!known) {
+      throwBusinessError(BusinessErrorCode.NOT_FOUND, 'entry token is not a catalog, share, gallery, or RSVP token');
+    }
     const phoneNormalized = normalizePhone(phone);
     if (phoneNormalized.length < 9) {
       throwBusinessError(BusinessErrorCode.PHONE_INVALID, 'phone is invalid');
@@ -57,7 +75,9 @@ export class SeekerAuthService {
     }
     const codeHash = await bcrypt.hash(code, 10);
 
-    const id = `soc_${randomUUID().replace(/-/g, '').slice(0, 8)}`;
+    const secret = randomBytes(8).toString('hex');
+    const id = secret;
+    const challengeToken = mintPublicTenantToken(tenantId, secret);
     await this.challenges.save({
       id,
       tenantId,
@@ -70,7 +90,7 @@ export class SeekerAuthService {
 
     return {
       data: {
-        challengeId: id,
+        challengeId: challengeToken,
         expiresIn: OTP_TTL_MS / 1000,
         phoneMasked: `${phoneNormalized.slice(0, 4)}****`,
         visitorId: visitorId ?? null,
@@ -90,8 +110,13 @@ export class SeekerAuthService {
       fullName?: string;
     },
   ) {
+    const challengeId = secretFromPublicToken(input.challengeId) ?? input.challengeId;
+    const tokenTenant = tenantIdFromPublicToken(input.challengeId);
+    if (tokenTenant && tokenTenant !== tenantId) {
+      throwBusinessError(BusinessErrorCode.VALIDATION_FAILED, 'challenge token tenant does not match');
+    }
     const challenge = await this.challenges.findOne({
-      where: { id: input.challengeId, tenantId },
+      where: { id: challengeId, tenantId },
     });
     if (!challenge || challenge.expiresAt < new Date() || challenge.verifiedAt) {
       throwBusinessError(BusinessErrorCode.SEEKER_OTP_INVALID, 'OTP expired or invalid');
@@ -153,6 +178,19 @@ export class SeekerAuthService {
       },
       meta: { mergedVisitor: Boolean(input.visitorId) },
     };
+  }
+
+  private async tokenExists(tenantId: string, token: string): Promise<boolean> {
+    const rows: Array<{ found: number }> = await this.dataSource.query(
+      `SELECT 1 AS found FROM dsr_share_links WHERE tenant_id = $1 AND token = $2
+       UNION ALL
+       SELECT 1 FROM walk_in_galleries WHERE tenant_id = $1 AND token = $2
+       UNION ALL
+       SELECT 1 FROM open_day_rsvps WHERE tenant_id = $1 AND qr_token = $2
+       LIMIT 1`,
+      [tenantId, token],
+    );
+    return rows.length > 0;
   }
 
   private async mergeVisitorSearches(tenantId: string, visitorId: string, userId: string) {

@@ -1,4 +1,5 @@
-import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
+import { PublicTokenTenantGuard } from '../../common/public-token-tenant.guard';
 import { ConfigService } from '@nestjs/config';
 import { resolveTenantId } from '../../common/resolve-tenant-id';
 import { Public } from '../identity/decorators/public.decorator';
@@ -64,11 +65,12 @@ export class DsrController {
   }
 
   @Public()
+  @UseGuards(PublicTokenTenantGuard)
   @Get('share/:token')
   openShare(
-    @CurrentUser() user: AuthUser | undefined,
+    @Req() request: { tenantId: string },
     @Param('token') token: string,
   ) {
-    return this.dsr.openShareLink(resolveTenantId(this.config, user), token);
+    return this.dsr.openShareLink(request.tenantId, token);
   }
 }

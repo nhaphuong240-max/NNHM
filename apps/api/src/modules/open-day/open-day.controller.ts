@@ -1,4 +1,5 @@
-import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
+import { Body, Controller, ForbiddenException, Get, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
+import { PublicTokenTenantGuard } from '../../common/public-token-tenant.guard';
 import { ConfigService } from '@nestjs/config';
 import { resolveTenantId } from '../../common/resolve-tenant-id';
 import { Public } from '../identity/decorators/public.decorator';
@@ -32,8 +33,16 @@ export class OpenDayController {
     return this.openDay.rsvp(resolveTenantId(this.config, user), eventId, body);
   }
 
+  @UseGuards(PublicTokenTenantGuard)
   @Post('check-in')
-  checkIn(@CurrentUser() user: AuthUser, @Body() body: { qrToken: string }) {
-    return this.openDay.checkIn(resolveTenantId(this.config, user), body.qrToken, user.userId);
+  checkIn(
+    @CurrentUser() user: AuthUser,
+    @Req() request: { tenantId: string },
+    @Body() body: { qrToken: string },
+  ) {
+    if (user.tenantId !== request.tenantId) {
+      throw new ForbiddenException({ detail: 'token tenant does not match the signed-in tenant' });
+    }
+    return this.openDay.checkIn(request.tenantId, body.qrToken, user.userId);
   }
 }

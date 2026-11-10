@@ -58,11 +58,85 @@ export const TENANT_ID_TABLES = [
 
 export type TenantIdTable = (typeof TENANT_ID_TABLES)[number];
 
+/**
+ * Tables created after 1738339201000. The older migration must keep enabling
+ * only TENANT_ID_TABLES, because these relations do not exist at that timestamp.
+ */
+export const REMAINING_TENANT_ID_TABLES = [
+  'ai_lead_copilot_drafts',
+  'analytics_events',
+  'attribution_touchpoints',
+  'cms_homepage_config',
+  'cms_pages',
+  'crm_notify_deliveries',
+  'crm_routing_rules',
+  'crm_routing_suggestions',
+  'crm_viewings',
+  'deal_disputes',
+  'dsr_polygons',
+  'dsr_share_links',
+  'geo_areas',
+  'lead_registrations',
+  'open_day_events',
+  'open_day_rsvps',
+  'saved_searches',
+  'seeker_otp_challenges',
+  'sla_breach_logs',
+  'tenant_demand_policies',
+  'walk_in_checkins',
+  'walk_in_galleries',
+] as const;
+
+/** Tables introduced by the spec-target migration. Compared for RLS with the two lists above. */
+export const SPEC_TENANT_TABLES = [
+  'org_memberships',
+  'scoped_grants',
+  'access_review_items',
+  'evidence_records',
+  'export_jobs',
+  'distribution_agreements',
+  'unit_allocations',
+  'price_book_versions',
+  'quotes',
+  'customers',
+  'dedup_reviews',
+  'deposit_agreements',
+  'contract_artifacts',
+  'handover_checklists',
+  'exception_items',
+] as const;
+
 const TENANT_ISOLATION_EXPR =
   "tenant_id = current_setting('app.current_tenant_id', true)";
 
 const PLATFORM_ADMIN_EXPR =
   "current_setting('app.is_platform_admin', true) = 'true'";
+
+export function tenantIsolationUsingTenantColumn(): string {
+  return `((${TENANT_ISOLATION_EXPR}) OR (${PLATFORM_ADMIN_EXPR}))`;
+}
+
+export function buildRemainingRlsStatements(tables: readonly string[]): string[] {
+  const statements: string[] = [];
+  for (const table of tables) {
+    statements.push(`ALTER TABLE "${table}" ENABLE ROW LEVEL SECURITY`);
+    statements.push(`ALTER TABLE "${table}" FORCE ROW LEVEL SECURITY`);
+    statements.push(
+      `CREATE POLICY tenant_isolation ON "${table}" USING (${tenantIsolationUsingTenantColumn()})`,
+    );
+  }
+  return statements;
+}
+
+export function buildRemainingRlsRollback(tables: readonly string[]): string[] {
+  const statements: string[] = [];
+  for (const table of tables) {
+    statements.push(`DROP POLICY tenant_isolation ON "${table}"`);
+    statements.push(`ALTER TABLE "${table}" NO FORCE ROW LEVEL SECURITY`);
+    statements.push(`ALTER TABLE "${table}" DISABLE ROW LEVEL SECURITY`);
+  }
+  return statements;
+}
 
 export function tenantIsolationPolicy(table: string, usingExpr: string): string {
   return `CREATE POLICY tenant_isolation ON ${table} USING ((${usingExpr}) OR (${PLATFORM_ADMIN_EXPR}))`;

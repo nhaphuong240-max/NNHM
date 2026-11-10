@@ -1,4 +1,5 @@
-import { Body, Controller, Get, Param, Post } from '@nestjs/common';
+import { Body, Controller, ForbiddenException, Get, Param, Post, Req, UseGuards } from '@nestjs/common';
+import { PublicTokenTenantGuard } from '../../common/public-token-tenant.guard';
 import { ConfigService } from '@nestjs/config';
 import { resolveTenantId } from '../../common/resolve-tenant-id';
 import { Public } from '../identity/decorators/public.decorator';
@@ -29,18 +30,20 @@ export class WalkInController {
   }
 
   @Public()
+  @UseGuards(PublicTokenTenantGuard)
   @Get('galleries/:token')
   gallery(
-    @CurrentUser() user: AuthUser | undefined,
+    @Req() request: { tenantId: string },
     @Param('token') token: string,
   ) {
-    return this.walkIn.getGalleryByToken(resolveTenantId(this.config, user), token);
+    return this.walkIn.getGalleryByToken(request.tenantId, token);
   }
 
   @Public()
+  @UseGuards(PublicTokenTenantGuard)
   @Post('galleries/:token/check-in')
   checkIn(
-    @CurrentUser() user: AuthUser | undefined,
+    @Req() request: { tenantId: string },
     @Param('token') token: string,
     @Body()
     body: {
@@ -49,12 +52,14 @@ export class WalkInController {
       consent?: { privacyAccepted?: boolean; privacyPolicyVersion?: string };
     },
   ) {
-    return this.walkIn.checkIn(resolveTenantId(this.config, user), token, body);
+    return this.walkIn.checkIn(request.tenantId, token, body);
   }
 
+  @UseGuards(PublicTokenTenantGuard)
   @Post('galleries/:token/agent-check-in')
   agentCheckIn(
     @CurrentUser() user: AuthUser,
+    @Req() request: { tenantId: string },
     @Param('token') token: string,
     @Body()
     body: {
@@ -63,7 +68,10 @@ export class WalkInController {
       consent?: { privacyAccepted?: boolean; privacyPolicyVersion?: string };
     },
   ) {
-    return this.walkIn.checkIn(resolveTenantId(this.config, user), token, body, user.userId);
+    if (user.tenantId !== request.tenantId) {
+      throw new ForbiddenException({ detail: 'token tenant does not match the signed-in tenant' });
+    }
+    return this.walkIn.checkIn(request.tenantId, token, body, user.userId);
   }
 
 }

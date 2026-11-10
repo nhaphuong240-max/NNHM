@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { createHash, randomUUID } from 'crypto';
+import { randomBytes, randomUUID } from 'crypto';
+import { mintPublicTenantToken } from '../../common/public-tenant-token';
 import { Repository } from 'typeorm';
 import { BusinessErrorCode, throwBusinessError } from '../../common/business-error';
 import { DsrPolygonEntity } from '../../database/entities/dsr-polygon.entity';
@@ -156,10 +157,7 @@ export class DsrService {
       ttlHours?: number;
     },
   ) {
-    const token = createHash('sha256')
-      .update(`${tenantId}:${input.unitId ?? input.projectId}:${Date.now()}:${randomUUID()}`)
-      .digest('hex')
-      .slice(0, 32);
+    const token = mintPublicTenantToken(tenantId, randomBytes(8).toString('hex'));
     const expiresAt = new Date(Date.now() + (input.ttlHours ?? 72) * 3600_000);
     const row = await this.shares.save({
       id: `sh_${randomUUID().replace(/-/g, '').slice(0, 8)}`,

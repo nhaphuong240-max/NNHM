@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { createHmac, randomUUID } from 'crypto';
+import { mintPublicTenantToken } from '../../common/public-tenant-token';
 import { Repository } from 'typeorm';
 import { BusinessErrorCode, throwBusinessError } from '../../common/business-error';
 import { LeadRegistrationEntity } from '../../database/entities/lead-registration.entity';
@@ -52,10 +53,10 @@ export class OpenDayService {
     if (count >= event.capacity) {
       throwBusinessError(BusinessErrorCode.VALIDATION_FAILED, 'Open day is full');
     }
-    const qrToken = createHmac('sha256', event.qrSecret)
-      .update(`${input.phone}:${eventId}`)
-      .digest('hex')
-      .slice(0, 24);
+    const qrToken = mintPublicTenantToken(
+      tenantId,
+      createHmac('sha256', event.qrSecret).update(`${input.phone}:${eventId}`).digest('hex').slice(0, 16),
+    );
     const row = await this.rsvps.save({
       id: `rsvp_${randomUUID().replace(/-/g, '').slice(0, 8)}`,
       tenantId,
