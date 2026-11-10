@@ -43,7 +43,7 @@ export class SpecTargetFoundation1758140000000 implements MigrationInterface {
   "id" varchar(32) NOT NULL,
   "tenant_id" varchar(32) NOT NULL,
   "grantee_org_id" varchar(128) NOT NULL,
-  "project_id" varchar(128) NOT NULL,
+  "project_id" varchar(32) NOT NULL,
   "action" varchar(64) NOT NULL,
   "resource" varchar(64) NOT NULL,
   "expires_at" timestamptz,
@@ -54,7 +54,7 @@ export class SpecTargetFoundation1758140000000 implements MigrationInterface {
 )
     `);
     await queryRunner.query(`
-      CREATE UNIQUE INDEX "uq_scoped_grants_tenant_id_grantee_org_id_project_id_acti" ON "scoped_grants" ("tenant_id", "grantee_org_id", "project_id", "action", "resource")
+      CREATE UNIQUE INDEX "uq_scoped_grants_active" ON "scoped_grants" ("tenant_id", "grantee_org_id", "project_id", "action", "resource") WHERE status = 'ACTIVE'
     `);
     await queryRunner.query(`
       ALTER TABLE "scoped_grants" ENABLE ROW LEVEL SECURITY
@@ -79,7 +79,7 @@ export class SpecTargetFoundation1758140000000 implements MigrationInterface {
 )
     `);
     await queryRunner.query(`
-      CREATE UNIQUE INDEX "uq_access_review_items_tenant_id_user_id_role_code" ON "access_review_items" ("tenant_id", "user_id", "role_code")
+      CREATE UNIQUE INDEX "uq_access_review_items_active" ON "access_review_items" ("tenant_id", "user_id", "role_code") WHERE status = 'ACTIVE'
     `);
     await queryRunner.query(`
       ALTER TABLE "access_review_items" ENABLE ROW LEVEL SECURITY
@@ -131,9 +131,6 @@ export class SpecTargetFoundation1758140000000 implements MigrationInterface {
 )
     `);
     await queryRunner.query(`
-      CREATE UNIQUE INDEX "uq_export_jobs_tenant_id_purpose_approved_by" ON "export_jobs" ("tenant_id", "purpose", "approved_by")
-    `);
-    await queryRunner.query(`
       ALTER TABLE "export_jobs" ENABLE ROW LEVEL SECURITY
     `);
     await queryRunner.query(`
@@ -146,9 +143,9 @@ export class SpecTargetFoundation1758140000000 implements MigrationInterface {
       CREATE TABLE "distribution_agreements" (
   "id" varchar(32) NOT NULL,
   "tenant_id" varchar(32) NOT NULL,
-  "project_id" varchar(128) NOT NULL,
+  "project_id" varchar(32) NOT NULL,
   "partner_org_id" varchar(128) NOT NULL,
-  "stock_owner_tenant_id" varchar(128) NOT NULL,
+  "stock_owner_tenant_id" varchar(32) NOT NULL,
   "status" varchar(32) NOT NULL,
   "payload" jsonb NOT NULL DEFAULT '{}',
   "created_at" timestamptz NOT NULL DEFAULT now(),
@@ -171,8 +168,8 @@ export class SpecTargetFoundation1758140000000 implements MigrationInterface {
       CREATE TABLE "unit_allocations" (
   "id" varchar(32) NOT NULL,
   "tenant_id" varchar(32) NOT NULL,
-  "agreement_id" varchar(128) NOT NULL,
-  "unit_id" varchar(128) NOT NULL,
+  "agreement_id" varchar(32) NOT NULL,
+  "unit_id" varchar(32) NOT NULL,
   "expires_at" timestamptz NOT NULL,
   "status" varchar(32) NOT NULL,
   "payload" jsonb NOT NULL DEFAULT '{}',
@@ -196,7 +193,7 @@ export class SpecTargetFoundation1758140000000 implements MigrationInterface {
       CREATE TABLE "price_book_versions" (
   "id" varchar(32) NOT NULL,
   "tenant_id" varchar(32) NOT NULL,
-  "project_id" varchar(128) NOT NULL,
+  "project_id" varchar(32) NOT NULL,
   "version_no" integer NOT NULL,
   "effective_from" timestamptz,
   "effective_to" timestamptz,
@@ -222,8 +219,8 @@ export class SpecTargetFoundation1758140000000 implements MigrationInterface {
       CREATE TABLE "quotes" (
   "id" varchar(32) NOT NULL,
   "tenant_id" varchar(32) NOT NULL,
-  "price_book_id" varchar(128) NOT NULL,
-  "unit_id" varchar(128) NOT NULL,
+  "price_book_id" varchar(32) NOT NULL,
+  "unit_id" varchar(32) NOT NULL,
   "quote_hash" varchar(128) NOT NULL,
   "expires_at" timestamptz NOT NULL,
   "status" varchar(32) NOT NULL,
@@ -272,8 +269,8 @@ export class SpecTargetFoundation1758140000000 implements MigrationInterface {
       CREATE TABLE "dedup_reviews" (
   "id" varchar(32) NOT NULL,
   "tenant_id" varchar(32) NOT NULL,
-  "customer_id" varchar(128) NOT NULL,
-  "lead_id" varchar(128) NOT NULL,
+  "customer_id" varchar(32) NOT NULL,
+  "lead_id" varchar(32) NOT NULL,
   "status" varchar(32) NOT NULL,
   "payload" jsonb NOT NULL DEFAULT '{}',
   "created_at" timestamptz NOT NULL DEFAULT now(),
@@ -296,7 +293,7 @@ export class SpecTargetFoundation1758140000000 implements MigrationInterface {
       CREATE TABLE "deposit_agreements" (
   "id" varchar(32) NOT NULL,
   "tenant_id" varchar(32) NOT NULL,
-  "booking_id" varchar(128) NOT NULL,
+  "booking_id" varchar(32) NOT NULL,
   "amount" bigint NOT NULL,
   "status" varchar(32) NOT NULL,
   "payload" jsonb NOT NULL DEFAULT '{}',
@@ -305,7 +302,7 @@ export class SpecTargetFoundation1758140000000 implements MigrationInterface {
 )
     `);
     await queryRunner.query(`
-      CREATE UNIQUE INDEX "uq_deposit_agreements_tenant_id_booking_id_amount" ON "deposit_agreements" ("tenant_id", "booking_id", "amount")
+      CREATE UNIQUE INDEX "uq_deposit_agreements_tenant_id_booking_id" ON "deposit_agreements" ("tenant_id", "booking_id")
     `);
     await queryRunner.query(`
       ALTER TABLE "deposit_agreements" ENABLE ROW LEVEL SECURITY
@@ -320,7 +317,7 @@ export class SpecTargetFoundation1758140000000 implements MigrationInterface {
       CREATE TABLE "contract_artifacts" (
   "id" varchar(32) NOT NULL,
   "tenant_id" varchar(32) NOT NULL,
-  "booking_id" varchar(128) NOT NULL,
+  "booking_id" varchar(32) NOT NULL,
   "template_version" varchar(64) NOT NULL,
   "status" varchar(32) NOT NULL,
   "payload" jsonb NOT NULL DEFAULT '{}',
@@ -344,7 +341,7 @@ export class SpecTargetFoundation1758140000000 implements MigrationInterface {
       CREATE TABLE "handover_checklists" (
   "id" varchar(32) NOT NULL,
   "tenant_id" varchar(32) NOT NULL,
-  "booking_id" varchar(128) NOT NULL,
+  "booking_id" varchar(32) NOT NULL,
   "status" varchar(32) NOT NULL,
   "payload" jsonb NOT NULL DEFAULT '{}',
   "created_at" timestamptz NOT NULL DEFAULT now(),
@@ -377,9 +374,6 @@ export class SpecTargetFoundation1758140000000 implements MigrationInterface {
 )
     `);
     await queryRunner.query(`
-      CREATE UNIQUE INDEX "uq_exception_items_tenant_id_owner_id_severity" ON "exception_items" ("tenant_id", "owner_id", "severity")
-    `);
-    await queryRunner.query(`
       ALTER TABLE "exception_items" ENABLE ROW LEVEL SECURITY
     `);
     await queryRunner.query(`
@@ -388,6 +382,19 @@ export class SpecTargetFoundation1758140000000 implements MigrationInterface {
     await queryRunner.query(`
       CREATE POLICY tenant_isolation ON "exception_items" USING ((tenant_id = current_setting('app.current_tenant_id', true)) OR (current_setting('app.is_platform_admin', true) = 'true'))
     `);
+    await queryRunner.query(`ALTER TABLE "scoped_grants" ADD CONSTRAINT "fk_scoped_grants_project_id" FOREIGN KEY ("project_id") REFERENCES "projects" ("id") ON DELETE RESTRICT`);
+    await queryRunner.query(`ALTER TABLE "distribution_agreements" ADD CONSTRAINT "fk_distribution_agreements_project_id" FOREIGN KEY ("project_id") REFERENCES "projects" ("id") ON DELETE RESTRICT`);
+    await queryRunner.query(`ALTER TABLE "distribution_agreements" ADD CONSTRAINT "fk_distribution_agreements_stock_owner" FOREIGN KEY ("stock_owner_tenant_id") REFERENCES "tenants" ("id") ON DELETE RESTRICT`);
+    await queryRunner.query(`ALTER TABLE "unit_allocations" ADD CONSTRAINT "fk_unit_allocations_agreement_id" FOREIGN KEY ("agreement_id") REFERENCES "distribution_agreements" ("id") ON DELETE RESTRICT`);
+    await queryRunner.query(`ALTER TABLE "unit_allocations" ADD CONSTRAINT "fk_unit_allocations_unit_id" FOREIGN KEY ("unit_id") REFERENCES "units" ("id") ON DELETE RESTRICT`);
+    await queryRunner.query(`ALTER TABLE "price_book_versions" ADD CONSTRAINT "fk_price_book_versions_project_id" FOREIGN KEY ("project_id") REFERENCES "projects" ("id") ON DELETE RESTRICT`);
+    await queryRunner.query(`ALTER TABLE "quotes" ADD CONSTRAINT "fk_quotes_price_book_id" FOREIGN KEY ("price_book_id") REFERENCES "price_book_versions" ("id") ON DELETE RESTRICT`);
+    await queryRunner.query(`ALTER TABLE "quotes" ADD CONSTRAINT "fk_quotes_unit_id" FOREIGN KEY ("unit_id") REFERENCES "units" ("id") ON DELETE RESTRICT`);
+    await queryRunner.query(`ALTER TABLE "dedup_reviews" ADD CONSTRAINT "fk_dedup_reviews_customer_id" FOREIGN KEY ("customer_id") REFERENCES "customers" ("id") ON DELETE RESTRICT`);
+    await queryRunner.query(`ALTER TABLE "dedup_reviews" ADD CONSTRAINT "fk_dedup_reviews_lead_id" FOREIGN KEY ("lead_id") REFERENCES "leads" ("id") ON DELETE RESTRICT`);
+    await queryRunner.query(`ALTER TABLE "deposit_agreements" ADD CONSTRAINT "fk_deposit_agreements_booking_id" FOREIGN KEY ("booking_id") REFERENCES "bookings" ("id") ON DELETE RESTRICT`);
+    await queryRunner.query(`ALTER TABLE "contract_artifacts" ADD CONSTRAINT "fk_contract_artifacts_booking_id" FOREIGN KEY ("booking_id") REFERENCES "bookings" ("id") ON DELETE RESTRICT`);
+    await queryRunner.query(`ALTER TABLE "handover_checklists" ADD CONSTRAINT "fk_handover_checklists_booking_id" FOREIGN KEY ("booking_id") REFERENCES "bookings" ("id") ON DELETE RESTRICT`);
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {

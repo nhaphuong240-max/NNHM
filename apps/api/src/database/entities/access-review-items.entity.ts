@@ -1,7 +1,10 @@
 import { Column, CreateDateColumn, Entity, Index, PrimaryColumn } from 'typeorm';
 
 @Entity({ name: 'access_review_items' })
-@Index(['tenantId', 'userId', 'roleCode'], { unique: true })
+@Index(['tenantId', 'userId', 'roleCode'], {
+  unique: true,
+  where: "((status)::text = 'ACTIVE'::text)",
+})
 export class AccessReviewItemEntity {
   @PrimaryColumn({ type: 'varchar', length: 32 })
   id!: string;

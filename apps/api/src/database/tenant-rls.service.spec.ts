@@ -1,6 +1,6 @@
 import { Test } from '@nestjs/testing';
 import { DataSource } from 'typeorm';
-import { TenantRlsService } from './tenant-rls.service';
+import { currentRlsContext, TenantRlsService } from './tenant-rls.service';
 
 describe('TenantRlsService', () => {
   let service: TenantRlsService;
@@ -25,20 +25,19 @@ describe('TenantRlsService', () => {
     service.onModuleInit();
   });
 
-  it('binds tenant session variables', async () => {
-    await service.bindRequestContext('ten_dev_01', false);
-    expect(query).toHaveBeenCalledWith(
-      expect.stringContaining('app.current_tenant_id'),
-      ['ten_dev_01', 'false'],
-    );
+  it('does not bind the tenant on a random pooled query', async () => {
+    await service.runAsTenant('ten_dev_01', async () => {
+      expect(currentRlsContext()).toEqual({ tenantId: 'ten_dev_01', isPlatformAdmin: false });
+    });
+    expect(query).not.toHaveBeenCalled();
   });
 
-  it('runs callback as platform admin', async () => {
-    const result = await service.runAsPlatformAdmin(async () => 'ok');
+  it('runs callback as platform admin on the same async context', async () => {
+    const result = await service.runAsPlatformAdmin(async () => {
+      expect(currentRlsContext()).toEqual({ tenantId: '', isPlatformAdmin: true });
+      return 'ok';
+    });
     expect(result).toBe('ok');
-    expect(query).toHaveBeenCalledWith(
-      expect.stringContaining('app.is_platform_admin'),
-      ['', 'true'],
-    );
+    expect(query).not.toHaveBeenCalled();
   });
 });

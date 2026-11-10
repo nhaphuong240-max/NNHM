@@ -22,7 +22,6 @@ function decodeBase32(input: string): Buffer {
   return Buffer.from(bytes);
 }
 
-/** RFC 6238 TOTP — seed secret JBSWY3DPEHPK3PXP */
 export function generateTotp(secret: string, stepSec = 30, atMs = Date.now()): string {
   const key = decodeBase32(secret);
   const counter = Math.floor(atMs / 1000 / stepSec);
@@ -37,5 +36,3 @@ export function generateTotp(secret: string, stepSec = 30, atMs = Date.now()): s
     (digest[offset + 3] & 0xff);
   return String(code % 1_000_000).padStart(6, '0');
 }
-
-export const SEED_MFA_TOTP_SECRET = 'JBSWY3DPEHPK3PXP';

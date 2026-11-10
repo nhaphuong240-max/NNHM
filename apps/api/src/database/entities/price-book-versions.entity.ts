@@ -1,4 +1,5 @@
-import { Column, CreateDateColumn, Entity, Index, PrimaryColumn } from 'typeorm';
+import { Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, PrimaryColumn } from 'typeorm';
+import { ProjectEntity } from './project.entity';
 
 @Entity({ name: 'price_book_versions' })
 @Index(['tenantId', 'projectId', 'versionNo'], { unique: true })
@@ -9,8 +10,12 @@ export class PriceBookVersionEntity {
   @Column({ name: 'tenant_id', type: 'varchar', length: 32 })
   tenantId!: string;
 
-  @Column({ name: 'project_id', type: 'varchar', length: 128 })
+  @Column({ name: 'project_id', type: 'varchar', length: 32 })
   projectId!: string;
+
+  @ManyToOne(() => ProjectEntity, { onDelete: 'RESTRICT' })
+  @JoinColumn({ name: 'project_id' })
+  project?: ProjectEntity;
 
   @Column({ name: 'version_no', type: 'int' })
   versionNo!: number;

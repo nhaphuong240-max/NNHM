@@ -1,7 +1,11 @@
-import { Column, CreateDateColumn, Entity, Index, PrimaryColumn } from 'typeorm';
+import { Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, PrimaryColumn } from 'typeorm';
+import { ProjectEntity } from './project.entity';
 
 @Entity({ name: 'scoped_grants' })
-@Index(['tenantId', 'granteeOrgId', 'projectId', 'action', 'resource'], { unique: true })
+@Index(['tenantId', 'granteeOrgId', 'projectId', 'action', 'resource'], {
+  unique: true,
+  where: "((status)::text = 'ACTIVE'::text)",
+})
 export class ScopedGrantEntity {
   @PrimaryColumn({ type: 'varchar', length: 32 })
   id!: string;
@@ -12,8 +16,12 @@ export class ScopedGrantEntity {
   @Column({ name: 'grantee_org_id', type: 'varchar', length: 128 })
   granteeOrgId!: string;
 
-  @Column({ name: 'project_id', type: 'varchar', length: 128 })
+  @Column({ name: 'project_id', type: 'varchar', length: 32 })
   projectId!: string;
+
+  @ManyToOne(() => ProjectEntity, { onDelete: 'RESTRICT' })
+  @JoinColumn({ name: 'project_id' })
+  project?: ProjectEntity;
 
   @Column({ name: 'action', type: 'varchar', length: 64 })
   action!: string;

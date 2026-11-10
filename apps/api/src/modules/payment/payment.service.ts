@@ -11,7 +11,7 @@ import { BookingEntity } from '../../database/entities/booking.entity';
 import type { PaymentMethod } from '../../database/entities/payment-intent.entity';
 import { PaymentIntentEntity } from '../../database/entities/payment-intent.entity';
 import { UnitEntity } from '../../database/entities/unit.entity';
-import { serverObligationAmount } from '../spec-target/spec-target.rules';
+import { serverObligationAmount, serverObligationCurrency } from '../spec-target/spec-target.rules';
 import { AuditService } from '../audit/audit.service';
 import { StreamEventsService } from '../stream/stream-events.service';
 import { SmsPaymentNotifyService } from '../sms/sms-payment-notify.service';
@@ -100,7 +100,13 @@ export class PaymentService {
     const ttlMinutes = this.config.get<number>('PAYMENT_INTENT_TTL_MINUTES', DEFAULT_TTL_MINUTES);
     const expiresAt = new Date(Date.now() + ttlMinutes * 60 * 1000);
     const id = `pi_${randomUUID().replace(/-/g, '').slice(0, 8)}`;
-    const currency = input.currency ?? 'VND';
+    const currency = serverObligationCurrency(booking.currency);
+    if (!currency) {
+      throw new UnprocessableEntityException({ detail: 'payment currency is missing on the booking' });
+    }
+    if (input.currency != null && input.currency.trim().toUpperCase() !== currency) {
+      throw new UnprocessableEntityException({ detail: 'client currency is not accepted' });
+    }
 
     let routed = await this.orchestrator.resolveRoute(tenantId, {
       method,

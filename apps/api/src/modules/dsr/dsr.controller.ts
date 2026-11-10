@@ -1,5 +1,16 @@
-import { Body, Controller, Get, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  Query,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
+import { PublicResourceTenantGuard } from '../../common/public-resource-tenant.guard';
 import { PublicTokenTenantGuard } from '../../common/public-token-tenant.guard';
+import { ShareLinkTenantGuard } from '../../common/share-link-tenant.guard';
 import { ConfigService } from '@nestjs/config';
 import { resolveTenantId } from '../../common/resolve-tenant-id';
 import { Public } from '../identity/decorators/public.decorator';
@@ -15,29 +26,26 @@ export class DsrController {
   ) {}
 
   @Public()
+  @UseGuards(PublicResourceTenantGuard)
   @Get('projects/:projectId/masterplan')
   masterplan(
-    @CurrentUser() user: AuthUser | undefined,
+    @Req() request: { tenantId: string },
     @Param('projectId') projectId: string,
   ) {
-    return this.dsr.getMasterplan(resolveTenantId(this.config, user), projectId);
+    return this.dsr.getMasterplan(request.tenantId, projectId);
   }
 
   /** Phase B FR-DSR-001 — tower → floor → unit drill-down */
   @Public()
+  @UseGuards(PublicResourceTenantGuard)
   @Get('projects/:projectId/drill')
   drillDown(
-    @CurrentUser() user: AuthUser | undefined,
+    @Req() request: { tenantId: string },
     @Param('projectId') projectId: string,
     @Query('tower') tower?: string,
     @Query('floor') floor?: string,
   ) {
-    return this.dsr.getDrillDown(
-      resolveTenantId(this.config, user),
-      projectId,
-      tower,
-      floor,
-    );
+    return this.dsr.getDrillDown(request.tenantId, projectId, tower, floor);
   }
 
   @Get('share-links/stats')
@@ -49,9 +57,10 @@ export class DsrController {
   }
 
   @Public()
+  @UseGuards(ShareLinkTenantGuard)
   @Post('share-links')
   createShare(
-    @CurrentUser() user: AuthUser | undefined,
+    @Req() request: { tenantId: string },
     @Body()
     body: {
       unitId?: string;
@@ -59,9 +68,10 @@ export class DsrController {
       leadId?: string;
       visitorId?: string;
       ttlHours?: number;
+      entryToken?: string;
     },
   ) {
-    return this.dsr.createShareLink(resolveTenantId(this.config, user), body);
+    return this.dsr.createShareLink(request.tenantId, body);
   }
 
   @Public()

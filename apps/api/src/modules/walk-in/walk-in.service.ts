@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { randomUUID } from 'crypto';
 import { Repository } from 'typeorm';
+import { presentedTokenCandidates } from '../../common/public-tenant-token';
 import { BusinessErrorCode, throwBusinessError } from '../../common/business-error';
 import { WalkInCheckinEntity } from '../../database/entities/walk-in-checkin.entity';
 import { WalkInGalleryEntity } from '../../database/entities/walk-in-gallery.entity';
@@ -52,7 +53,11 @@ export class WalkInService {
 
   async getGalleryByToken(tenantId: string, token: string) {
     const gallery = await this.galleries.findOne({
-      where: { tenantId, token: token.trim(), status: 'OPEN' },
+      where: presentedTokenCandidates(token, tenantId).map((value) => ({
+        tenantId,
+        token: value,
+        status: 'OPEN' as const,
+      })),
     });
     if (!gallery) {
       throwBusinessError(BusinessErrorCode.NOT_FOUND, 'Walk-in gallery not found');
@@ -75,7 +80,11 @@ export class WalkInService {
     actorId?: string,
   ) {
     const gallery = await this.galleries.findOne({
-      where: { tenantId, token: token.trim(), status: 'OPEN' },
+      where: presentedTokenCandidates(token, tenantId).map((value) => ({
+        tenantId,
+        token: value,
+        status: 'OPEN' as const,
+      })),
     });
     if (!gallery) {
       throwBusinessError(BusinessErrorCode.NOT_FOUND, 'Walk-in gallery not found');

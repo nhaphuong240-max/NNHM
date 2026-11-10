@@ -54,6 +54,7 @@ describe('RefundService', () => {
       lockToken: 'tok_ref01',
       expiresAt: new Date(Date.now() + 86400000),
       depositAmount: '50000000',
+      currency: 'VND',
       notes: null,
       idempotencyKey: null,
       createdAt: new Date(),

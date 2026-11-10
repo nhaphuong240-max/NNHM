@@ -36,6 +36,13 @@ import { QualificationService } from '../crm/qualification.service';
 
 const DEFAULT_EXPIRY_HOURS = 48;
 
+function isActiveHoldConflict(error: unknown): boolean {
+  const driver = error as { code?: string; constraint?: string; driverError?: { code?: string; constraint?: string } };
+  const code = driver.driverError?.code ?? driver.code;
+  const constraint = driver.driverError?.constraint ?? driver.constraint;
+  return code === '23505' && constraint === 'uq_bookings_active_hold';
+}
+
 @Injectable()
 export class BookingService {
   private readonly logger = new Logger(BookingService.name);
@@ -197,6 +204,7 @@ export class BookingService {
         expiresAt,
         depositAmount:
           input.depositAmount !== undefined ? String(input.depositAmount) : null,
+        currency: 'VND',
         notes: input.notes ?? null,
         idempotencyKey: idempotencyKey ?? null,
       });
@@ -267,6 +275,14 @@ export class BookingService {
       return { data: mapBookingEntity(record) };
     } catch (error) {
       await this.inventoryLock.releaseLock(tenantId, input.unitId, lockToken);
+      if (isActiveHoldConflict(error)) {
+        throw new ConflictException({
+          type: 'https://wereal.dev/problems/unit-unavailable',
+          title: 'Unit no longer available',
+          detail: 'An active hold already exists for this unit',
+          unitId: input.unitId,
+        });
+      }
       throw error;
     }
   }

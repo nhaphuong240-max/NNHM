@@ -8,6 +8,7 @@ import { InjectDataSource } from '@nestjs/typeorm';
 import {
   configuredCatalogToken,
   mintPublicTenantToken,
+  presentedTokenCandidates,
   secretFromPublicToken,
   tenantIdFromPublicToken,
 } from '../../common/public-tenant-token';
@@ -47,7 +48,7 @@ export class SeekerAuthService {
 
   async requestOtp(tenantId: string, phone: string, visitorId?: string, entryToken?: string) {
     const tokenTenant = tenantIdFromPublicToken(entryToken);
-    if (!tokenTenant || tokenTenant !== tenantId) {
+    if (tokenTenant && tokenTenant !== tenantId) {
       throwBusinessError(BusinessErrorCode.VALIDATION_FAILED, 'entry token does not carry this tenant');
     }
     const catalog = configuredCatalogToken();
@@ -181,14 +182,15 @@ export class SeekerAuthService {
   }
 
   private async tokenExists(tenantId: string, token: string): Promise<boolean> {
+    const candidates = presentedTokenCandidates(token, tenantId);
     const rows: Array<{ found: number }> = await this.dataSource.query(
-      `SELECT 1 AS found FROM dsr_share_links WHERE tenant_id = $1 AND token = $2
+      `SELECT 1 AS found FROM dsr_share_links WHERE tenant_id = $1 AND token = ANY($2::text[])
        UNION ALL
-       SELECT 1 FROM walk_in_galleries WHERE tenant_id = $1 AND token = $2
+       SELECT 1 FROM walk_in_galleries WHERE tenant_id = $1 AND token = ANY($2::text[])
        UNION ALL
-       SELECT 1 FROM open_day_rsvps WHERE tenant_id = $1 AND qr_token = $2
+       SELECT 1 FROM open_day_rsvps WHERE tenant_id = $1 AND qr_token = ANY($2::text[])
        LIMIT 1`,
-      [tenantId, token],
+      [tenantId, candidates],
     );
     return rows.length > 0;
   }

@@ -8,6 +8,7 @@ import {
 /**
  * RLS for the 22 tenant tables created after 1738339201000.
  * Does not edit that migration. A missing table stops the migration.
+ * down() reverses the token prefix, then DROP POLICY, NO FORCE, and DISABLE ROW LEVEL SECURITY.
  */
 export class EnableRemainingTenantRls1758130000000 implements MigrationInterface {
   name = 'EnableRemainingTenantRls1758130000000';
@@ -47,6 +48,21 @@ export class EnableRemainingTenantRls1758130000000 implements MigrationInterface
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(`
+      UPDATE "dsr_share_links"
+      SET "token" = substr("token", length('v1.' || "tenant_id" || '.') + 1)
+      WHERE "token" LIKE 'v1.' || "tenant_id" || '.%'
+    `);
+    await queryRunner.query(`
+      UPDATE "walk_in_galleries"
+      SET "token" = substr("token", length('v1.' || "tenant_id" || '.') + 1)
+      WHERE "token" LIKE 'v1.' || "tenant_id" || '.%'
+    `);
+    await queryRunner.query(`
+      UPDATE "open_day_rsvps"
+      SET "qr_token" = substr("qr_token", length('v1.' || "tenant_id" || '.') + 1)
+      WHERE "qr_token" LIKE 'v1.' || "tenant_id" || '.%'
+    `);
     for (const statement of buildRemainingRlsRollback(REMAINING_TENANT_ID_TABLES)) {
       await queryRunner.query(statement);
     }

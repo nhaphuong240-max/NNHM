@@ -51,6 +51,7 @@ describe('PaymentService', () => {
       lockToken: 'tok',
       expiresAt: new Date(Date.now() + 86400000),
       depositAmount: '50000000',
+      currency: 'VND',
       notes: null,
       idempotencyKey: null,
       createdAt: new Date(),
@@ -164,6 +165,41 @@ describe('PaymentService', () => {
     expect(checkout.data.booking.id).toBe('bk_test01');
     expect(checkout.data.booking.unitCode).toBe('A-12-05');
     expect(checkout.data.paymentUrl).toContain('mock/complete');
+  });
+
+  it('rejects a missing, zero, or invalid server obligation', async () => {
+    booking.depositAmount = null;
+    await expect(
+      service.createIntent(TENANT, { bookingId: 'bk_test01', method: 'MOCK' }),
+    ).rejects.toThrow(UnprocessableEntityException);
+    booking.depositAmount = '0';
+    await expect(
+      service.createIntent(TENANT, { bookingId: 'bk_test01', method: 'MOCK' }),
+    ).rejects.toThrow(UnprocessableEntityException);
+    booking.depositAmount = 'not-a-number';
+    await expect(
+      service.createIntent(TENANT, { bookingId: 'bk_test01', method: 'MOCK' }),
+    ).rejects.toThrow(UnprocessableEntityException);
+  });
+
+  it('rejects a client amount or currency that differs from the booking', async () => {
+    await expect(
+      service.createIntent(TENANT, { bookingId: 'bk_test01', amount: 1, currency: 'VND', method: 'MOCK' }),
+    ).rejects.toThrow(UnprocessableEntityException);
+    await expect(
+      service.createIntent(TENANT, {
+        bookingId: 'bk_test01',
+        amount: 50_000_000,
+        currency: 'USD',
+        method: 'MOCK',
+      }),
+    ).rejects.toThrow(UnprocessableEntityException);
+  });
+
+  it('uses the server amount and currency when the client omits them', async () => {
+    const result = await service.createIntent(TENANT, { bookingId: 'bk_test01', method: 'MOCK' });
+    expect(result.data.attributes.amount).toBe(50_000_000);
+    expect(result.data.attributes.currency).toBe('VND');
   });
 
   it('rejects payment when booking not RESERVED', async () => {

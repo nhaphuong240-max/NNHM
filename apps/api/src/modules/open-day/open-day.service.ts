@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { createHmac, randomUUID } from 'crypto';
-import { mintPublicTenantToken } from '../../common/public-tenant-token';
+import { mintPublicTenantToken, presentedTokenCandidates } from '../../common/public-tenant-token';
 import { Repository } from 'typeorm';
 import { BusinessErrorCode, throwBusinessError } from '../../common/business-error';
 import { LeadRegistrationEntity } from '../../database/entities/lead-registration.entity';
@@ -78,7 +78,9 @@ export class OpenDayService {
   }
 
   async checkIn(tenantId: string, qrToken: string, actorId: string) {
-    const rsvp = await this.rsvps.findOne({ where: { tenantId, qrToken } });
+    const rsvp = await this.rsvps.findOne({
+      where: presentedTokenCandidates(qrToken, tenantId).map((value) => ({ tenantId, qrToken: value })),
+    });
     if (!rsvp) throwBusinessError(BusinessErrorCode.NOT_FOUND, 'Invalid QR ticket');
     if (rsvp.checkedInAt) {
       return { data: { alreadyCheckedIn: true, checkedInAt: rsvp.checkedInAt.toISOString() } };

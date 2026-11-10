@@ -21,9 +21,21 @@ export function secretFromPublicToken(token: string | undefined | null): string 
   return match?.[2] ?? null;
 }
 
+/** Exact stored values to try for a presented token. A bare secret also matches the prefixed form. */
+export function presentedTokenCandidates(presented: string, tenantId?: string): string[] {
+  const raw = presented.trim();
+  const values = new Set<string>();
+  if (raw) values.add(raw);
+  const secret = secretFromPublicToken(raw);
+  if (secret) values.add(secret);
+  if (tenantId && raw && !raw.startsWith('v1.')) {
+    values.add(`v1.${tenantId}.${raw}`);
+  }
+  return [...values];
+}
+
+/** Catalog token only. No dev fallback: an empty NODE_ENV must not become ten_dev_01. */
 export function configuredCatalogToken(): string | null {
   const fromEnv = process.env.PUBLIC_CATALOG_TOKEN?.trim();
-  if (fromEnv) return fromEnv;
-  if (process.env.NODE_ENV === 'production') return null;
-  return 'v1.ten_dev_01.catalogpublic';
+  return fromEnv || null;
 }

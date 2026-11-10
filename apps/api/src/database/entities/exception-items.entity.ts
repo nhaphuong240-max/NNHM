@@ -1,7 +1,6 @@
-import { Column, CreateDateColumn, Entity, Index, PrimaryColumn } from 'typeorm';
+import { Column, CreateDateColumn, Entity, PrimaryColumn } from 'typeorm';
 
 @Entity({ name: 'exception_items' })
-@Index(['tenantId', 'ownerId', 'severity'], { unique: true })
 export class ExceptionItemEntity {
   @PrimaryColumn({ type: 'varchar', length: 32 })
   id!: string;

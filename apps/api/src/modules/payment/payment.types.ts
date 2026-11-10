@@ -2,7 +2,8 @@ import type { PaymentIntentEntity } from '../../database/entities/payment-intent
 
 export interface CreatePaymentIntentInput {
   bookingId: string;
-  amount: number;
+  /** Ignored when it matches the server obligation. A different value is rejected. */
+  amount?: number;
   currency?: string;
   method?: 'VNPAY' | 'MOCK';
   returnUrl?: string;

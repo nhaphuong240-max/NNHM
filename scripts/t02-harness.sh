@@ -104,6 +104,13 @@ echo "=== schema compare ==="
 )
 echo "PASS schema compare"
 
+echo "=== nosuperuser RLS and concurrent hold ==="
+(
+  cd "$ROOT"
+  node "$ROOT/scripts/t02-rls-hold-proof.js"
+)
+echo "PASS nosuperuser RLS and concurrent hold"
+
 if [ -n "${T02_HARNESS_SESSION:-}" ] && [ -f "${T02_HARNESS_SESSION}" ]; then
   echo "REFUSE dispose: session file is recorded and is not used as a delete"
 else

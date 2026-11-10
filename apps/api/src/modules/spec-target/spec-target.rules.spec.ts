@@ -1,7 +1,6 @@
 import {
   allocationAllowsPlacement,
   claimHold,
-  claimOneOfMany,
   copilotAnswer,
   copilotMayWrite,
   decideAccess,
@@ -72,14 +71,7 @@ describe('spec target rules', () => {
     expect(items[0].needsHumanApproval).toBe(true);
   });
 
-  it('G02 lets one of fifty claims take the hold', async () => {
-    let taken = false;
-    const wins = await claimOneOfMany(50, async () => {
-      if (taken) return false;
-      taken = true;
-      return true;
-    });
-    expect(wins).toBe(1);
+  it('rejects a second active hold in memory as a helper only', () => {
     expect(claimHold([{ unitId: 'un_1', status: 'RESERVED' }], 'un_1').ok).toBe(false);
   });
 
@@ -90,6 +82,9 @@ describe('spec target rules', () => {
     expect(refundWithinNet(100, 40, 61)).toBe(false);
     expect(settlementLabel('SIMULATED')).toBe('SIMULATED');
     expect(settlementLabel('SKIPPED')).not.toBe('PAID');
+    expect(settlementLabel('SANDBOX')).not.toBe('PAID');
+    expect(settlementLabel('PAID')).toBe('NOT_PAID');
+    expect(settlementLabel('PAID', 'synthetic-bank-ref')).toBe('PAID');
   });
 
   it('G09 masks a phone and refuses an unapproved export', () => {

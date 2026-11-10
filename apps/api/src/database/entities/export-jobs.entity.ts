@@ -1,7 +1,6 @@
-import { Column, CreateDateColumn, Entity, Index, PrimaryColumn } from 'typeorm';
+import { Column, CreateDateColumn, Entity, PrimaryColumn } from 'typeorm';
 
 @Entity({ name: 'export_jobs' })
-@Index(['tenantId', 'purpose', 'approvedBy'], { unique: true })
 export class ExportJobEntity {
   @PrimaryColumn({ type: 'varchar', length: 32 })
   id!: string;

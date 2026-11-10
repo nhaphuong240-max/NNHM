@@ -155,14 +155,6 @@ export function claimHold(existing: Array<{ unitId: string; status: string }>, u
   return { ok: true, reason: 'claimed' };
 }
 
-export async function claimOneOfMany(
-  attempts: number,
-  claim: () => Promise<boolean>,
-): Promise<number> {
-  const results = await Promise.all(Array.from({ length: attempts }, () => claim()));
-  return results.filter(Boolean).length;
-}
-
 export function serverObligationAmount(depositAmount: string | null): number | null {
   if (depositAmount == null) return null;
   const amount = Number(depositAmount);
@@ -170,13 +162,22 @@ export function serverObligationAmount(depositAmount: string | null): number | n
   return amount;
 }
 
+export function serverObligationCurrency(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const code = value.trim().toUpperCase();
+  if (!/^[A-Z]{3}$/.test(code)) return null;
+  return code;
+}
+
 export function refundWithinNet(collected: number, alreadyRefunded: number, next: number): boolean {
   return next > 0 && alreadyRefunded + next <= collected;
 }
 
-export function settlementLabel(kind: 'SANDBOX' | 'SIMULATED' | 'SKIPPED' | 'PAID'): string {
-  if (kind === 'PAID') return 'PAID';
-  return kind;
+/** Sandbox labels never become PAID. PAID requires bank evidence, which this helper does not invent. */
+export function settlementLabel(kind: string, bankEvidence?: string | null): string {
+  if (kind === 'SANDBOX' || kind === 'SIMULATED' || kind === 'SKIPPED') return kind;
+  if (kind === 'PAID' && bankEvidence?.trim()) return 'PAID';
+  return 'NOT_PAID';
 }
 
 export function copilotMayWrite(field: string): boolean {

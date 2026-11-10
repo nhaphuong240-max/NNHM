@@ -1,17 +1,21 @@
+import { AsyncLocalStorage } from 'async_hooks';
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import { PostgresDriver } from 'typeorm/driver/postgres/PostgresDriver';
 
-const RESET_SQL = `
-  SELECT set_config('app.current_tenant_id', '', false),
-         set_config('app.is_platform_admin', 'false', false)
-`;
-
 const BIND_SQL = `
   SELECT set_config('app.current_tenant_id', $1, false),
          set_config('app.is_platform_admin', $2, false)
 `;
+
+export type RlsRequestContext = { tenantId: string; isPlatformAdmin: boolean };
+
+export const rlsStorage = new AsyncLocalStorage<RlsRequestContext>();
+
+export function currentRlsContext(): RlsRequestContext | null {
+  return rlsStorage.getStore() ?? null;
+}
 
 @Injectable()
 export class TenantRlsService implements OnModuleInit {
@@ -20,53 +24,79 @@ export class TenantRlsService implements OnModuleInit {
   constructor(@InjectDataSource() private readonly dataSource: DataSource) {}
 
   onModuleInit() {
-    this.registerPoolResetHook();
+    this.bindPoolConnections();
   }
 
-  /** Reset session vars when a pooled connection is checked out (ADR-002). */
-  private registerPoolResetHook() {
+  /**
+   * Every query on a checked-out connection sets the request GUC on that same client.
+   * A separate dataSource.query would bind a random pool connection and then release it.
+   */
+  private bindPoolConnections() {
     const driver = this.dataSource.driver;
     if (!(driver instanceof PostgresDriver)) return;
-
-    const pool = driver.master as { on?: (event: string, cb: (client: PgPoolClient) => void) => void };
-    if (!pool?.on) return;
-
-    pool.on('acquire', (client) => {
-      void client.query(RESET_SQL).catch((err: Error) => {
-        this.logger.warn(`RLS pool reset failed: ${err.message}`);
+    const pool = driver.master as PgPool & { __rlsPatched?: boolean };
+    if (!pool?.connect || pool.__rlsPatched) return;
+    pool.__rlsPatched = true;
+    const connect = pool.connect.bind(pool);
+    pool.connect = ((...args: unknown[]) => {
+      const result = connect(...args);
+      if (typeof args[0] === 'function') return result;
+      return Promise.resolve(result).then((client) => {
+        wrapClient(client as PgClient);
+        return client;
       });
-    });
-    this.logger.log('Postgres RLS pool acquire reset registered');
+    }) as PgPool['connect'];
+    this.logger.log('Postgres RLS context is bound on the connection that runs the query');
   }
 
-  async bindRequestContext(tenantId: string | null | undefined, isPlatformAdmin: boolean) {
-    await this.dataSource.query(BIND_SQL, [
-      tenantId?.trim() ?? '',
-      isPlatformAdmin ? 'true' : 'false',
-    ]);
-  }
-
-  async clearRequestContext() {
-    await this.dataSource.query(RESET_SQL);
+  runWithContext<T>(context: RlsRequestContext, fn: () => T): T {
+    return rlsStorage.run(context, fn);
   }
 
   async runAsPlatformAdmin<T>(fn: () => Promise<T>): Promise<T> {
-    await this.bindRequestContext(null, true);
-    try {
-      return await fn();
-    } finally {
-      await this.clearRequestContext();
-    }
+    return rlsStorage.run({ tenantId: '', isPlatformAdmin: true }, fn);
   }
 
   async runAsTenant<T>(tenantId: string, fn: () => Promise<T>): Promise<T> {
-    await this.bindRequestContext(tenantId, false);
-    try {
-      return await fn();
-    } finally {
-      await this.clearRequestContext();
-    }
+    return rlsStorage.run({ tenantId, isPlatformAdmin: false }, fn);
   }
 }
 
-type PgPoolClient = { query: (sql: string, params?: unknown[]) => Promise<unknown> };
+function wrapClient(client: PgClient) {
+  if (client.__rlsWrapped) return;
+  client.__rlsWrapped = true;
+  const original = client.query.bind(client);
+  client.query = ((...args: unknown[]) => {
+    const first = args[0];
+    const text = typeof first === 'string' ? first : (first as { text?: string } | null)?.text ?? '';
+    if (text.includes('set_config') || text.includes('app.current_tenant_id')) {
+      return original(...args);
+    }
+    const store = rlsStorage.getStore();
+    const tenantId = store?.tenantId ?? '';
+    const admin = store?.isPlatformAdmin ? 'true' : 'false';
+    const last = args[args.length - 1];
+    if (typeof last === 'function') {
+      const callback = last as (err: Error | null, result?: unknown) => void;
+      const rest = args.slice(0, -1);
+      original(BIND_SQL, [tenantId, admin], (err: Error | null) => {
+        if (err) {
+          callback(err);
+          return;
+        }
+        original(...rest, callback);
+      });
+      return undefined;
+    }
+    return Promise.resolve(original(BIND_SQL, [tenantId, admin])).then(() => original(...args));
+  }) as PgClient['query'];
+}
+
+type PgClient = {
+  query: (...args: unknown[]) => unknown;
+  __rlsWrapped?: boolean;
+};
+
+type PgPool = {
+  connect: (...args: unknown[]) => unknown;
+};

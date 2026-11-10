@@ -1,7 +1,6 @@
 import { Body, Controller, ForbiddenException, Get, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
+import { PublicResourceTenantGuard } from '../../common/public-resource-tenant.guard';
 import { PublicTokenTenantGuard } from '../../common/public-token-tenant.guard';
-import { ConfigService } from '@nestjs/config';
-import { resolveTenantId } from '../../common/resolve-tenant-id';
 import { Public } from '../identity/decorators/public.decorator';
 import { CurrentUser } from '../identity/decorators/current-user.decorator';
 import type { AuthUser } from '../identity/identity.types';
@@ -9,28 +8,27 @@ import { OpenDayService } from './open-day.service';
 
 @Controller('open-days')
 export class OpenDayController {
-  constructor(
-    private readonly openDay: OpenDayService,
-    private readonly config: ConfigService,
-  ) {}
+  constructor(private readonly openDay: OpenDayService) {}
 
   @Public()
+  @UseGuards(PublicResourceTenantGuard)
   @Get()
   list(
-    @CurrentUser() user: AuthUser | undefined,
+    @Req() request: { tenantId: string },
     @Query('projectId') projectId?: string,
   ) {
-    return this.openDay.listEvents(resolveTenantId(this.config, user), projectId);
+    return this.openDay.listEvents(request.tenantId, projectId);
   }
 
   @Public()
+  @UseGuards(PublicResourceTenantGuard)
   @Post(':eventId/rsvp')
   rsvp(
-    @CurrentUser() user: AuthUser | undefined,
+    @Req() request: { tenantId: string },
     @Param('eventId') eventId: string,
     @Body() body: { fullName: string; phone: string; leadId?: string },
   ) {
-    return this.openDay.rsvp(resolveTenantId(this.config, user), eventId, body);
+    return this.openDay.rsvp(request.tenantId, eventId, body);
   }
 
   @UseGuards(PublicTokenTenantGuard)

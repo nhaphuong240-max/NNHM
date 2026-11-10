@@ -4,9 +4,12 @@ import { randomBytes, randomUUID } from 'crypto';
 import { mintPublicTenantToken } from '../../common/public-tenant-token';
 import { Repository } from 'typeorm';
 import { BusinessErrorCode, throwBusinessError } from '../../common/business-error';
+import { presentedTokenCandidates } from '../../common/public-tenant-token';
 import { DsrPolygonEntity } from '../../database/entities/dsr-polygon.entity';
 import { DsrShareLinkEntity } from '../../database/entities/dsr-share-link.entity';
+import { ProjectEntity } from '../../database/entities/project.entity';
 import { SearchIndexDocEntity } from '../../database/entities/search-index-doc.entity';
+import { UnitEntity } from '../../database/entities/unit.entity';
 import { ProductAnalyticsService } from '../analytics/product-analytics.service';
 
 /** P1 FR-DSR-001 / FR-DSR-004 — public-safe masterplan + branded share links. */
@@ -19,6 +22,10 @@ export class DsrService {
     private readonly shares: Repository<DsrShareLinkEntity>,
     @InjectRepository(SearchIndexDocEntity)
     private readonly indexDocs: Repository<SearchIndexDocEntity>,
+    @InjectRepository(ProjectEntity)
+    private readonly projects: Repository<ProjectEntity>,
+    @InjectRepository(UnitEntity)
+    private readonly units: Repository<UnitEntity>,
     private readonly analytics: ProductAnalyticsService,
   ) {}
 
@@ -155,8 +162,25 @@ export class DsrService {
       leadId?: string;
       visitorId?: string;
       ttlHours?: number;
+      entryToken?: string;
     },
   ) {
+    const projectId = input.projectId?.trim() || null;
+    const unitId = input.unitId?.trim() || null;
+    if (!projectId && !unitId) {
+      throwBusinessError(BusinessErrorCode.VALIDATION_FAILED, 'a share link needs a project or unit in this tenant');
+    }
+    if (projectId) {
+      const project = await this.projects.findOne({ where: { id: projectId, tenantId } });
+      if (!project) throwBusinessError(BusinessErrorCode.NOT_FOUND, 'project is not in this tenant');
+    }
+    if (unitId) {
+      const unit = await this.units.findOne({ where: { id: unitId, tenantId } });
+      if (!unit) throwBusinessError(BusinessErrorCode.NOT_FOUND, 'unit is not in this tenant');
+      if (projectId && unit.projectId !== projectId) {
+        throwBusinessError(BusinessErrorCode.VALIDATION_FAILED, 'unit does not belong to the project');
+      }
+    }
     const token = mintPublicTenantToken(tenantId, randomBytes(8).toString('hex'));
     const expiresAt = new Date(Date.now() + (input.ttlHours ?? 72) * 3600_000);
     const row = await this.shares.save({
@@ -180,7 +204,9 @@ export class DsrService {
   }
 
   async openShareLink(tenantId: string, token: string, visitorId?: string) {
-    const row = await this.shares.findOne({ where: { tenantId, token } });
+    const row = await this.shares.findOne({
+      where: presentedTokenCandidates(token, tenantId).map((value) => ({ tenantId, token: value })),
+    });
     if (!row) throwBusinessError(BusinessErrorCode.NOT_FOUND, 'Share link not found');
     if (row.expiresAt < new Date()) {
       throwBusinessError(BusinessErrorCode.SHARE_LINK_EXPIRED, 'Share link expired');
