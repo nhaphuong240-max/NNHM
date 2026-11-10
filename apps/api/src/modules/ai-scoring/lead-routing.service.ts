@@ -205,7 +205,7 @@ export class LeadRoutingService {
       viewings: activeViewings,
     });
 
-    let relaxed: string[] = [];
+    const relaxed: string[] = [];
     if (eligible.length === 0) {
       ({ eligible, excluded } = filterRoutingCandidates({
         agents,

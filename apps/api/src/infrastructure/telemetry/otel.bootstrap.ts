@@ -21,7 +21,6 @@ export function initOpenTelemetry(): void {
     });
 
     sdk.start();
-    // eslint-disable-next-line no-console
     console.log(
       JSON.stringify({
         level: 'info',
@@ -35,7 +34,6 @@ export function initOpenTelemetry(): void {
       void sdk.shutdown();
     });
   } catch (err) {
-    // eslint-disable-next-line no-console
     console.warn('OpenTelemetry init skipped:', err instanceof Error ? err.message : err);
   }
 }

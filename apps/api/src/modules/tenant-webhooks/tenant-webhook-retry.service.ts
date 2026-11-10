@@ -3,10 +3,8 @@ import type Redis from 'ioredis';
 import { REDIS_CLIENT } from '../../infrastructure/redis/redis.constants';
 import {
   computeRetryDelayMs,
-  deliverWebhookHttp,
   type TenantWebhookDelivery,
   type TenantWebhookEvent,
-  type TenantWebhookSubscription,
 } from './tenant-webhook.util';
 
 export const WEBHOOK_RETRY_QUEUE = 'webhook:retry:queue';

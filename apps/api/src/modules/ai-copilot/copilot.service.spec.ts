@@ -1,7 +1,11 @@
 import { ForbiddenException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
+import { AiLeadCopilotDraftEntity } from '../../database/entities/ai-lead-copilot-draft.entity';
+import { CrmActivityEntity } from '../../database/entities/crm-activity.entity';
+import { LeadEntity } from '../../database/entities/lead.entity';
 import { ProjectEntity } from '../../database/entities/project.entity';
+import { ViewingEntity } from '../../database/entities/viewing.entity';
 import { AuditService } from '../audit/audit.service';
 import { GoldenRecordService } from '../golden-record/golden-record.service';
 import { assertCopilotGuardrails } from './copilot.guardrails';
@@ -50,6 +54,13 @@ describe('CopilotService', () => {
               name: 'Sunrise Tower A',
             }),
           },
+        },
+        { provide: getRepositoryToken(LeadEntity), useValue: { findOne: jest.fn().mockResolvedValue(null) } },
+        { provide: getRepositoryToken(ViewingEntity), useValue: { find: jest.fn().mockResolvedValue([]) } },
+        { provide: getRepositoryToken(CrmActivityEntity), useValue: { find: jest.fn().mockResolvedValue([]) } },
+        {
+          provide: getRepositoryToken(AiLeadCopilotDraftEntity),
+          useValue: { save: jest.fn().mockResolvedValue({}) },
         },
         {
           provide: AuditService,

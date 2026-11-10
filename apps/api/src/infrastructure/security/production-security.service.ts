@@ -1,6 +1,7 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { configEnvReader } from '../config-env-reader';
+import { productionDbConfigIssues } from '../../database/production-db-config';
 
 const DEMO_PASSWORD_MARKERS = [
   'DevAdmin123!',
@@ -145,6 +146,21 @@ export class ProductionSecurityService implements OnModuleInit {
           ? 'SSO_OIDC_USE_MOCK=false'
           : 'SSO mock must be off when SSO enabled in production',
     });
+
+    const dbIssues = productionDbConfigIssues({
+      NODE_ENV: this.config.get<string>('NODE_ENV'),
+      STRICT_PRODUCTION_SECURITY: this.config.get<string>('STRICT_PRODUCTION_SECURITY'),
+      DATABASE_URL: this.config.get<string>('DATABASE_URL'),
+      DB_SYNCHRONIZE: this.config.get<string>('DB_SYNCHRONIZE'),
+    });
+    for (const id of ['C-DB-URL', 'C-DB-SYNC'] as const) {
+      const issue = dbIssues.find((row) => row.id === id);
+      checks.push({
+        id,
+        ok: !issue,
+        detail: issue?.detail ?? `${id} ok`,
+      });
+    }
 
     if (this.config.get<string>('PILOT_DEMO_PASSWORD_HINTS') === 'true') {
       for (const marker of DEMO_PASSWORD_MARKERS) {

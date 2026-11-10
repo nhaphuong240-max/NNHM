@@ -11,7 +11,7 @@ import { UnitEntity } from '../../database/entities/unit.entity';
 import { AuditService } from '../audit/audit.service';
 import { SearchIndexService } from '../search/search-index.service';
 import { AntiDriftService } from './anti-drift.service';
-import type { DriftInput, DriftReport } from './anti-drift.types';
+import type { DriftInput } from './anti-drift.types';
 import { buildAnomalyId } from '../ai-anomaly/ai-anomaly.util';
 import {
   detectDuplicateListingGroups,

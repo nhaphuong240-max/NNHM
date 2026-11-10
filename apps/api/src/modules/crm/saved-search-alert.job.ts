@@ -2,7 +2,6 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { BusinessErrorCode } from '../../common/business-error';
 import { ListingEntity } from '../../database/entities/listing.entity';
 import { SavedSearchEntity } from '../../database/entities/saved-search.entity';
 import { TenantEntity } from '../../database/entities/tenant.entity';

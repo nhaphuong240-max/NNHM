@@ -1,8 +1,10 @@
+import { UnprocessableEntityException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { DocumentAccessLogEntity } from '../../database/entities/document-access-log.entity';
 import { DocumentEntity } from '../../database/entities/document.entity';
 import { AuditService } from '../audit/audit.service';
+import { ConsentLedgerService } from '../compliance/consent-ledger.service';
 import { DocumentsService } from './documents.service';
 import { DOCUMENT_STORAGE_ADAPTER } from './storage/storage.types';
 
@@ -14,12 +16,15 @@ describe('DocumentsService', () => {
   let accessLogs: DocumentAccessLogEntity[];
   const putObject = jest.fn();
   const getObjectStream = jest.fn();
+  const hasValidConsent = jest.fn();
 
   beforeEach(async () => {
     documents = [];
     accessLogs = [];
     putObject.mockReset();
     getObjectStream.mockReset();
+    hasValidConsent.mockReset();
+    hasValidConsent.mockResolvedValue(true);
     putObject.mockResolvedValue({ storageKey: 'project/prj/a.txt', provider: 'LOCAL', sizeBytes: 12 });
     getObjectStream.mockResolvedValue(
       (async function* () {
@@ -80,6 +85,7 @@ describe('DocumentsService', () => {
           },
         },
         { provide: AuditService, useValue: { append: jest.fn().mockResolvedValue({}) } },
+        { provide: ConsentLedgerService, useValue: { hasValidConsent } },
       ],
     }).compile();
 
@@ -123,5 +129,35 @@ describe('DocumentsService', () => {
     );
     expect(replay.meta?.idempotentReplay).toBe(true);
     expect(replay.data.id).toBe(first.data.id);
+  });
+
+  it('blocks sensitive download when hasValidConsent is false', async () => {
+    hasValidConsent.mockResolvedValue(false);
+    documents.push({
+      id: 'doc_legal',
+      tenantId: TENANT,
+      entityType: 'PROJECT',
+      entityId: 'prj_sunrise',
+      folder: 'LEGAL',
+      docType: 'LEGAL_PACK',
+      fileName: 'legal.txt',
+      mimeType: 'text/plain',
+      sizeBytes: 5,
+      contentHash: 'abc',
+      storageKey: 'legal/key',
+      storageProvider: 'LOCAL',
+      watermarkEnabled: false,
+      scanStatus: 'CLEAN',
+      retentionClass: '5Y',
+      version: 1,
+      createdBy: 'usr_dev_admin',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    await expect(
+      service.openDownloadStream(TENANT, 'doc_legal', 'usr_dev_admin'),
+    ).rejects.toBeInstanceOf(UnprocessableEntityException);
+    expect(getObjectStream).not.toHaveBeenCalled();
   });
 });

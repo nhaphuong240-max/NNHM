@@ -39,7 +39,7 @@ export class PhaseA1758090000000 implements MigrationInterface {
     `);
   }
 
-  public async down(_queryRunner: QueryRunner): Promise<void> {
+  public async down(): Promise<void> {
     /* data backfill — no schema rollback */
   }
 }

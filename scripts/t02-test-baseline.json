@@ -1,0 +1,17 @@
+{
+  "compareBy": "file-path-and-test-identity",
+  "countsAreNotAcceptance": true,
+  "replacedTests": [
+    {
+      "file": "src/modules/ai-scoring/lead-scoring.service.spec.ts",
+      "removed": "LeadScoringService scores HOT lead and assigns agent",
+      "added": [
+        "LeadScoringService scores HOT lead and keeps assignment pending human approval",
+        "LeadScoringService assigns the sale only after the routing suggestion is approved",
+        "LeadScoringService does not assign the sale when the suggestion is rejected or still pending"
+      ],
+      "reason": "HOT lead mặc định chờ người duyệt; requireHumanApproval=true là quyết định đã chốt, không tự gán sale."
+    }
+  ],
+  "knownFailingSuites": []
+}

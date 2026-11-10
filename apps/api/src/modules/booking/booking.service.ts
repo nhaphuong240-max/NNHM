@@ -1,6 +1,7 @@
 import {
   ConflictException,
   Injectable,
+  Logger,
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
@@ -29,6 +30,7 @@ import { RefundService } from '../payment/refund.service';
 import { BookingEventsService } from './booking-events.service';
 import { TenantWebhookService } from '../tenant-webhooks/tenant-webhook.service';
 import { LeadEntity } from '../../database/entities/lead.entity';
+import { AuditService } from '../audit/audit.service';
 import { CrmService } from '../crm/crm.service';
 import { QualificationService } from '../crm/qualification.service';
 
@@ -36,6 +38,8 @@ const DEFAULT_EXPIRY_HOURS = 48;
 
 @Injectable()
 export class BookingService {
+  private readonly logger = new Logger(BookingService.name);
+
   constructor(
     @InjectRepository(BookingEntity)
     private readonly bookings: Repository<BookingEntity>,
@@ -52,6 +56,7 @@ export class BookingService {
     private readonly tenantWebhooks: TenantWebhookService,
     private readonly crm: CrmService,
     private readonly qualification: QualificationService,
+    private readonly audit: AuditService,
   ) {}
 
   status() {
@@ -125,9 +130,17 @@ export class BookingService {
       });
     }
 
-    if (input.leadId?.trim()) {
-      const lead = await this.leads.findOne({ where: { id: input.leadId.trim(), tenantId } });
-      if (lead) await this.qualification.assertLeadQualifiedForBooking(tenantId, lead);
+    const leadId = input.leadId?.trim() || null;
+    if (leadId) {
+      const lead = await this.leads.findOne({ where: { id: leadId, tenantId } });
+      if (!lead) {
+        throw new UnprocessableEntityException({
+          type: 'https://wereal.dev/problems/validation',
+          title: 'Validation failed',
+          detail: `Lead ${leadId} not found for this tenant`,
+        });
+      }
+      await this.qualification.assertLeadQualifiedForBooking(tenantId, lead);
     }
 
     if (unit.version !== input.expectedUnitVersion) {
@@ -177,7 +190,7 @@ export class BookingService {
         tenantId,
         unitId: input.unitId,
         unitVersion: unit.version,
-        leadId: input.leadId ?? null,
+        leadId,
         status: 'RESERVED',
         lockId,
         lockToken,
@@ -192,7 +205,7 @@ export class BookingService {
         unitId: input.unitId,
         status: 'RESERVED',
         bookingId: id,
-        leadId: input.leadId,
+        leadId: leadId ?? undefined,
         timestamp: new Date().toISOString(),
       });
 
@@ -206,7 +219,7 @@ export class BookingService {
           unitId: input.unitId,
           unitCode: unit.code,
           unitVersion: unit.version,
-          leadId: input.leadId,
+          leadId,
           expiresAt: expiresAt.toISOString(),
           depositAmount: input.depositAmount,
         },
@@ -223,14 +236,32 @@ export class BookingService {
         .emitEvent(tenantId, 'booking.created', {
           bookingId: id,
           unitId: input.unitId,
-          leadId: input.leadId ?? null,
+          leadId,
           status: 'RESERVED',
           expiresAt: expiresAt.toISOString(),
         })
         .catch(() => undefined);
 
-      if (input.leadId) {
-        await this.crm.syncLeadFromBooking(tenantId, input.leadId, input.unitId).catch(() => undefined);
+      if (leadId) {
+        try {
+          await this.crm.syncLeadFromBooking(tenantId, leadId, input.unitId);
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          this.logger.warn(`syncLeadFromBooking failed for lead ${leadId}: ${message}`);
+          try {
+            await this.audit.append({
+              tenantId,
+              entityType: 'booking',
+              entityId: id,
+              action: 'SYNC_LEAD_FAILED',
+              payload: { leadId, unitId: input.unitId, message },
+              actorId: null,
+            });
+          } catch (auditError) {
+            const auditMessage = auditError instanceof Error ? auditError.message : String(auditError);
+            this.logger.warn(`audit append failed after syncLeadFromBooking: ${auditMessage}`);
+          }
+        }
       }
 
       return { data: mapBookingEntity(record) };

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Headers, HttpCode, Param, Post } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, Post } from '@nestjs/common';
 import { Public } from './decorators/public.decorator';
 import { TenantService } from './tenant.service';
 import type { CreateTenantInput } from './identity.types';

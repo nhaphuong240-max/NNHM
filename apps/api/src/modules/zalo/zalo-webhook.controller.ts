@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Headers, HttpCode, Post } from '@nestjs/common';
+import { Body, Controller, Headers, HttpCode, Post } from '@nestjs/common';
 import { Public } from '../identity/decorators/public.decorator';
 import { ZaloLeadService } from './zalo-lead.service';
 import type { ZaloWebhookPayload } from './zalo.types';

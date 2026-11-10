@@ -9,7 +9,9 @@ import { LeadScoringService } from '../ai-scoring/lead-scoring.service';
 import { LeadConversionService } from '../ai-scoring/lead-conversion.service';
 import { StreamEventsService } from '../stream/stream-events.service';
 import { MobileAgentService } from '../mobile-agent/mobile-agent.service';
+import { AttributionGraphService } from '../attribution/attribution-graph.service';
 import { CrmService } from './crm.service';
+import { QualificationService } from './qualification.service';
 
 const TENANT = 'ten_dev_01';
 
@@ -17,10 +19,12 @@ describe('CrmService', () => {
   let service: CrmService;
   let rows: LeadEntity[];
   let activityRows: CrmActivityEntity[];
+  let assertLeadQualifiedForBooking: jest.Mock;
 
   beforeEach(async () => {
     rows = [];
     activityRows = [];
+    assertLeadQualifiedForBooking = jest.fn().mockResolvedValue(undefined);
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -91,6 +95,14 @@ describe('CrmService', () => {
         {
           provide: MobileAgentService,
           useValue: { notifyNewLead: jest.fn().mockResolvedValue({ data: { sent: 0 } }) },
+        },
+        {
+          provide: QualificationService,
+          useValue: { assertLeadQualifiedForBooking },
+        },
+        {
+          provide: AttributionGraphService,
+          useValue: { recordTouchpoint: jest.fn().mockResolvedValue(undefined) },
         },
       ],
     }).compile();
@@ -164,6 +176,14 @@ describe('CrmService', () => {
         {
           provide: MobileAgentService,
           useValue: { notifyNewLead: jest.fn().mockResolvedValue({ data: { sent: 0 } }) },
+        },
+        {
+          provide: QualificationService,
+          useValue: { assertLeadQualifiedForBooking },
+        },
+        {
+          provide: AttributionGraphService,
+          useValue: { recordTouchpoint: jest.fn().mockResolvedValue(undefined) },
         },
       ],
     }).compile();
@@ -442,5 +462,26 @@ describe('CrmService', () => {
     const result = await service.recordSlaReminder(TENANT, 'ld_overdue', { channel: 'ZALO' });
     expect(result.meta.action).toBe('REMINDER');
     expect(activityRows.length).toBe(1);
+  });
+
+  it('blocks BOOKING when assertLeadQualifiedForBooking rejects', async () => {
+    assertLeadQualifiedForBooking.mockRejectedValueOnce(
+      new UnprocessableEntityException({
+        code: 'QUALIFICATION_INCOMPLETE',
+        detail: 'Missing qualification fields: budget',
+      }),
+    );
+    await service.createLead(TENANT, {
+      fullName: 'Unqualified',
+      phone: '+84990000099',
+      source: 'AGENT_REFERRAL',
+    });
+    const leadId = rows[0].id;
+    await service.patchLead(TENANT, leadId, { stage: 'NEGOTIATING' });
+
+    await expect(
+      service.patchLead(TENANT, leadId, { stage: 'BOOKING', unitId: 'un_01' }),
+    ).rejects.toBeInstanceOf(UnprocessableEntityException);
+    expect(rows[0].status).toBe('NEGOTIATING');
   });
 });

@@ -21,6 +21,11 @@ describe('CommissionPolicyService', () => {
         tenantId: TENANT,
         code: 'SUNRISE',
         name: 'Sunrise Tower',
+        city: null,
+        district: null,
+        latitude: null,
+        longitude: null,
+        demandPolicyOverride: null,
         createdAt: new Date(),
       },
     ];

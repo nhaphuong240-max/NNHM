@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { ListingEntity } from '../../database/entities/listing.entity';
+import { ListingMediaEntity } from '../../database/entities/listing-media.entity';
 import { ProjectEntity } from '../../database/entities/project.entity';
 import { SearchIndexDocEntity } from '../../database/entities/search-index-doc.entity';
 import { SearchOutboxEntity } from '../../database/entities/search-outbox.entity';
@@ -41,6 +42,9 @@ describe('SearchIndexService', () => {
     antiDriftStatus: 'PASS',
     driftReport: null,
     verified: true,
+    verificationLevel: 'V2',
+    transactionType: 'sale',
+    freshnessPausedAt: null,
     rejectReason: null,
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -112,6 +116,10 @@ describe('SearchIndexService', () => {
               return null;
             }),
           },
+        },
+        {
+          provide: getRepositoryToken(ListingMediaEntity),
+          useValue: { findOne: jest.fn().mockResolvedValue(null) },
         },
         {
           provide: getRepositoryToken(UnitEntity),

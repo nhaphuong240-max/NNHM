@@ -25,7 +25,8 @@ describe('webhook-signature', () => {
       paymentIntentId: 'pi_02',
       signature: 'should-be-ignored',
     };
-    const { signature: _ignored, ...withoutSig } = payload;
+    const withoutSig: Record<string, unknown> = { ...payload };
+    delete withoutSig.signature;
     const sig = signWebhookPayload(payload, secret);
     expect(verifyWebhookSignature(withoutSig, sig, secret)).toBe(true);
   });

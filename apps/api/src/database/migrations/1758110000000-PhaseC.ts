@@ -49,7 +49,7 @@ export class PhaseC1758110000000 implements MigrationInterface {
     `);
   }
 
-  public async down(_queryRunner: QueryRunner): Promise<void> {
+  public async down(): Promise<void> {
     /* optional tables — no destructive rollback */
   }
 }

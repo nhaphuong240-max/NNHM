@@ -12,6 +12,13 @@ const baseDoc = (): SearchIndexDocEntity => ({
   bedrooms: 2,
   area: '68.00',
   verified: true,
+  verificationLevel: 'V2',
+  city: null,
+  district: null,
+  transactionType: 'sale',
+  latitude: null,
+  longitude: null,
+  thumbnailUrl: null,
   searchText: 'test',
   detail: {
     listingId: 'ls_un01',

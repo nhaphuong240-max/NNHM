@@ -1,0 +1,29 @@
+# T02 disposable Postgres/Redis. No named volume. Does not use the app database.
+name: nnhn-t02
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: wereal
+      POSTGRES_PASSWORD: wereal
+      POSTGRES_DB: wereal_t02
+    ports:
+      - "55432:5432"
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wereal -d wereal_t02"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "56379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10

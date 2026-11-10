@@ -1,14 +1,17 @@
-import { ConflictException } from '@nestjs/common';
+import { ConflictException, Logger, UnprocessableEntityException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { BookingEntity } from '../../database/entities/booking.entity';
+import { LeadEntity } from '../../database/entities/lead.entity';
 import { UnitEntity } from '../../database/entities/unit.entity';
 import { PaymentIntentEntity } from '../../database/entities/payment-intent.entity';
 import { InventoryLockService } from '../../infrastructure/redis/inventory-lock.service';
 import { RefundService } from '../payment/refund.service';
 import { StreamEventsService } from '../stream/stream-events.service';
 import { TenantWebhookService } from '../tenant-webhooks/tenant-webhook.service';
+import { AuditService } from '../audit/audit.service';
 import { CrmService } from '../crm/crm.service';
+import { QualificationService } from '../crm/qualification.service';
 import { BookingEventsService } from './booking-events.service';
 import { BookingService } from './booking.service';
 
@@ -37,6 +40,10 @@ describe('BookingService', () => {
   let units: UnitEntity[];
   let bookings: BookingEntity[];
   let intents: PaymentIntentEntity[];
+  let leads: LeadEntity[];
+  let qualification: { assertLeadQualifiedForBooking: jest.Mock };
+  let syncLeadFromBooking: jest.Mock;
+  let auditAppend: jest.Mock;
   let lockStore: Map<string, string>;
   let refundServiceMock: { createRefund: jest.Mock };
   let lockService: Pick<
@@ -48,6 +55,13 @@ describe('BookingService', () => {
     units = [makeUnit()];
     bookings = [];
     intents = [];
+    const seededLeadIds = ['ld_01', 'ld_02', ...Array.from({ length: 10 }, (_, i) => `ld_${i}`)];
+    leads = [...new Set(seededLeadIds)].map((id) => ({ id, tenantId: TENANT }) as LeadEntity);
+    qualification = {
+      assertLeadQualifiedForBooking: jest.fn().mockResolvedValue(undefined),
+    };
+    syncLeadFromBooking = jest.fn().mockResolvedValue(undefined);
+    auditAppend = jest.fn().mockResolvedValue({});
     lockStore = new Map();
 
     refundServiceMock = {
@@ -68,7 +82,7 @@ describe('BookingService', () => {
     };
 
     lockService = {
-      acquireLock: jest.fn(async (tenantId, unitId, bookingId, _ttl) => {
+      acquireLock: jest.fn(async (tenantId, unitId, bookingId) => {
         const key = `${tenantId}:lock:unit:${unitId}`;
         if (lockStore.has(key)) return null;
         const token = `tok_${bookingId}`;
@@ -117,7 +131,17 @@ describe('BookingService', () => {
         },
         {
           provide: CrmService,
-          useValue: { syncLeadFromBooking: jest.fn().mockResolvedValue(undefined) },
+          useValue: { syncLeadFromBooking },
+        },
+        { provide: AuditService, useValue: { append: auditAppend } },
+        { provide: QualificationService, useValue: qualification },
+        {
+          provide: getRepositoryToken(LeadEntity),
+          useValue: {
+            findOne: jest.fn(async ({ where }: { where: { id: string; tenantId: string } }) =>
+              leads.find((lead) => lead.id === where.id && lead.tenantId === where.tenantId) ?? null,
+            ),
+          },
         },
         {
           provide: getRepositoryToken(PaymentIntentEntity),
@@ -319,5 +343,62 @@ describe('BookingService', () => {
     await expect(
       service.create(TENANT, { unitId: 'un_01', expectedUnitVersion: 99, leadId: 'ld_01' }),
     ).rejects.toThrow(ConflictException);
+  });
+
+  it('rejects a booking when the lead is not qualified', async () => {
+    leads.push({ id: 'ld_cold', tenantId: TENANT } as LeadEntity);
+    qualification.assertLeadQualifiedForBooking.mockRejectedValueOnce(
+      new UnprocessableEntityException({
+        code: 'QUALIFICATION_INCOMPLETE',
+        detail: 'Missing qualification fields: budget',
+      }),
+    );
+
+    await expect(
+      service.create(TENANT, bookingInput('un_01', { leadId: 'ld_cold' })),
+    ).rejects.toBeInstanceOf(UnprocessableEntityException);
+    expect(bookings).toHaveLength(0);
+  });
+
+  it('treats a whitespace-only leadId as no lead', async () => {
+    const result = await service.create(TENANT, bookingInput('un_01', { leadId: '   ' }));
+
+    expect(result.data.attributes.status).toBe('RESERVED');
+    expect(result.data.attributes.leadId).toBeUndefined();
+    expect(bookings[0].leadId).toBeNull();
+    expect(syncLeadFromBooking).not.toHaveBeenCalled();
+  });
+
+  it('rejects a booking when the lead does not exist', async () => {
+    await expect(
+      service.create(TENANT, bookingInput('un_01', { leadId: 'ld_missing' })),
+    ).rejects.toBeInstanceOf(UnprocessableEntityException);
+  });
+
+  it('rejects a booking when the lead belongs to another tenant', async () => {
+    leads.push({ id: 'ld_other', tenantId: 'ten_other' } as LeadEntity);
+    await expect(
+      service.create(TENANT, bookingInput('un_01', { leadId: 'ld_other' })),
+    ).rejects.toBeInstanceOf(UnprocessableEntityException);
+    expect(bookings).toHaveLength(0);
+  });
+
+  it('logs and audits when syncLeadFromBooking fails', async () => {
+    syncLeadFromBooking.mockRejectedValueOnce(new Error('crm down'));
+    const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+
+    const result = await service.create(TENANT, bookingInput('un_01', { leadId: 'ld_01' }));
+
+    expect(result.data.attributes.status).toBe('RESERVED');
+    expect(warn).toHaveBeenCalled();
+    expect(auditAppend).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'SYNC_LEAD_FAILED',
+        entityType: 'booking',
+        entityId: result.data.id,
+        payload: expect.objectContaining({ leadId: 'ld_01', message: 'crm down' }),
+      }),
+    );
+    warn.mockRestore();
   });
 });

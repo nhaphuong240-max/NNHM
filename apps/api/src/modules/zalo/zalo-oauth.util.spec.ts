@@ -2,7 +2,6 @@ import {
   buildZaloOaAuthorizationUrl,
   generateCodeChallenge,
   generateCodeVerifier,
-  generateOAuthState,
 } from './zalo-oauth.util';
 
 describe('zalo-oauth.util', () => {
