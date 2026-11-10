@@ -13,7 +13,7 @@ export class EscrowMilestoneEntity {
   @Column({ name: 'account_id', type: 'varchar', length: 32 })
   accountId!: string;
 
-  @ManyToOne(() => EscrowAccountEntity, (a) => a.milestones, { onDelete: 'CASCADE' })
+  @ManyToOne(() => EscrowAccountEntity, (a) => a.milestones, { onDelete: 'RESTRICT' })
   @JoinColumn({ name: 'account_id' })
   account!: EscrowAccountEntity;
 

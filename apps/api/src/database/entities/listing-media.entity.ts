@@ -45,7 +45,7 @@ export class ListingMediaEntity {
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt!: Date;
 
-  @ManyToOne(() => ListingEntity)
+  @ManyToOne(() => ListingEntity, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'listing_id' })
   listing?: ListingEntity;
 }

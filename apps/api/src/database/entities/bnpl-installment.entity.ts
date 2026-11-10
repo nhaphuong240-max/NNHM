@@ -15,7 +15,7 @@ export class BnplInstallmentEntity {
   @Column({ name: 'application_id', type: 'varchar', length: 32 })
   applicationId!: string;
 
-  @ManyToOne(() => BnplApplicationEntity, (app) => app.installments, { onDelete: 'CASCADE' })
+  @ManyToOne(() => BnplApplicationEntity, (app) => app.installments, { onDelete: 'RESTRICT' })
   @JoinColumn({ name: 'application_id' })
   application!: BnplApplicationEntity;
 
