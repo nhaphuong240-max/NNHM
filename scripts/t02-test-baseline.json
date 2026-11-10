@@ -13,20 +13,5 @@
       "reason": "HOT lead mặc định chờ người duyệt; requireHumanApproval=true là quyết định đã chốt, không tự gán sale."
     }
   ],
-  "knownFailingSuites": [
-    "src/modules/ai-anomaly/ai-anomaly.service.spec.ts",
-    "src/modules/ai-copilot/copilot.service.spec.ts",
-    "src/modules/ai-scoring/lead-scoring.service.spec.ts",
-    "src/modules/booking/booking.service.spec.ts",
-    "src/modules/commission/commission-policy.service.spec.ts",
-    "src/modules/crm/crm.service.spec.ts",
-    "src/modules/documents/documents.service.spec.ts",
-    "src/modules/health/health.service.spec.ts",
-    "src/modules/listing/listing-media.service.spec.ts",
-    "src/modules/listing/listing.service.spec.ts",
-    "src/modules/mobile-agent/expo-push.service.spec.ts",
-    "src/modules/search/search-index.service.spec.ts",
-    "src/modules/search/search-recommend.util.spec.ts",
-    "src/modules/search/search.service.spec.ts"
-  ]
+  "knownFailingSuites": []
 }

@@ -325,7 +325,13 @@ rows.push(expectCase(problems, runWrapper('jest-fail-summary-pass', {
   ...inventoryEnv,
   T02_FAKE_JEST_EXIT: '1',
   T02_FIXTURE_JSON: path.join(fixtureRoot, 'known-failures.json'),
-}), { processExit: 1, jestExit: 1, summaryExit: 0, summaryResult: 'PASS' }));
+}), {
+  processExit: 1,
+  jestExit: 1,
+  summaryExit: 4,
+  summaryResult: 'FAIL',
+  failClosed: 'jest exit disagrees with a passing jest json',
+}));
 
 rows.push(expectCase(problems, runWrapper('jest-pass-summary-fail', {
   ...inventoryEnv,
@@ -343,7 +349,7 @@ rows.push(expectCase(problems, runWrapper('known-suite-load-failure', {
   ...inventoryEnv,
   T02_FAKE_JEST_EXIT: '1',
   T02_FIXTURE_JSON: path.join(fixtureRoot, 'load-failure.json'),
-}), { processExit: 1, jestExit: 1, summaryExit: 0, summaryResult: 'PASS' }));
+}), { processExit: 1, jestExit: 1, summaryExit: 3, summaryResult: 'FAIL' }));
 
 rows.push(expectCase(problems, runWrapper('corrupt-json', {
   T02_FAKE_JEST_EXIT: '0',
