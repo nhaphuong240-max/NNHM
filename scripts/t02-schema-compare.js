@@ -3,6 +3,8 @@
  * Compare the live public catalog to the 79 entity files.
  * Column identity is name, type, and null. Index identity is the column list.
  * Sort direction is ignored because the approved time indexes are DESC.
+ * A multi-column @Index or @Unique on a property is refused. TypeORM keeps only
+ * the property name in that position, so the array in source is not the index.
  */
 const fs = require('fs');
 const path = require('path');
@@ -104,6 +106,7 @@ function parseClass(node) {
   const fks = [];
   const propToCol = new Map();
   const pending = [];
+  const propertyComposites = [];
 
   function addKey(list, cols, where) {
     list.push(`${cols.join(',')}|${where ?? ''}`);
@@ -147,8 +150,11 @@ function parseClass(node) {
       const args = callArgs(dec);
       const cols = stringArray(args[0]);
       const opts = objectProps(args[0]) ?? objectProps(args[1]) ?? {};
+      if (cols && cols.length > 1) {
+        propertyComposites.push(`${name}(${cols.join(',')}) on ${property}`);
+      }
       pending.push({
-        cols: cols ?? [property],
+        cols: [property],
         unique: name === 'Unique' || opts.unique === true,
         where: typeof opts.where === 'string' ? opts.where : null,
       });
@@ -176,7 +182,7 @@ function parseClass(node) {
     if (item.unique) addKey(uniques, mapped, item.where);
     else addKey(indexes, mapped, null);
   }
-  return { table, columns, uniques, indexes, fks };
+  return { table, columns, uniques, indexes, fks, propertyComposites };
 }
 
 function normType(row) {
@@ -213,8 +219,19 @@ async function main() {
     process.exit(1);
   }
   const expected = new Map();
+  const propertyComposites = [];
   for (const file of fs.readdirSync(entityDir).filter((name) => name.endsWith('.entity.ts'))) {
-    for (const table of parseEntity(path.join(entityDir, file))) expected.set(table.table, table);
+    for (const table of parseEntity(path.join(entityDir, file))) {
+      expected.set(table.table, table);
+      for (const item of table.propertyComposites) propertyComposites.push(`${table.table} ${item}`);
+    }
+  }
+  if (propertyComposites.length) {
+    console.log(`DIFF=${propertyComposites.length}`);
+    for (const item of propertyComposites) {
+      console.log(`property composite decorator ignored by TypeORM: ${item}`);
+    }
+    process.exit(1);
   }
   const client = new Client({ connectionString: process.env.DATABASE_URL });
   await client.connect();

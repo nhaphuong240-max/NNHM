@@ -10,11 +10,11 @@ import {
 import { EscrowMilestoneEntity } from './escrow-milestone.entity';
 
 @Entity({ name: 'escrow_accounts' })
+@Index(['tenantId', 'bookingId'])
 export class EscrowAccountEntity {
   @PrimaryColumn({ type: 'varchar', length: 32 })
   id!: string;
 
-  @Index(['tenantId', 'bookingId'])
   @Column({ name: 'tenant_id', type: 'varchar', length: 32 })
   tenantId!: string;
 

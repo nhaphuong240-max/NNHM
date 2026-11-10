@@ -32,6 +32,15 @@ export class AttributionTouchpointLeadIndex1758070100000 implements MigrationInt
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
+    const named: Array<{ relname: string }> = await queryRunner.query(`
+      SELECT c.relname
+      FROM pg_class c
+      JOIN pg_namespace n ON n.oid = c.relnamespace
+      WHERE n.nspname = 'public'
+        AND c.relkind = 'i'
+        AND c.relname = 'idx_attribution_touchpoints_tenant_id_lead_id'
+    `);
+    if (named.length === 0) return;
     await queryRunner.query(`DROP INDEX "idx_attribution_touchpoints_tenant_id_lead_id"`);
   }
 }

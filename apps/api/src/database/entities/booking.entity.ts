@@ -9,6 +9,7 @@ import {
 export type BookingStatus = 'RESERVED' | 'DEPOSITED' | 'EXPIRED' | 'CANCELLED' | 'REFUNDED';
 
 @Entity({ name: 'bookings' })
+@Index(['tenantId', 'idempotencyKey'], { unique: true })
 export class BookingEntity {
   @PrimaryColumn({ type: 'varchar', length: 32 })
   id!: string;
@@ -44,7 +45,6 @@ export class BookingEntity {
   @Column({ type: 'text', nullable: true })
   notes!: string | null;
 
-  @Index(['tenantId', 'idempotencyKey'], { unique: true })
   @Column({ name: 'idempotency_key', type: 'varchar', length: 128, nullable: true })
   idempotencyKey!: string | null;
 

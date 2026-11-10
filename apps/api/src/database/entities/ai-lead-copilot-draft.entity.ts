@@ -3,11 +3,11 @@ import { Column, CreateDateColumn, Entity, Index, PrimaryColumn } from 'typeorm'
 export type CopilotDraftStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
 
 @Entity({ name: 'ai_lead_copilot_drafts' })
+@Index(['tenantId', 'leadId', 'createdAt'])
 export class AiLeadCopilotDraftEntity {
   @PrimaryColumn({ type: 'varchar', length: 32 })
   id!: string;
 
-  @Index(['tenantId', 'leadId', 'createdAt'])
   @Column({ name: 'tenant_id', type: 'varchar', length: 32 })
   tenantId!: string;
 

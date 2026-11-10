@@ -32,6 +32,126 @@ Chỉ đánh dấu baseline đã chạy khi mọi điều kiện sau đúng. Thi
 3. Không có bảng lõi nào thiếu so với `1738339100000`. Nếu thiếu, đó không phải database đã synchronize đủ; không đánh dấu baseline.
 4. Người duyệt schema ký nhận kết quả đọc.
 
+`synchronize` không phải bằng chứng catalog khớp. TypeORM gắn `@Index([...])` hoặc `@Unique([...])` trên một property thì bỏ mảng cột: metadata chỉ giữ tên property đó (`columns: propertyName ? [propertyName] : fields`). Lần chạy thử trước khi chuyển decorator đo được `DIFF=81`: unique và index thành một cột, ví dụ `bookings` unique trên `idempotency_key` thay vì `(tenant_id, idempotency_key)`, `agency_applications` unique trên `created_at`. Lần đó không đủ điều kiện để ghi dòng baseline.
+
+Sau khi mọi decorator nhiều cột được chuyển lên class, chạy lại trên database dùng một lần `wereal_t02_sync` tại `127.0.0.1:55433`, `synchronize: true`, không `INSERT` vào `migrations`. So catalog ngày 2026-11-10: cột, unique, index và khóa ngoại không còn dòng lệch. Còn `DIFF=112`, toàn bộ là RLS vì `synchronize` không bật policy. Catalog chưa khớp nên không ghi dòng baseline.
+
+```text
+DIFF=112
+distribution_policies rls not forced
+distribution_policies policies none
+agency_applications rls not forced
+agency_applications policies none
+documents rls not forced
+documents policies none
+document_access_logs rls not forced
+document_access_logs policies none
+meta_lead_events rls not forced
+meta_lead_events policies none
+meta_page_bindings rls not forced
+meta_page_bindings policies none
+zalo_lead_events rls not forced
+zalo_lead_events policies none
+zalo_oa_bindings rls not forced
+zalo_oa_bindings policies none
+zalo_zns_deliveries rls not forced
+zalo_zns_deliveries policies none
+sms_bindings rls not forced
+sms_bindings policies none
+sms_deliveries rls not forced
+sms_deliveries policies none
+kyc_profiles rls not forced
+kyc_profiles policies none
+commission_settlement_runs rls not forced
+commission_settlement_runs policies none
+commission_disputes rls not forced
+commission_disputes policies none
+commission_entries rls not forced
+commission_entries policies none
+commission_policies rls not forced
+commission_policies policies none
+commission_snapshots rls not forced
+commission_snapshots policies none
+refunds rls not forced
+refunds policies none
+reconciliation_reports rls not forced
+reconciliation_reports policies none
+ledger_entries rls not forced
+ledger_entries policies none
+ledger_journals rls not forced
+ledger_journals policies none
+payment_webhook_events rls not forced
+payment_webhook_events policies none
+booking_domain_events rls not forced
+booking_domain_events policies none
+bookings rls not forced
+bookings policies none
+leads rls not forced
+leads policies none
+crm_activities rls not forced
+crm_activities policies none
+search_outbox rls not forced
+search_outbox policies none
+search_index_docs rls not forced
+search_index_docs policies none
+lead_scoring_outbox rls not forced
+lead_scoring_outbox policies none
+payment_intents rls not forced
+payment_intents policies none
+audit_events rls not forced
+audit_events policies none
+trust_disputes rls not forced
+trust_disputes policies none
+tenant_config_versions rls not forced
+tenant_config_versions policies none
+consent_ledger_entries rls not forced
+consent_ledger_entries policies none
+lead_conversion_events rls not forced
+lead_conversion_events policies none
+developer_trust_scores rls not forced
+developer_trust_scores policies none
+anchor_tenant_profiles rls not forced
+anchor_tenant_profiles policies none
+agent_activity_events rls not forced
+agent_activity_events policies none
+agent_wau_daily rls not forced
+agent_wau_daily policies none
+mobile_devices rls not forced
+mobile_devices policies none
+api_webhook_deliveries rls not forced
+api_webhook_deliveries policies none
+escrow_release_events rls not forced
+escrow_release_events policies none
+data_mart_daily rls not forced
+data_mart_daily policies none
+data_product_entitlements rls not forced
+data_product_entitlements policies none
+tenants rls not forced
+tenants policies none
+users rls not forced
+users policies none
+projects rls not forced
+projects policies none
+units rls not forced
+units policies none
+listings rls not forced
+listings policies none
+listing_media rls not forced
+listing_media policies none
+bnpl_applications rls not forced
+bnpl_applications policies none
+bnpl_installments rls not forced
+bnpl_installments policies none
+api_partners rls not forced
+api_partners policies none
+api_partner_keys rls not forced
+api_partner_keys policies none
+escrow_accounts rls not forced
+escrow_accounts policies none
+escrow_milestones rls not forced
+escrow_milestones policies none
+```
+
 Khi đủ điều kiện, ghi đúng một dòng, không chạy DDL của baseline:
 
 ```sql

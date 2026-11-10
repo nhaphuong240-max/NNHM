@@ -1,18 +1,18 @@
 import { Column, CreateDateColumn, Entity, Index, PrimaryColumn } from 'typeorm';
 
 @Entity({ name: 'mobile_devices' })
+@Index(['tenantId', 'userId'])
+@Index(['tenantId', 'pushToken'], { unique: true })
 export class MobileDeviceEntity {
   @PrimaryColumn({ type: 'varchar', length: 32 })
   id!: string;
 
-  @Index(['tenantId', 'userId'])
   @Column({ name: 'tenant_id', type: 'varchar', length: 32 })
   tenantId!: string;
 
   @Column({ name: 'user_id', type: 'varchar', length: 32 })
   userId!: string;
 
-  @Index(['tenantId', 'pushToken'], { unique: true })
   @Column({ name: 'push_token', type: 'varchar', length: 256 })
   pushToken!: string;
 

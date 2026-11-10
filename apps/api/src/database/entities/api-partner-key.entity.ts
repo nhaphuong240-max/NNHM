@@ -2,11 +2,11 @@ import { Column, Entity, Index, JoinColumn, ManyToOne, PrimaryColumn } from 'typ
 import { ApiPartnerEntity } from './api-partner.entity';
 
 @Entity({ name: 'api_partner_keys' })
+@Index(['tenantId', 'keyHash'], { unique: true })
 export class ApiPartnerKeyEntity {
   @PrimaryColumn({ type: 'varchar', length: 32 })
   id!: string;
 
-  @Index(['tenantId', 'keyHash'], { unique: true })
   @Column({ name: 'tenant_id', type: 'varchar', length: 32 })
   tenantId!: string;
 

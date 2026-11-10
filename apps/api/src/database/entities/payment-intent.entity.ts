@@ -10,6 +10,7 @@ export type PaymentIntentStatus = 'PENDING' | 'SUCCEEDED' | 'FAILED' | 'EXPIRED'
 export type PaymentMethod = 'VNPAY' | 'MOCK';
 
 @Entity({ name: 'payment_intents' })
+@Index(['tenantId', 'idempotencyKey'], { unique: true })
 export class PaymentIntentEntity {
   @PrimaryColumn({ type: 'varchar', length: 32 })
   id!: string;
@@ -38,7 +39,6 @@ export class PaymentIntentEntity {
   @Column({ name: 'gateway_ref', type: 'varchar', length: 128, nullable: true })
   gatewayRef!: string | null;
 
-  @Index(['tenantId', 'idempotencyKey'], { unique: true })
   @Column({ name: 'idempotency_key', type: 'varchar', length: 128, nullable: true })
   idempotencyKey!: string | null;
 

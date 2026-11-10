@@ -20,6 +20,7 @@ export type ViewingOutcome =
   | 'CANCELED';
 
 @Entity({ name: 'crm_viewings' })
+@Index(['tenantId', 'leadId'])
 export class ViewingEntity {
   @PrimaryColumn({ type: 'varchar', length: 32 })
   id!: string;
@@ -27,7 +28,6 @@ export class ViewingEntity {
   @Column({ name: 'tenant_id', type: 'varchar', length: 32 })
   tenantId!: string;
 
-  @Index(['tenantId', 'leadId'])
   @Column({ name: 'lead_id', type: 'varchar', length: 32 })
   leadId!: string;
 

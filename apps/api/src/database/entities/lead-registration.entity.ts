@@ -17,6 +17,7 @@ export type LeadRegistrationStatus =
   | 'EXPIRED';
 
 @Entity({ name: 'lead_registrations' })
+@Index(['tenantId', 'phoneNormalized', 'projectId'])
 export class LeadRegistrationEntity {
   @PrimaryColumn({ type: 'varchar', length: 32 })
   id!: string;
@@ -24,7 +25,6 @@ export class LeadRegistrationEntity {
   @Column({ name: 'tenant_id', type: 'varchar', length: 32 })
   tenantId!: string;
 
-  @Index(['tenantId', 'phoneNormalized', 'projectId'])
   @Column({ name: 'phone_normalized', type: 'varchar', length: 32 })
   phoneNormalized!: string;
 

@@ -13,11 +13,11 @@ export type ApiPartnerCategory = 'BANK' | 'ERP' | 'NOTARY' | 'VALUATION' | 'OTHE
 export type ApiPartnerStatus = 'REGISTER' | 'SANDBOX' | 'ACTIVE' | 'SUSPENDED';
 
 @Entity({ name: 'api_partners' })
+@Index(['tenantId', 'name'])
 export class ApiPartnerEntity {
   @PrimaryColumn({ type: 'varchar', length: 32 })
   id!: string;
 
-  @Index(['tenantId', 'name'])
   @Column({ name: 'tenant_id', type: 'varchar', length: 32 })
   tenantId!: string;
 

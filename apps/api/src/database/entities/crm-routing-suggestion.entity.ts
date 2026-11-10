@@ -10,11 +10,11 @@ import {
 export type RoutingSuggestionStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
 
 @Entity({ name: 'crm_routing_suggestions' })
+@Index(['tenantId', 'status'])
 export class CrmRoutingSuggestionEntity {
   @PrimaryColumn({ type: 'varchar', length: 32 })
   id!: string;
 
-  @Index(['tenantId', 'status'])
   @Column({ name: 'tenant_id', type: 'varchar', length: 32 })
   tenantId!: string;
 

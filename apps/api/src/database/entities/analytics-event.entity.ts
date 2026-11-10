@@ -12,11 +12,11 @@ export type AnalyticsEventName =
   | 'share_link_opened';
 
 @Entity({ name: 'analytics_events' })
+@Index(['tenantId', 'name', 'createdAt'])
 export class AnalyticsEventEntity {
   @PrimaryColumn({ type: 'varchar', length: 32 })
   id!: string;
 
-  @Index(['tenantId', 'name', 'createdAt'])
   @Column({ name: 'tenant_id', type: 'varchar', length: 32 })
   tenantId!: string;
 

@@ -2,11 +2,11 @@ import { Column, Entity, Index, JoinColumn, ManyToOne, PrimaryColumn } from 'typ
 import { EscrowAccountEntity } from './escrow-account.entity';
 
 @Entity({ name: 'escrow_milestones' })
+@Index(['tenantId', 'accountId'])
 export class EscrowMilestoneEntity {
   @PrimaryColumn({ type: 'varchar', length: 32 })
   id!: string;
 
-  @Index(['tenantId', 'accountId'])
   @Column({ name: 'tenant_id', type: 'varchar', length: 32 })
   tenantId!: string;
 
