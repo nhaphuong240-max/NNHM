@@ -50,7 +50,7 @@ export class UnitEntity {
   @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
   updatedAt!: Date;
 
-  @ManyToOne(() => ProjectEntity, (project) => project.units)
+  @ManyToOne(() => ProjectEntity, (project) => project.units, { onDelete: 'RESTRICT' })
   @JoinColumn({ name: 'project_id' })
   project?: ProjectEntity;
 }

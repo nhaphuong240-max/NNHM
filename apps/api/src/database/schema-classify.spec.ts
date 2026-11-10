@@ -1,3 +1,6 @@
+import { createHash } from 'crypto';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 import { PRE_RLS_MILESTONE } from './schema-milestones';
 import {
   allowBootstrap,
@@ -49,23 +52,39 @@ const verified: Milestone = {
 };
 
 describe('schema classify refusals', () => {
+  const missingEvidence: Milestone = {
+    id: 'missing',
+    evidence: 'MISSING_EVIDENCE',
+    sourceCommit: null,
+    sqlSha256: null,
+    tables: [],
+  };
+
   it('blocks bootstrap when pre-RLS evidence is missing', () => {
     const decision = classify({
-      milestone: PRE_RLS_MILESTONE,
+      milestone: missingEvidence,
       connection,
       session,
       catalog: { tables: [] },
     });
-    expect(PRE_RLS_MILESTONE.tables).toEqual([]);
-    expect(PRE_RLS_MILESTONE.evidence).toBe('MISSING_EVIDENCE');
     expect(decision.status).toBe('MISSING_EVIDENCE');
     expect(decision.bootstrap).toBe(false);
     expect(decision.ddl).toBe(false);
     expect(decision.disposeCluster).toBe(false);
-    expect(allowBootstrap(PRE_RLS_MILESTONE)).toEqual({
+    expect(allowBootstrap(missingEvidence)).toEqual({
       allow: false,
       reason: 'MISSING_EVIDENCE',
     });
+  });
+
+  it('records the baseline migration as evidence and still refuses bootstrap', () => {
+    const hash = createHash('sha256')
+      .update(readFileSync(join(__dirname, 'migrations', '1738339100000-BaselineCoreSchema.ts')))
+      .digest('hex');
+    expect(PRE_RLS_MILESTONE.evidence).toBe('VERIFIED');
+    expect(PRE_RLS_MILESTONE.sqlSha256).toBe(hash);
+    expect(PRE_RLS_MILESTONE.sourceCommit).toBe('1738339100000-BaselineCoreSchema.ts');
+    expect(allowBootstrap(PRE_RLS_MILESTONE).allow).toBe(false);
   });
 
   it('rejects a catalog that only partially matches a milestone', () => {
@@ -108,7 +127,7 @@ describe('schema classify refusals', () => {
     expect(mayDisposeCluster(connection, { ...session, confirmed: false })).toBe(false);
     expect(mayDisposeCluster(connection, null)).toBe(false);
     const blocked = classify({
-      milestone: PRE_RLS_MILESTONE,
+      milestone: missingEvidence,
       connection,
       session,
       catalog: { tables: [] },

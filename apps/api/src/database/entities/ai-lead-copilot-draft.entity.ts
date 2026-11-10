@@ -7,7 +7,7 @@ export class AiLeadCopilotDraftEntity {
   @PrimaryColumn({ type: 'varchar', length: 32 })
   id!: string;
 
-  @Index(['tenantId', 'leadId'])
+  @Index(['tenantId', 'leadId', 'createdAt'])
   @Column({ name: 'tenant_id', type: 'varchar', length: 32 })
   tenantId!: string;
 

@@ -76,7 +76,7 @@ export class ListingEntity {
   @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
   updatedAt!: Date;
 
-  @ManyToOne(() => UnitEntity)
+  @ManyToOne(() => UnitEntity, { onDelete: 'RESTRICT' })
   @JoinColumn({ name: 'unit_id' })
   unit?: UnitEntity;
 }

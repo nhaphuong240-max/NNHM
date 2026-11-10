@@ -69,11 +69,9 @@ jobs:
       - run: npm run typecheck
       - run: npm test
 
-  # Chỉ chạy khi bấm tay. Harness vẫn dừng trước DDL vì chưa có bằng chứng schema
-  # trước RLS và baseline chưa được duyệt. Pull request và push không chạy job này,
-  # để lần fail có chủ đích không làm đỏ CI.
+  # Baseline 1738339100000 là bằng chứng schema. Job chạy lại trên pull request.
+  # Harness vẫn từ chối bootstrap và không xóa cluster.
   t02-isolated-db:
-    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     services:
       postgres:

@@ -5,7 +5,7 @@ export class SeekerOtpChallengeEntity {
   @PrimaryColumn({ type: 'varchar', length: 32 })
   id!: string;
 
-  @Index(['tenantId', 'phoneNormalized'])
+  @Index(['tenantId', 'phoneNormalized', 'createdAt'])
   @Column({ name: 'tenant_id', type: 'varchar', length: 32 })
   tenantId!: string;
 

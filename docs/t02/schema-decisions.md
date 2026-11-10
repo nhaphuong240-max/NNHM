@@ -2,7 +2,7 @@
 
 Trạng thái: **đã duyệt**, kèm điều chỉnh ngày 2026-11-10. Chưa có migration, chưa chạy database. Các câu `SELECT` ở mục runbook chỉ để đọc, không phải DDL.
 
-Nhánh: `t02-baseline-schema`, tách từ `t02-safety-gates` tại `dd04be7`. PR #1 chưa merge vào `main`. Sau khi PR #1 merge, rebase nhánh này lên `main` rồi mới làm bước 2.
+Nhánh: `t02-baseline-schema`. PR #1 đã merge vào `main` (`6895d45`). Nhánh đã rebase lên `main` trước bước 2.
 
 Nguồn lệch: `.tools/schema-drift/drift.json`, so 79 entity với 14 migration hiện có. File đó ghi 31 unique, 37 index và 8 khóa ngoại. Bảng dưới đây quyết định từng dòng đó.
 
@@ -238,4 +238,4 @@ SELECT m.id FROM escrow_milestones m LEFT JOIN escrow_accounts a ON a.id = m.acc
 
 ## Chưa làm trong file này
 
-RLS của 22 bảng và 575 cột chưa có `CREATE TABLE` không nằm trong bảng quyết định này. Bước 2, viết `1738339100000-BaselineCoreSchema.ts`, chỉ bắt đầu sau khi PR #1 đã merge và nhánh này đã rebase lên `main`. File migration đó chưa được viết.
+RLS của 22 bảng không nằm trong bảng quyết định này. Bước 2 là `1738339100000-BaselineCoreSchema.ts`. Index `(tenant_id, lead_id)` của `attribution_touchpoints` nằm ở `1758070100000` vì bảng đó được tạo sau baseline. Runbook áp dụng là `docs/t02/baseline-adoption-runbook.md`.
