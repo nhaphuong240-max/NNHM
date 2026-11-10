@@ -10,6 +10,11 @@ export type BookingStatus = 'RESERVED' | 'DEPOSITED' | 'EXPIRED' | 'CANCELLED' |
 
 @Entity({ name: 'bookings' })
 @Index(['tenantId', 'idempotencyKey'], { unique: true })
+@Index(['tenantId', 'unitId'], {
+  unique: true,
+  where:
+    "((status)::text = ANY ((ARRAY['RESERVED'::character varying, 'DEPOSITED'::character varying])::text[]))",
+})
 export class BookingEntity {
   @PrimaryColumn({ type: 'varchar', length: 32 })
   id!: string;
