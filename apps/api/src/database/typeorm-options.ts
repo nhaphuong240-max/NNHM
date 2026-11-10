@@ -2,23 +2,25 @@ import { join } from 'path';
 import type { ConfigService } from '@nestjs/config';
 import type { DataSourceOptions } from 'typeorm';
 import { databaseEntities } from './database.entities';
+import { isStrictDbEnv, resolveDbSynchronize } from './production-db-config';
+
+const DEV_DATABASE_URL = 'postgresql://wereal:wereal@localhost:5432/wereal';
 
 export function createTypeOrmOptions(config: ConfigService): DataSourceOptions {
-  const synchronize =
-    config.get<string>('DB_SYNCHRONIZE') === 'true' ||
-    (config.get<string>('DB_SYNCHRONIZE') !== 'false' &&
-      config.get<string>('NODE_ENV', 'development') !== 'production');
-
+  const env = {
+    NODE_ENV: config.get<string>('NODE_ENV', 'development'),
+    STRICT_PRODUCTION_SECURITY: config.get<string>('STRICT_PRODUCTION_SECURITY'),
+    DATABASE_URL: config.get<string>('DATABASE_URL'),
+    DB_SYNCHRONIZE: config.get<string>('DB_SYNCHRONIZE'),
+  };
+  const configuredUrl = env.DATABASE_URL?.trim();
   return {
     type: 'postgres',
-    url: config.get<string>(
-      'DATABASE_URL',
-      'postgresql://wereal:wereal@localhost:5432/wereal',
-    ),
+    url: configuredUrl || (isStrictDbEnv(env) ? '' : DEV_DATABASE_URL),
     entities: databaseEntities,
     migrations: [join(__dirname, 'migrations', '*.{ts,js}')],
     migrationsRun: config.get<string>('DB_MIGRATIONS_RUN', 'false') === 'true',
-    synchronize,
+    synchronize: resolveDbSynchronize(env),
     logging: config.get<string>('DB_LOGGING') === 'true',
   };
 }

@@ -68,6 +68,27 @@ describe('ProductionSecurityService', () => {
     expect(service.evaluate().find((c) => c.id === 'C-01')?.ok).toBe(false);
   });
 
+  it('fails closed when production has no DATABASE_URL or DB_SYNCHRONIZE=true', () => {
+    const config = {
+      get: (key: string, def?: string) => {
+        const map: Record<string, string> = {
+          NODE_ENV: 'production',
+          DB_SYNCHRONIZE: 'true',
+          WEBHOOK_SKIP_VERIFY: 'false',
+          MFA_SANDBOX: 'false',
+          TLS_TERMINATED: 'true',
+          JWT_SECRET: 'wereal-ci-jwt-secret-min-32-chars-long',
+          AUTH_LOGIN_RATE_LIMIT_ENABLED: 'true',
+          SSO_OIDC_ENABLED: 'false',
+        };
+        return map[key] ?? def;
+      },
+    };
+    const checks = new ProductionSecurityService(config as unknown as ConfigService).evaluate();
+    expect(checks.find((c) => c.id === 'C-DB-URL')?.ok).toBe(false);
+    expect(checks.find((c) => c.id === 'C-DB-SYNC')?.ok).toBe(false);
+  });
+
   it('allows WEBHOOK_SKIP_VERIFY only in local non-strict', () => {
     const config = {
       get: (key: string, def?: string) => {
