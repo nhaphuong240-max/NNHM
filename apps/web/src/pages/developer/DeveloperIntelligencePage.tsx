@@ -106,6 +106,14 @@ export function DeveloperIntelligencePage() {
 
       {loading && <p style={{ color: brand.muted }}>Đang tải…</p>}
       {error && <p className="text-red-600">{error}</p>}
+      {(loading || error) && tab === 'overview' && (
+        <h2 className="font-semibold mb-3">Absorption heatmap</h2>
+      )}
+      {(loading || error) && tab === 'billing' && (
+        <p className="text-xs" style={{ color: brand.muted }}>
+          MRR ước tính —
+        </p>
+      )}
 
       {!loading && !error && tab === 'billing' && billing && (
         <div className={`${layout.kpiGrid} mb-4`}>

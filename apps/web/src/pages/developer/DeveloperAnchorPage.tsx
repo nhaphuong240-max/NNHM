@@ -57,6 +57,12 @@ export function DeveloperAnchorPage() {
 
       {loading && <p style={{ color: brand.muted }}>Đang tải…</p>}
       {error && <p className="text-red-600">{error}</p>}
+      {!data && (
+        <div className={`${layout.kpiGrid} mb-6`}>
+          <Kpi label="Trust score" value="—" />
+          <Kpi label="GMV deposited" value="—" />
+        </div>
+      )}
 
       {data && !loading && (
         <>

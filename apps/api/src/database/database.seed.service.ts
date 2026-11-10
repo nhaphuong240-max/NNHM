@@ -253,6 +253,7 @@ export class DatabaseSeedService implements OnModuleInit {
     await this.ensureNetworkScaleT7S6();
     await this.ensureEnterpriseT7S8();
     await this.ensureWave0OrgAgents();
+    await this.ensureMfaTotpSecrets();
   }
 
   private async ensurePilotCdtAnchor() {
