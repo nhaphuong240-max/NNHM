@@ -1,6 +1,8 @@
 import { NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
+import { ListingMediaEntity } from '../../database/entities/listing-media.entity';
+import { ProjectEntity } from '../../database/entities/project.entity';
 import { SearchIndexDocEntity } from '../../database/entities/search-index-doc.entity';
 import { SearchIndexService } from './search-index.service';
 import { SearchService } from './search.service';
@@ -19,6 +21,13 @@ describe('SearchService', () => {
     bedrooms: 2,
     area: '68.00',
     verified: true,
+    verificationLevel: 'V2',
+    city: null,
+    district: null,
+    transactionType: 'sale',
+    latitude: null,
+    longitude: null,
+    thumbnailUrl: null,
     searchText: 'test listing a-12-05 sunrise tower a desc',
     detail: {
       listingId: 'ls_un01',
@@ -55,6 +64,14 @@ describe('SearchService', () => {
             ),
             find: jest.fn().mockResolvedValue([doc]),
           },
+        },
+        {
+          provide: getRepositoryToken(ProjectEntity),
+          useValue: { findOne: jest.fn().mockResolvedValue(null) },
+        },
+        {
+          provide: getRepositoryToken(ListingMediaEntity),
+          useValue: { find: jest.fn().mockResolvedValue([]) },
         },
         {
           provide: SearchIndexService,

@@ -1,3 +1,4 @@
+import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { AuditEventEntity } from '../../database/entities/audit-event.entity';
@@ -52,6 +53,10 @@ describe('AiAnomalyService', () => {
           useValue: { find: jest.fn().mockResolvedValue([]) },
         },
         { provide: AuditService, useValue: { append: auditAppend } },
+        {
+          provide: ConfigService,
+          useValue: { get: jest.fn((_key: string, fallback?: string) => fallback) },
+        },
       ],
     }).compile();
 

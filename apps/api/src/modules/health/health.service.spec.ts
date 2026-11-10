@@ -5,6 +5,9 @@ import { ProductionSecurityService } from '../../infrastructure/security/product
 import { RedisConnectionService } from '../../infrastructure/redis/redis-connection.service';
 import { AnchorTenantService } from '../anchor/anchor-tenant.service';
 import { AgentWauService } from '../analytics/agent-wau.service';
+import { AiAnomalyService } from '../ai-anomaly/ai-anomaly.service';
+import { AiGatewayService } from '../ai-gateway/ai-gateway.service';
+import { EnterpriseSignoffService } from '../enterprise/enterprise-signoff.service';
 import { HealthService } from './health.service';
 
 describe('HealthService', () => {
@@ -52,6 +55,9 @@ describe('HealthService', () => {
             getPlatformWauMetrics: jest.fn().mockResolvedValue({ wau7d: 520, wauSimEnabled: false }),
           },
         },
+        { provide: AiGatewayService, useValue: { getIntelligenceSnapshot: jest.fn() } },
+        { provide: AiAnomalyService, useValue: { getSlaDashboard: jest.fn() } },
+        { provide: EnterpriseSignoffService, useValue: {} },
       ],
     }).compile();
     service = module.get(HealthService);
