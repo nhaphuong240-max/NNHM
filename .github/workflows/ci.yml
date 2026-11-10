@@ -20,7 +20,17 @@ jobs:
           cache-dependency-path: apps/api/package-lock.json
       - run: npm ci
       - run: npm run lint
-      - run: npm test
+      - run: npm run t02:config-gate
+      - name: T02 wrapper exit cases
+        working-directory: apps/api
+        env:
+          T02_CASES_ROOT: ${{ runner.temp }}/t02-wrapper-cases
+        run: chmod +x ../../scripts/t02-api-test.sh ../../scripts/t02-wrapper-cases.sh && ../../scripts/t02-wrapper-cases.sh
+      - name: T02 api tests
+        working-directory: apps/api
+        env:
+          T02_RESULT_ROOT: ${{ runner.temp }}/t02-api-test
+        run: ../../scripts/t02-api-test.sh
       - run: chmod +x ../../scripts/check-migrations.sh ../../scripts/uat-t7-security.sh
       - run: ../../scripts/check-migrations.sh
       - run: ../../scripts/uat-t7-security.sh
@@ -39,6 +49,7 @@ jobs:
           cache: npm
           cache-dependency-path: apps/web/package-lock.json
       - run: npm ci
+      - run: npm run typecheck
       - run: npm run build
 
   mobile:
@@ -56,6 +67,48 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm test
+
+  t02-isolated-db:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: wereal
+          POSTGRES_PASSWORD: wereal
+          POSTGRES_DB: wereal_t02
+        ports:
+          - 55432:5432
+        options: >-
+          --health-cmd "pg_isready -U wereal -d wereal_t02"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 56379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://wereal:wereal@localhost:55432/wereal_t02
+      REDIS_URL: redis://localhost:56379
+      DB_SYNCHRONIZE: 'false'
+      NODE_ENV: test
+      T02_REQUIRE_ISOLATED_DB: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: apps/api/package-lock.json
+      - run: npm ci
+        working-directory: apps/api
+      - run: chmod +x scripts/t02-harness.sh && ./scripts/t02-harness.sh
 
   observability-gate:
     runs-on: ubuntu-latest
