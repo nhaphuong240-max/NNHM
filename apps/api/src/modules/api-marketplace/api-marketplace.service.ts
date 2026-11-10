@@ -7,7 +7,6 @@ import { ApiPartnerKeyEntity } from '../../database/entities/api-partner-key.ent
 import { ApiWebhookDeliveryEntity } from '../../database/entities/api-webhook-delivery.entity';
 import { AuditService } from '../audit/audit.service';
 import {
-  DEMO_API_PARTNERS,
   type ApiPartnerRecord,
   type ApiWebhookDelivery,
   issuePartnerKey,

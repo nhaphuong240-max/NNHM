@@ -69,7 +69,7 @@ export class ZaloTokenService {
     oaId: string,
     tokens: { accessToken: string; refreshToken: string; expiresAt: Date },
   ) {
-    let binding =
+    const binding =
       (await this.oas.findOne({ where: { tenantId, oaId, isActive: true } })) ??
       (await this.oas.findOne({ where: { tenantId, isActive: true } }));
 

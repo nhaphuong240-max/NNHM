@@ -92,7 +92,6 @@ export class KycService {
   async enrichEntry(
     tenantId: string,
     entry: CommissionEntryEntity,
-    entryId?: string,
   ): Promise<{
     kycStatus: KycStatus;
     payoutEligible: boolean;

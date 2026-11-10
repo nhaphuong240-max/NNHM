@@ -7,7 +7,6 @@ import {
   Param,
   Patch,
   Post,
-  Query,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { resolveTenantId } from '../../common/resolve-tenant-id';

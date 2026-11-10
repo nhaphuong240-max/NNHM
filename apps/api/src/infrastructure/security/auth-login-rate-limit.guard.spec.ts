@@ -1,4 +1,4 @@
-import { ExecutionContext, HttpException, HttpStatus } from '@nestjs/common';
+import { ExecutionContext, HttpStatus } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AuthLoginRateLimitGuard } from './auth-login-rate-limit.guard';
 

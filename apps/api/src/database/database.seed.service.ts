@@ -8,13 +8,11 @@ import { dirname, join } from 'path';
 import { Repository } from 'typeorm';
 import {
   AuditEventEntity,
-  BookingDomainEventEntity,
   BookingEntity,
   CommissionEntryEntity,
   CommissionPolicyEntity,
   CommissionSnapshotEntity,
   KycProfileEntity,
-  MetaLeadEventEntity,
   MetaPageBindingEntity,
   ZaloOaBindingEntity,
   SmsBindingEntity,

@@ -2,8 +2,6 @@ import {
   buildAuthorizeUrl,
   buildMockAuthorizeUrl,
   createOidcState,
-  createPkcePair,
-  exchangeAuthorizationCode,
   fetchOidcDiscovery,
   parseIdTokenClaims,
   parseOidcState,

@@ -38,7 +38,6 @@ async function bootstrap() {
   await app.listen(port);
 
   const shutdown = async (signal: string) => {
-    // eslint-disable-next-line no-console
     console.log(JSON.stringify({ level: 'info', msg: 'shutdown', signal }));
     await app.close();
     process.exit(0);
@@ -46,7 +45,6 @@ async function bootstrap() {
   process.on('SIGTERM', () => void shutdown('SIGTERM'));
   process.on('SIGINT', () => void shutdown('SIGINT'));
 
-  // eslint-disable-next-line no-console
   console.log(
     JSON.stringify({
       level: 'info',

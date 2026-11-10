@@ -20,6 +20,7 @@ export function verifyWebhookSignature(
 
 /** Stable JSON for HMAC — excludes signature field */
 export function canonicalWebhookBody(payload: Record<string, unknown>): string {
-  const { signature: _sig, ...rest } = payload;
+  const rest = { ...payload };
+  delete rest.signature;
   return JSON.stringify(rest, Object.keys(rest).sort());
 }

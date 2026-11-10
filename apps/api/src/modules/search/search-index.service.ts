@@ -80,7 +80,6 @@ export class SearchIndexService {
     const row = await this.outbox.findOne({ where: { id: outboxId } });
     if (!row || row.status !== 'PENDING') return;
 
-    const started = Date.now();
     try {
       if (row.operation === 'DELETE') {
         const unitId = String(row.payload?.unitId ?? row.entityId);

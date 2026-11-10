@@ -26,20 +26,15 @@ export class S3DocumentStorageAdapter implements DocumentStorageAdapter {
     });
   }
 
-  putObject(_input: {
-    tenantId: string;
-    storageKey: string;
-    buffer: Buffer;
-    mimeType: string;
-  }): Promise<StoredObjectRef> {
+  putObject(): Promise<StoredObjectRef> {
     return Promise.reject(this.notReady('putObject'));
   }
 
-  getObjectStream(_input: { tenantId: string; storageKey: string }): Promise<NodeJS.ReadableStream> {
+  getObjectStream(): Promise<NodeJS.ReadableStream> {
     return Promise.reject(this.notReady('getObjectStream'));
   }
 
-  deleteObject(_input: { tenantId: string; storageKey: string }): Promise<void> {
+  deleteObject(): Promise<void> {
     return Promise.reject(this.notReady('deleteObject'));
   }
 
