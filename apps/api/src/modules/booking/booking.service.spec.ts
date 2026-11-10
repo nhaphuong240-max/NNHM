@@ -360,6 +360,15 @@ describe('BookingService', () => {
     expect(bookings).toHaveLength(0);
   });
 
+  it('treats a whitespace-only leadId as no lead', async () => {
+    const result = await service.create(TENANT, bookingInput('un_01', { leadId: '   ' }));
+
+    expect(result.data.attributes.status).toBe('RESERVED');
+    expect(result.data.attributes.leadId).toBeUndefined();
+    expect(bookings[0].leadId).toBeNull();
+    expect(syncLeadFromBooking).not.toHaveBeenCalled();
+  });
+
   it('rejects a booking when the lead does not exist', async () => {
     await expect(
       service.create(TENANT, bookingInput('un_01', { leadId: 'ld_missing' })),
