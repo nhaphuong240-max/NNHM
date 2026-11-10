@@ -121,7 +121,7 @@ Ba mươi index còn lại chỉ có trên entity. Nguồn đúng là entity. Ba
 
 ## Khóa ngoại
 
-Tám khóa ngoại chỉ có trên entity. Cả tám cột đều `NOT NULL`. `RESTRICT` chặn xóa cha khi còn con. `CASCADE` xóa con theo cha. Ba khóa đã ghi `onDelete: 'CASCADE'` trên entity thì giữ đúng giá trị đó.
+Tám khóa ngoại chỉ có trên entity. Cả tám cột đều `NOT NULL`. `RESTRICT` chặn xóa cha khi còn con. `CASCADE` xóa con theo cha. Chỉ `api_partner_keys.partner_id` giữ `CASCADE` sẵn có. `bnpl_installments` và `escrow_milestones` đổi sang `RESTRICT`.
 
 | Bảng con | Cột | Bảng cha | `ON DELETE` | Lý do |
 | --- | --- | --- | --- | --- |
