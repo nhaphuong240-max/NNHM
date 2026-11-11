@@ -2,11 +2,14 @@ import { AsyncLocalStorage } from 'async_hooks';
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
-import { PostgresDriver } from 'typeorm/driver/postgres/PostgresDriver';
 
 const BIND_SQL = `
   SELECT set_config('app.current_tenant_id', $1, false),
          set_config('app.is_platform_admin', $2, false)
+`;
+const RESET_SQL = `
+  SELECT set_config('app.current_tenant_id', '', false),
+         set_config('app.is_platform_admin', 'false', false)
 `;
 
 export type RlsRequestContext = { tenantId: string; isPlatformAdmin: boolean };
@@ -28,25 +31,53 @@ export class TenantRlsService implements OnModuleInit {
   }
 
   /**
-   * Every query on a checked-out connection sets the request GUC on that same client.
-   * A separate dataSource.query would bind a random pool connection and then release it.
+   * TypeORM checks out with pool.connect(callback) (PostgresDriver.obtainMasterConnection).
+   * The promise form is wrapped too. set_config runs on that client, and release clears it
+   * before the client returns to the pool. dataSource.query is not used.
    */
   private bindPoolConnections() {
-    const driver = this.dataSource.driver;
-    if (!(driver instanceof PostgresDriver)) return;
-    const pool = driver.master as PgPool & { __rlsPatched?: boolean };
-    if (!pool?.connect || pool.__rlsPatched) return;
+    const driver = this.dataSource.driver as { master?: PgPool; slaves?: PgPool[] };
+    const pools = [driver?.master, ...(driver?.slaves ?? [])].filter(
+      (pool): pool is PgPool => Boolean(pool?.connect),
+    );
+    for (const pool of pools) this.patchPool(pool);
+    if (pools.length) {
+      this.logger.log('Postgres RLS context is bound on the connection that runs the query');
+    }
+  }
+
+  private patchPool(pool: PgPool) {
+    if (pool.__rlsPatched) return;
     pool.__rlsPatched = true;
     const connect = pool.connect.bind(pool);
     pool.connect = ((...args: unknown[]) => {
-      const result = connect(...args);
-      if (typeof args[0] === 'function') return result;
-      return Promise.resolve(result).then((client) => {
-        wrapClient(client as PgClient);
-        return client;
+      if (typeof args[0] === 'function') {
+        const callback = args[0] as PoolCallback;
+        return connect((err: Error | null, client?: PgClient, release?: (releaseErr?: Error) => void) => {
+          if (err || !client || !release) {
+            callback(err ?? new Error('postgres pool returned no client'), client, release);
+            return;
+          }
+          wrapClient(client);
+          let released = false;
+          const releaseOnce = (releaseErr?: Error) => {
+            if (released) return;
+            released = true;
+            resetClient(client).then(
+              () => release(releaseErr),
+              (resetErr) => release(resetErr),
+            );
+          };
+          callback(null, client, releaseOnce);
+        });
+      }
+      return Promise.resolve(connect(...args)).then((client) => {
+        const pgClient = client as PgClient;
+        wrapClient(pgClient);
+        wrapRelease(pgClient);
+        return pgClient;
       });
     }) as PgPool['connect'];
-    this.logger.log('Postgres RLS context is bound on the connection that runs the query');
   }
 
   runWithContext<T>(context: RlsRequestContext, fn: () => T): T {
@@ -66,6 +97,7 @@ function wrapClient(client: PgClient) {
   if (client.__rlsWrapped) return;
   client.__rlsWrapped = true;
   const original = client.query.bind(client);
+  client.__rlsOriginalQuery = original;
   client.query = ((...args: unknown[]) => {
     const first = args[0];
     const text = typeof first === 'string' ? first : (first as { text?: string } | null)?.text ?? '';
@@ -92,11 +124,33 @@ function wrapClient(client: PgClient) {
   }) as PgClient['query'];
 }
 
+function wrapRelease(client: PgClient) {
+  if (!client.release || client.__releaseWrapped) return;
+  const originalRelease = client.release.bind(client);
+  client.__releaseWrapped = true;
+  client.release = (err?: Error) => resetClient(client).then(() => originalRelease(err));
+}
+
+function resetClient(client: PgClient): Promise<void> {
+  const original = client.__rlsOriginalQuery ?? client.query.bind(client);
+  return Promise.resolve(original(RESET_SQL)).then(() => undefined);
+}
+
+type PoolCallback = (
+  err: Error | null,
+  client?: PgClient,
+  release?: (releaseErr?: Error) => void,
+) => void;
+
 type PgClient = {
   query: (...args: unknown[]) => unknown;
+  release?: (err?: Error) => unknown;
   __rlsWrapped?: boolean;
+  __releaseWrapped?: boolean;
+  __rlsOriginalQuery?: (...args: unknown[]) => unknown;
 };
 
 type PgPool = {
   connect: (...args: unknown[]) => unknown;
+  __rlsPatched?: boolean;
 };

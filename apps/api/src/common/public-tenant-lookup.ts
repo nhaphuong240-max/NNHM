@@ -2,15 +2,16 @@ import { DataSource, QueryRunner } from 'typeorm';
 import { rlsStorage } from '../database/tenant-rls.service';
 import { secretFromPublicToken } from './public-tenant-token';
 
-const TOKEN_LOOKUP = `
+/** Exact match only. The client value is never concatenated into a LIKE pattern. */
+export const PUBLIC_TOKEN_LOOKUP_SQL = `
   SELECT tenant_id FROM dsr_share_links
-  WHERE token = $1 OR token = $2 OR ($2 <> '' AND token LIKE 'v1.%.' || $2)
+  WHERE token = $1 OR token = $2 OR ($2 <> '' AND split_part(token, '.', 1) = 'v1' AND split_part(token, '.', 3) = $2)
   UNION
   SELECT tenant_id FROM walk_in_galleries
-  WHERE token = $1 OR token = $2 OR ($2 <> '' AND token LIKE 'v1.%.' || $2)
+  WHERE token = $1 OR token = $2 OR ($2 <> '' AND split_part(token, '.', 1) = 'v1' AND split_part(token, '.', 3) = $2)
   UNION
   SELECT tenant_id FROM open_day_rsvps
-  WHERE qr_token = $1 OR qr_token = $2 OR ($2 <> '' AND qr_token LIKE 'v1.%.' || $2)
+  WHERE qr_token = $1 OR qr_token = $2 OR ($2 <> '' AND split_part(qr_token, '.', 1) = 'v1' AND split_part(qr_token, '.', 3) = $2)
   UNION
   SELECT tenant_id FROM seeker_otp_challenges
   WHERE id = $1 OR id = $2
@@ -39,7 +40,7 @@ export async function lookupTenantByPublicToken(
   const raw = presented.trim();
   const secret = secretFromPublicToken(raw) ?? (raw.startsWith('v1.') ? '' : raw);
   const rows: Array<{ tenant_id: string }> = await withLookupConnection(dataSource, (runner) =>
-    runner.query(TOKEN_LOOKUP, [raw, secret]),
+    runner.query(PUBLIC_TOKEN_LOOKUP_SQL, [raw, secret]),
   );
   return [...new Set(rows.map((row) => row.tenant_id).filter(Boolean))];
 }

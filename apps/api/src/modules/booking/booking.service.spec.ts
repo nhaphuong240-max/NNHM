@@ -46,6 +46,7 @@ describe('BookingService', () => {
   let auditAppend: jest.Mock;
   let lockStore: Map<string, string>;
   let refundServiceMock: { createRefund: jest.Mock };
+  let bookingSave: jest.Mock;
   let lockService: Pick<
     InventoryLockService,
     'acquireLock' | 'releaseLock' | 'getHolder'
@@ -189,7 +190,7 @@ describe('BookingService', () => {
                 ) ?? null
               );
             }),
-            save: jest.fn(async (row: BookingEntity) => {
+            save: (bookingSave = jest.fn(async (row: BookingEntity) => {
               const saved = {
                 ...row,
                 createdAt: row.createdAt ?? new Date(),
@@ -198,7 +199,7 @@ describe('BookingService', () => {
               if (idx >= 0) bookings[idx] = saved;
               else bookings.push(saved);
               return saved;
-            }),
+            })),
             findOneOrFail: jest.fn(async ({ where }: { where: Record<string, string> }) => {
               const row = bookings.find(
                 (b) => b.id === where.id && b.tenantId === where.tenantId,
@@ -219,6 +220,35 @@ describe('BookingService', () => {
     unitId,
     expectedUnitVersion: VERSION,
     ...extra,
+  });
+
+  it('maps an active-hold unique violation to 409', async () => {
+    bookingSave.mockRejectedValueOnce({
+      driverError: { code: '23505', constraint: 'uq_bookings_active_hold' },
+    });
+
+    const error = await service
+      .create(TENANT, bookingInput('un_01', { leadId: 'ld_01' }))
+      .then(() => null, (caught: unknown) => caught);
+
+    expect(error).toBeInstanceOf(ConflictException);
+    expect((error as ConflictException).getStatus()).toBe(409);
+    expect((error as ConflictException).getResponse()).toMatchObject({
+      detail: 'An active hold already exists for this unit',
+    });
+    expect(JSON.stringify((error as ConflictException).getResponse())).not.toMatch(/duplicate key/i);
+
+    units[0].status = 'AVAILABLE';
+    bookingSave.mockRejectedValueOnce({
+      driverError: { code: '23505', constraint: 'bookings_pkey' },
+    });
+    const other = await service
+      .create(TENANT, bookingInput('un_01', { leadId: 'ld_01' }))
+      .then(() => null, (caught: unknown) => caught);
+    expect(other).not.toBeInstanceOf(ConflictException);
+    expect(other).toMatchObject({
+      driverError: { code: '23505', constraint: 'bookings_pkey' },
+    });
   });
 
   it('creates RESERVED booking with Redis lock', async () => {

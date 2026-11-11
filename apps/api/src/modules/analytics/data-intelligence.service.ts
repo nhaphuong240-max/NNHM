@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { randomUUID } from 'crypto';
+import { createHash, randomUUID } from 'crypto';
 import { Repository } from 'typeorm';
 import { BookingEntity } from '../../database/entities/booking.entity';
 import { DataMartDailyEntity } from '../../database/entities/data-mart-daily.entity';
@@ -30,13 +30,19 @@ export class DataIntelligenceService {
     for (const productCode of codes) {
       const existing = await this.entitlements.findOne({ where: { tenantId, productCode } });
       if (existing) continue;
-      await this.entitlements.save({
-        id: `dpe_${randomUUID().replace(/-/g, '').slice(0, 8)}`,
-        tenantId,
-        productCode,
-        enabled: true,
-        quotaPerMonth: 100,
-      });
+      try {
+        await this.entitlements.save({
+          id: `dpe_${randomUUID().replace(/-/g, '').slice(0, 8)}`,
+          tenantId,
+          productCode,
+          enabled: true,
+          quotaPerMonth: 100,
+        });
+      } catch (error) {
+        const driver = error as { code?: string; driverError?: { code?: string } };
+        const code = driver.driverError?.code ?? driver.code;
+        if (code !== '23505') throw error;
+      }
     }
   }
 
@@ -71,8 +77,11 @@ export class DataIntelligenceService {
       })),
     };
 
-    const id = `dm_${tenantId}_${reportDate.replace(/-/g, '')}_${projectId ?? 'all'}`;
-    return this.mart.save({
+    const id = `dm${createHash('sha256')
+      .update(`${tenantId}|${reportDate}|${projectId ?? ''}`)
+      .digest('hex')
+      .slice(0, 30)}`;
+    const row = {
       id,
       tenantId,
       projectId: projectId ?? null,
@@ -81,7 +90,26 @@ export class DataIntelligenceService {
       avgPriceBand,
       velocityUnits,
       heatmap,
-    });
+    };
+    try {
+      return await this.mart.save(row);
+    } catch (error) {
+      const driver = error as { code?: string; driverError?: { code?: string } };
+      const code = driver.driverError?.code ?? driver.code;
+      if (code !== '23505') throw error;
+      for (let attempt = 0; attempt < 5; attempt += 1) {
+        const existing = await this.mart.findOne({ where: { id } });
+        if (existing) {
+          existing.absorptionRate = row.absorptionRate;
+          existing.avgPriceBand = row.avgPriceBand;
+          existing.velocityUnits = row.velocityUnits;
+          existing.heatmap = row.heatmap;
+          return this.mart.save(existing);
+        }
+        await new Promise((resolve) => setTimeout(resolve, 25));
+      }
+      throw error;
+    }
   }
 
   async getHeatmap(tenantId: string, projectId?: string) {

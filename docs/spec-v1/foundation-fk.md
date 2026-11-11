@@ -21,3 +21,5 @@
 Không có bảng tổ chức để tham chiếu, nên các cột sau không có khóa ngoại: `org_memberships.user_id`, `org_memberships.org_id`, `scoped_grants.grantee_org_id`, `access_review_items.user_id` (rộng hơn `users.id` và có thể chưa có dòng user), `evidence_records.actor_id`, `export_jobs.approved_by`, `distribution_agreements.partner_org_id`, `exception_items.owner_id`.
 
 `scoped_grants` và `access_review_items` chỉ unique khi `status = 'ACTIVE'`, để giữ lịch sử thu hồi. `export_jobs` và `exception_items` không unique theo purpose hay severity.
+
+Khóa ngoại một cột không chặn tham chiếu chéo tenant. Ví dụ một dòng tenant A vẫn có thể trỏ `booking_id` hoặc `unit_id` của tenant B nếu id đó tồn tại.

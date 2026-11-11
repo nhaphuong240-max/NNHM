@@ -8,7 +8,8 @@ import {
 /**
  * RLS for the 22 tenant tables created after 1738339201000.
  * Does not edit that migration. A missing table stops the migration.
- * down() reverses the token prefix, then DROP POLICY, NO FORCE, and DISABLE ROW LEVEL SECURITY.
+ * down() strips v1.{tenant_id}. from every matching token, including tokens created after up(),
+ * then DROP POLICY, NO FORCE, and DISABLE ROW LEVEL SECURITY.
  */
 export class EnableRemainingTenantRls1758130000000 implements MigrationInterface {
   name = 'EnableRemainingTenantRls1758130000000';

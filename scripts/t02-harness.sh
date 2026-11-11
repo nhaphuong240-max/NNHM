@@ -111,6 +111,13 @@ echo "=== nosuperuser RLS and concurrent hold ==="
 )
 echo "PASS nosuperuser RLS and concurrent hold"
 
+echo "=== app pool RLS ==="
+(
+  cd "$ROOT"
+  node "$ROOT/scripts/t02-rls-app-proof.js"
+)
+echo "PASS app pool RLS"
+
 if [ -n "${T02_HARNESS_SESSION:-}" ] && [ -f "${T02_HARNESS_SESSION}" ]; then
   echo "REFUSE dispose: session file is recorded and is not used as a delete"
 else
