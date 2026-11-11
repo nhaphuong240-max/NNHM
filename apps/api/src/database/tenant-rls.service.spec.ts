@@ -15,10 +15,12 @@ describe('TenantRlsService', () => {
   const dataSourceQuery = jest.fn().mockResolvedValue(undefined);
   const recorded: Recorded[] = [];
   let poolReleaseCount = 0;
+  const originalRelease = jest.fn(async () => undefined);
 
   type FakeClient = {
     query: (this: unknown, ...args: unknown[]) => unknown;
     release: jest.Mock;
+    __rlsBound?: { tenantId: string; admin: string };
   };
 
   const client: FakeClient = {
@@ -31,11 +33,11 @@ describe('TenantRlsService', () => {
       }
       return Promise.resolve({ rows: [] });
     },
-    release: jest.fn(async () => undefined),
+    release: originalRelease,
   };
 
   const pool = {
-    connect(arg: unknown) {
+    connect(arg?: unknown) {
       if (typeof arg === 'function') {
         (arg as (err: null, checked: FakeClient, release: (err?: Error) => void) => void)(
           null,
@@ -53,7 +55,9 @@ describe('TenantRlsService', () => {
   beforeEach(async () => {
     recorded.length = 0;
     poolReleaseCount = 0;
-    client.release.mockClear();
+    delete client.__rlsBound;
+    client.release = originalRelease;
+    originalRelease.mockClear();
     dataSourceQuery.mockClear();
     const module = await Test.createTestingModule({
       providers: [
@@ -145,5 +149,75 @@ describe('TenantRlsService', () => {
     expect(recorded.findIndex((row) => row.params?.[0] === 'ten_b')).toBeGreaterThan(
       recorded.findIndex((row) => row.text.includes("set_config('app.current_tenant_id', '', false)")),
     );
+  });
+
+  it('sends rollback and savepoint commands without a bind', async () => {
+    const control = [
+      'ROLLBACK',
+      'COMMIT',
+      'ROLLBACK TO SAVEPOINT typeorm_1',
+      'RELEASE SAVEPOINT typeorm_1',
+      'SAVEPOINT typeorm_1',
+    ];
+    await service.runAsTenant('ten_a', async () => {
+      const checked = await checkout();
+      for (const sql of control) await checked.query(sql);
+      await checked.query('SELECT id FROM org_memberships');
+      await checked.query('ROLLBACK');
+      checked.release();
+      await new Promise((resolve) => setImmediate(resolve));
+    });
+
+    const texts = recorded.map((row) => row.text.trim());
+    for (let i = 0; i < texts.length; i += 1) {
+      if (control.includes(texts[i]) || texts[i] === 'ROLLBACK') {
+        expect(texts[i - 1] ?? '').not.toContain('set_config');
+      }
+    }
+    const selectAt = texts.indexOf('SELECT id FROM org_memberships');
+    expect(texts[selectAt - 1]).toContain("set_config('app.current_tenant_id'");
+    expect(texts.filter((text) => text === 'ROLLBACK')).toHaveLength(2);
+  });
+
+  it('binds again only when the tenant or admin flag changes', async () => {
+    await service.runAsTenant('ten_a', async () => {
+      const checked = await checkout();
+      await checked.query('SELECT 1');
+      await checked.query('SELECT 2');
+      await service.runAsTenant('ten_b', async () => {
+        await checked.query('SELECT 3');
+      });
+      checked.release();
+      await new Promise((resolve) => setImmediate(resolve));
+    });
+
+    const binds = recorded.filter((row) => row.params?.[1] === 'false');
+    expect(binds.map((row) => row.params)).toEqual([
+      ['ten_a', 'false'],
+      ['ten_b', 'false'],
+    ]);
+  });
+
+  it('resets a promise checkout every time the pool replaces release', async () => {
+    const firstRelease = jest.fn(async () => undefined);
+    client.release = firstRelease;
+    const first = (await pool.connect()) as { query: (...args: unknown[]) => Promise<unknown>; release: () => Promise<void> };
+    await service.runAsTenant('ten_a', async () => {
+      await first.query('SELECT a');
+    });
+    await first.release();
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(firstRelease).toHaveBeenCalledTimes(1);
+
+    const secondRelease = jest.fn(async () => undefined);
+    client.release = secondRelease;
+    const second = (await pool.connect()) as typeof first;
+    await service.runAsTenant('ten_b', async () => {
+      await second.query('SELECT b');
+    });
+    await second.release();
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(secondRelease).toHaveBeenCalledTimes(1);
+    expect(recorded.filter((row) => row.text.includes("set_config('app.current_tenant_id', '', false)"))).toHaveLength(2);
   });
 });

@@ -36,8 +36,22 @@ const roleUrl = new URL(databaseUrl);
 roleUrl.username = 't02_rls';
 roleUrl.password = password;
 
+const PROOF_IDS = [
+  'mem_t02_app_a',
+  'mem_t02_app_b',
+  'mem_t02_app_x',
+  'mem_t02_app_ok',
+  'mem_t02_app_dup',
+];
+
 function fail(message) {
   throw new Error(message);
+}
+
+function isDuplicateKey(error) {
+  const message = String(error && error.message ? error.message : error);
+  const code = error && (error.code || (error.driverError && error.driverError.code));
+  return code === '23505' || /duplicate key/i.test(message);
 }
 
 async function main() {
@@ -59,7 +73,7 @@ async function main() {
     if (role.rows[0]?.rolsuper !== false) fail('t02_rls is not NOSUPERUSER');
     await admin.query('GRANT USAGE ON SCHEMA public TO t02_rls');
     await admin.query('GRANT SELECT, INSERT ON org_memberships TO t02_rls');
-    await admin.query(`DELETE FROM org_memberships WHERE id IN ('mem_t02_app_a', 'mem_t02_app_b', 'mem_t02_app_x')`);
+    await admin.query('DELETE FROM org_memberships WHERE id = ANY($1::text[])', [PROOF_IDS]);
     await admin.query(
       `INSERT INTO org_memberships (id, tenant_id, user_id, org_id, role_code, status)
        VALUES
@@ -112,10 +126,83 @@ async function main() {
       blocked = /row-level security/i.test(String(error && error.message ? error.message : error));
     }
     if (!blocked) fail('repository insert into another tenant was not blocked');
+
+    const aborted = dataSource.createQueryRunner();
+    await aborted.connect();
+    try {
+      await service.runAsTenant('ten_rls_app_a', async () => {
+        await aborted.startTransaction();
+        try {
+          await aborted.manager.insert(OrgMembershipEntity, {
+            id: 'mem_t02_app_dup',
+            tenantId: 'ten_rls_app_a',
+            userId: 'usr_app_a',
+            orgId: 'org_app_a',
+            roleCode: 'SALES',
+            status: 'ACTIVE',
+            payload: {},
+          });
+          fail('duplicate insert did not raise 23505');
+        } catch (error) {
+          if (!isDuplicateKey(error)) throw error;
+          await aborted.rollbackTransaction();
+        }
+      });
+      if (aborted.isTransactionActive) fail('rollback left the transaction active');
+      await aborted.query('SELECT 1');
+    } finally {
+      await aborted.release();
+    }
+
+    const saved = dataSource.createQueryRunner();
+    await saved.connect();
+    try {
+      await service.runAsTenant('ten_rls_app_a', async () => {
+        await saved.startTransaction();
+        await saved.manager.insert(OrgMembershipEntity, {
+          id: 'mem_t02_app_ok',
+          tenantId: 'ten_rls_app_a',
+          userId: 'usr_app_ok',
+          orgId: 'org_app_ok',
+          roleCode: 'SALES',
+          status: 'ACTIVE',
+          payload: {},
+        });
+        await saved.startTransaction();
+        try {
+          await saved.manager.insert(OrgMembershipEntity, {
+            id: 'mem_t02_app_dup',
+            tenantId: 'ten_rls_app_a',
+            userId: 'usr_app_a',
+            orgId: 'org_app_a',
+            roleCode: 'SALES',
+            status: 'ACTIVE',
+            payload: {},
+          });
+          fail('savepoint duplicate insert did not raise 23505');
+        } catch (error) {
+          if (!isDuplicateKey(error)) throw error;
+          await saved.rollbackTransaction();
+        }
+        await saved.commitTransaction();
+      });
+    } finally {
+      await saved.release();
+    }
+    const kept = await admin.query(`SELECT id FROM org_memberships WHERE id = 'mem_t02_app_ok'`);
+    if (kept.rowCount !== 1) fail('outer transaction did not commit after ROLLBACK TO SAVEPOINT');
+
+    const after = await service.runAsTenant('ten_rls_app_b', () => repo.find());
+    const afterIds = after.map((row) => row.id);
+    if (afterIds.includes('mem_t02_app_a') || afterIds.includes('mem_t02_app_ok')) {
+      fail('tenant B saw tenant A after the rolled-back transaction');
+    }
+    if (!afterIds.includes('mem_t02_app_b')) fail('tenant B did not see its own row after rollback');
+
     console.log('PASS app NOSUPERUSER repository isolates tenants on one pooled client');
   } finally {
     if (dataSource?.isInitialized) await dataSource.destroy();
-    await admin.query(`DELETE FROM org_memberships WHERE id IN ('mem_t02_app_a', 'mem_t02_app_b', 'mem_t02_app_x')`);
+    await admin.query('DELETE FROM org_memberships WHERE id = ANY($1::text[])', [PROOF_IDS]);
     await admin.end();
   }
 }

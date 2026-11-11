@@ -101,12 +101,15 @@ function wrapClient(client: PgClient) {
   client.query = ((...args: unknown[]) => {
     const first = args[0];
     const text = typeof first === 'string' ? first : (first as { text?: string } | null)?.text ?? '';
-    if (text.includes('set_config') || text.includes('app.current_tenant_id')) {
+    if (isTxnControl(text) || text.includes('set_config') || text.includes('app.current_tenant_id')) {
       return original(...args);
     }
     const store = rlsStorage.getStore();
     const tenantId = store?.tenantId ?? '';
     const admin = store?.isPlatformAdmin ? 'true' : 'false';
+    if (client.__rlsBound?.tenantId === tenantId && client.__rlsBound?.admin === admin) {
+      return original(...args);
+    }
     const last = args[args.length - 1];
     if (typeof last === 'function') {
       const callback = last as (err: Error | null, result?: unknown) => void;
@@ -116,24 +119,51 @@ function wrapClient(client: PgClient) {
           callback(err);
           return;
         }
+        client.__rlsBound = { tenantId, admin };
         original(...rest, callback);
       });
       return undefined;
     }
-    return Promise.resolve(original(BIND_SQL, [tenantId, admin])).then(() => original(...args));
+    return Promise.resolve(original(BIND_SQL, [tenantId, admin])).then(() => {
+      client.__rlsBound = { tenantId, admin };
+      return original(...args);
+    });
   }) as PgClient['query'];
 }
 
+/**
+ * pg-pool assigns a new client.release on every promise checkout.
+ * Wrap that function each time. A once-only flag would skip RESET on the next checkout.
+ */
 function wrapRelease(client: PgClient) {
-  if (!client.release || client.__releaseWrapped) return;
+  if (!client.release || client.release === client.__wrappedRelease) return;
   const originalRelease = client.release.bind(client);
-  client.__releaseWrapped = true;
-  client.release = (err?: Error) => resetClient(client).then(() => originalRelease(err));
+  const wrapped = (err?: Error) => resetClient(client).then(() => originalRelease(err));
+  client.__wrappedRelease = wrapped;
+  client.release = wrapped;
 }
 
 function resetClient(client: PgClient): Promise<void> {
+  client.__rlsBound = undefined;
   const original = client.__rlsOriginalQuery ?? client.query.bind(client);
   return Promise.resolve(original(RESET_SQL)).then(() => undefined);
+}
+
+function isTxnControl(sql: string): boolean {
+  const text = sql.trim().replace(/;+\s*$/, '').replace(/\s+/g, ' ').toUpperCase();
+  return (
+    text === 'BEGIN' ||
+    text.startsWith('BEGIN ') ||
+    text === 'COMMIT' ||
+    text.startsWith('COMMIT ') ||
+    text === 'ROLLBACK' ||
+    text.startsWith('ROLLBACK ') ||
+    text === 'START TRANSACTION' ||
+    text.startsWith('START TRANSACTION ') ||
+    text.startsWith('SAVEPOINT ') ||
+    text.startsWith('RELEASE SAVEPOINT ') ||
+    text.startsWith('SET TRANSACTION ')
+  );
 }
 
 type PoolCallback = (
@@ -146,7 +176,8 @@ type PgClient = {
   query: (...args: unknown[]) => unknown;
   release?: (err?: Error) => unknown;
   __rlsWrapped?: boolean;
-  __releaseWrapped?: boolean;
+  __wrappedRelease?: (err?: Error) => unknown;
+  __rlsBound?: { tenantId: string; admin: string };
   __rlsOriginalQuery?: (...args: unknown[]) => unknown;
 };
 
