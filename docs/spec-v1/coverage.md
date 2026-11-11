@@ -21,7 +21,7 @@ Không phải production-ready. `not-done (rules-only)` nghĩa là có bảng ho
 | T15 | not-done | — | không có rule earned/payable/paid trong code |
 | T16 | not-done | `settlementLabel` | hàm từ chối `PAID` khi không có chứng từ; chưa gắn settlement service |
 | T17 | not-done (rules-only) | `exception-items.entity.ts` | workspace cũ giữ nguyên |
-| T18 | partial | `DeveloperIntelligencePage.tsx` đọc `data.districts`; mart id 32 ký tự; entitlement trùng `23505` được bỏ qua | `developer.spec.ts` giữ locator cũ. Local không chạy được Chromium vì Playwright 1.62 không có bản cho macOS 12. `mfa.spec.ts` local đã pass. Kết quả trang intelligence chờ CI `e2e-pr` |
+| T18 | partial | `DeveloperIntelligencePage.tsx` đọc `data.districts`; mart id 32 ký tự; entitlement trùng `23505` được bỏ qua | `developer.spec.ts` giữ locator. CI `e2e-pr` xanh: heading `Absorption heatmap` và `MRR ước tính`. `mfa.spec.ts` xanh. Local macOS 12 không cài được Chromium của Playwright 1.62 |
 | T19–T20 | not-done (rules-only) | `copilotAnswer` | abstain khi không có nguồn; không gắn retrieval |
 | T21 | partial | seed MFA chỉ khi `MFA_SEED_SANDBOX=true` | e2e MFA cần `SEED_MFA_TOTP_SECRET` |
 | T22 | implemented (tài liệu) | `docs/spec-v1/t22-t24-runbooks.md` | không deploy |
