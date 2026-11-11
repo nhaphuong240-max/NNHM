@@ -317,8 +317,10 @@ export class HealthService {
     const snapshot = this.gateway.getIntelligenceSnapshot();
     const legalEval = evaluateLegalHallucination();
     const slaHours = Number(this.config.get<string>('ANTI_DRIFT_OPS_SLA_HOURS', '4'));
-    const tenantId = this.config.get<string>('DEFAULT_TENANT_ID', 'ten_dev_01');
-    const slaDash = await this.anomalies.getSlaDashboard(tenantId);
+    const tenantId = (this.config.get<string>('INTELLIGENCE_GATE_TENANT_ID') ?? '').trim();
+    const slaDash = tenantId
+      ? await this.anomalies.getSlaDashboard(tenantId)
+      : { data: [], meta: { opsNotification: 'tenant-not-configured' } };
 
     const checks = [
       {

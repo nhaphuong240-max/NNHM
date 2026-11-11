@@ -43,6 +43,7 @@ const PROOF_IDS = [
   'mem_t02_app_ok',
   'mem_t02_app_dup',
   'mem_t02_app_d',
+  'mem_t02_seed',
 ];
 
 function fail(message) {
@@ -85,7 +86,8 @@ async function main() {
       `INSERT INTO org_memberships (id, tenant_id, user_id, org_id, role_code, status)
        VALUES
          ('mem_t02_app_a', 'ten_rls_app_a', 'usr_app_a', 'org_app_a', 'SALES', 'ACTIVE'),
-         ('mem_t02_app_b', 'ten_rls_app_b', 'usr_app_b', 'org_app_b', 'SALES', 'ACTIVE')`,
+         ('mem_t02_app_b', 'ten_rls_app_b', 'usr_app_b', 'org_app_b', 'SALES', 'ACTIVE'),
+         ('mem_t02_seed', 'ten_dev_01', 'usr_seed', 'org_seed', 'SALES', 'ACTIVE')`,
     );
 
     dataSource = new DataSource({
@@ -114,6 +116,9 @@ async function main() {
     const seenB = await service.runAsTenant('ten_rls_app_b', () => repo.find());
     const idsB = seenB.map((row) => row.id).sort();
     if (idsB.includes('mem_t02_app_a')) fail('the next request on the same pooled client saw tenant A');
+    if (idsB.includes('mem_t02_seed') || seenB.some((row) => row.tenantId === 'ten_dev_01')) {
+      fail('tenant B repository saw a seed-tenant row');
+    }
     if (!idsB.includes('mem_t02_app_b')) fail('tenant B repository did not see its own row');
 
     let blocked = false;

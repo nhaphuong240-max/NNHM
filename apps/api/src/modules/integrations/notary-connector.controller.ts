@@ -1,5 +1,7 @@
 import { Body, Controller, Headers, HttpCode, Post } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+import { DataSource } from 'typeorm';
+import { oneLookedUpTenant, recordUnscopedAudit } from '../../common/public-tenant-lookup';
+import { assertHeaderMatches } from '../../common/resolve-tenant-id';
 import { Public } from '../identity/decorators/public.decorator';
 import { ApiMarketplaceService } from '../api-marketplace/api-marketplace.service';
 
@@ -8,7 +10,7 @@ import { ApiMarketplaceService } from '../api-marketplace/api-marketplace.servic
 export class NotaryConnectorController {
   constructor(
     private readonly marketplace: ApiMarketplaceService,
-    private readonly config: ConfigService,
+    private readonly dataSource: DataSource,
   ) {}
 
   @Post('webhook')
@@ -23,7 +25,20 @@ export class NotaryConnectorController {
       contractRef?: string;
     },
   ) {
-    const tenantId = tenantHeader?.trim() || this.config.get('DEFAULT_TENANT_ID', 'ten_dev_01');
+    let tenantId: string;
+    try {
+      tenantId = await oneLookedUpTenant(this.dataSource, 'booking', body.bookingId, 'not-found');
+    } catch (error) {
+      await recordUnscopedAudit(this.dataSource, {
+        tenantId: null,
+        entityType: 'booking',
+        entityId: body.bookingId || 'missing',
+        action: 'WEBHOOK_REJECTED',
+        payload: { reason: 'no-matching-record', connector: 'NOTARY' },
+      });
+      throw error;
+    }
+    assertHeaderMatches(tenantHeader, tenantId);
     const partner = await this.marketplace.findPartnerByCategory(tenantId, 'NOTARY');
     await this.marketplace.recordDelivery({
       tenantId,

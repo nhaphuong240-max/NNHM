@@ -29,10 +29,14 @@ export function AuthSsoCallbackPage() {
     }
 
     const claims = decodeJwtPayload(accessToken);
-    const email = typeof claims.email === 'string' ? claims.email : 'agent@sunrise-dev.vn';
-    const tenantId = typeof claims.tenantId === 'string' ? claims.tenantId : 'ten_dev_01';
-    const userId = typeof claims.sub === 'string' ? claims.sub : 'usr_agent';
-    const role = typeof claims.role === 'string' ? claims.role : 'AGENT';
+    const email = typeof claims.email === 'string' ? claims.email : '';
+    const tenantId = typeof claims.tenantId === 'string' ? claims.tenantId : '';
+    const userId = typeof claims.sub === 'string' ? claims.sub : '';
+    const role = typeof claims.role === 'string' ? claims.role : '';
+    if (!tenantId || !email || !userId || !role) {
+      setError('SSO không trả tenant hoặc danh tính. Không dùng tenant mặc định.');
+      return;
+    }
 
     setSession({
       accessToken,

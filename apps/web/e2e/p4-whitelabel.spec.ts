@@ -29,7 +29,7 @@ test.describe('P4 · white-label & ops privacy', () => {
 
   test('public brand API is reachable', async ({ request }) => {
     const res = await request.get('/api/v1/tenants/branding/public', {
-      headers: { 'X-Tenant-Id': 'ten_dev_01' },
+      headers: { Host: 'portal.thanglong-dev.vn', 'X-Tenant-Id': 'ten_pilot_cdt_01' },
     });
     expect(res.ok()).toBeTruthy();
     const json = await res.json();

@@ -1,6 +1,9 @@
-import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Headers, Param, Post, Query } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { resolveTenantId } from '../../common/resolve-tenant-id';
+import { DataSource } from 'typeorm';
+import { oneLookedUpTenant } from '../../common/public-tenant-lookup';
+import { requireHostTenant } from '../../common/resolve-tenant-from-host';
+import { assertHeaderMatches, resolveTenantId } from '../../common/resolve-tenant-id';
 import { Public } from '../identity/decorators/public.decorator';
 import { CurrentUser } from '../identity/decorators/current-user.decorator';
 import type { AuthUser } from '../identity/identity.types';
@@ -14,31 +17,51 @@ export class CmsController {
     private readonly cms: CmsService,
     private readonly homepage: CmsHomepageService,
     private readonly config: ConfigService,
+    private readonly dataSource: DataSource,
   ) {}
 
   @Public()
   @Get('areas')
   listAreas(
     @CurrentUser() user: AuthUser | undefined,
+    @Headers('x-tenant-id') tenantHeader: string | undefined,
+    @Headers('host') host: string | undefined,
     @Query('city') city?: string,
   ) {
-    return this.cms.listAreas(resolveTenantId(this.config, user), city);
+    const tenantId = user?.tenantId?.trim()
+      ? resolveTenantId(this.config, user, tenantHeader)
+      : requireHostTenant(host);
+    assertHeaderMatches(tenantHeader, tenantId);
+    return this.cms.listAreas(tenantId, city);
   }
 
   @Public()
   @Get('areas/:slug')
-  areaLanding(
+  async areaLanding(
     @CurrentUser() user: AuthUser | undefined,
+    @Headers('x-tenant-id') tenantHeader: string | undefined,
     @Param('slug') slug: string,
   ) {
-    return this.cms.getAreaLanding(resolveTenantId(this.config, user), slug);
+    const tenantId = user?.tenantId?.trim()
+      ? resolveTenantId(this.config, user, tenantHeader)
+      : await oneLookedUpTenant(this.dataSource, 'area_slug', slug, 'not-found');
+    assertHeaderMatches(tenantHeader, tenantId);
+    return this.cms.getAreaLanding(tenantId, slug);
   }
 
   /** Phase Homepage — public pack (config + live picks/stats/districts) */
   @Public()
   @Get('homepage')
-  homepagePack(@CurrentUser() user: AuthUser | undefined) {
-    return this.homepage.getHomepagePack(resolveTenantId(this.config, user));
+  homepagePack(
+    @CurrentUser() user: AuthUser | undefined,
+    @Headers('x-tenant-id') tenantHeader: string | undefined,
+    @Headers('host') host: string | undefined,
+  ) {
+    const tenantId = user?.tenantId?.trim()
+      ? resolveTenantId(this.config, user, tenantHeader)
+      : requireHostTenant(host);
+    assertHeaderMatches(tenantHeader, tenantId);
+    return this.homepage.getHomepagePack(tenantId);
   }
 
   @Get('homepage/config')

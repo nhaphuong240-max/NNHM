@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react';
-import { DEFAULT_TENANT_ID } from '../lib/constants';
 
 const API_BASE = import.meta.env.VITE_API_URL ?? '/api/v1';
 
@@ -14,10 +13,12 @@ export type UnitStatusStreamEvent = {
 type StreamState = 'connecting' | 'live' | 'offline';
 
 export function useUnitStatusStream(options: {
+  unitId?: string | null;
+  tenantId?: string | null;
   enabled?: boolean;
   onStatusChange?: (event: UnitStatusStreamEvent) => void;
 }) {
-  const { enabled = true, onStatusChange } = options;
+  const { unitId, tenantId, enabled = true, onStatusChange } = options;
   const [state, setState] = useState<StreamState>('connecting');
   const [lastEvent, setLastEvent] = useState<UnitStatusStreamEvent | null>(null);
   const handlerRef = useRef(onStatusChange);
@@ -27,9 +28,12 @@ export function useUnitStatusStream(options: {
   }, [onStatusChange]);
 
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled || !unitId || !tenantId) {
+      setState('offline');
+      return;
+    }
 
-    const url = `${API_BASE}/stream/units?tenantId=${encodeURIComponent(DEFAULT_TENANT_ID)}`;
+    const url = `${API_BASE}/stream/units?unitId=${encodeURIComponent(unitId)}&tenantId=${encodeURIComponent(tenantId)}`;
     const es = new EventSource(url);
 
     const handleStatus = (raw: MessageEvent) => {
@@ -53,7 +57,7 @@ export function useUnitStatusStream(options: {
       es.close();
       setState('offline');
     };
-  }, [enabled]);
+  }, [enabled, unitId, tenantId]);
 
   return { state, lastEvent };
 }

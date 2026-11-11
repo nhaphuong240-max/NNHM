@@ -1,4 +1,4 @@
-import { UnauthorizedException } from '@nestjs/common';
+import { ForbiddenException, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
@@ -252,7 +252,11 @@ describe('PaymentWebhookService', () => {
         {
           provide: getRepositoryToken(PaymentIntentEntity),
           useValue: {
-            findOne: jest.fn(async () => intent),
+            findOne: jest.fn(async ({ where }: { where: { id?: string; tenantId?: string } }) => {
+              if (where.id && where.id !== intent.id) return null;
+              if (where.tenantId && where.tenantId !== intent.tenantId) return null;
+              return intent;
+            }),
             save: jest.fn(async (row: PaymentIntentEntity) => {
               intent = row;
               return row;
@@ -377,6 +381,33 @@ describe('PaymentWebhookService', () => {
     expect(journals).toHaveLength(1);
     expect(ledgerEntries).toHaveLength(2);
     expect(webhookEvents).toHaveLength(1);
+  });
+
+  it('uses the stored payment intent tenant when the payload omits tenantId', async () => {
+    const { payload, signature } = signedPayload({ eventId: 'evt_no_tenant', tenantId: undefined });
+    const result = await service.handle(payload, signature);
+    expect(result.processed).toBe(true);
+    expect(notifyPaymentSuccess).toHaveBeenCalledWith(
+      expect.objectContaining({ tenantId: TENANT }),
+    );
+  });
+
+  it('rejects a payload tenant that does not match the stored payment intent', async () => {
+    const { payload, signature } = signedPayload({
+      eventId: 'evt_wrong_tenant',
+      tenantId: 'ten_other',
+    });
+    await expect(service.handle(payload, signature)).rejects.toBeInstanceOf(ForbiddenException);
+    expect(notifyPaymentSuccess).not.toHaveBeenCalled();
+  });
+
+  it('returns 404 when the payment intent is not stored', async () => {
+    const { payload, signature } = signedPayload({
+      eventId: 'evt_missing_intent',
+      paymentIntentId: 'pi_missing',
+    });
+    await expect(service.handle(payload, signature)).rejects.toBeInstanceOf(NotFoundException);
+    expect(notifyPaymentSuccess).not.toHaveBeenCalled();
   });
 
   it('rejects invalid HMAC signature', async () => {

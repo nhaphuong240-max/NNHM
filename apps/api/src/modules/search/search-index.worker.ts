@@ -1,6 +1,7 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { Interval } from '@nestjs/schedule';
 import { ConfigService } from '@nestjs/config';
+import { allowDefaultTenant } from '../../common/default-tenant-flag';
 import { SEED_TENANT_ID } from '../../database/database.seed.service';
 import { SearchIndexService } from './search-index.service';
 
@@ -16,6 +17,10 @@ export class SearchIndexWorker implements OnModuleInit {
   ) {}
 
   async onModuleInit() {
+    if (!allowDefaultTenant()) {
+      this.bootstrapped = true;
+      return;
+    }
     const tenantId = this.config.get<string>('DEFAULT_TENANT_ID', SEED_TENANT_ID);
     const status = await this.index.getStatus(tenantId);
     if (status.docCount === 0) {
@@ -40,7 +45,7 @@ export class SearchIndexWorker implements OnModuleInit {
   /** P1 — reconcile index when seed adds listings after bootstrap (avoids empty SERP race) */
   @Interval(5000)
   async reconcilePublishedDocs() {
-    if (!this.bootstrapped || this.reconcileTicks >= 24) return;
+    if (!allowDefaultTenant() || !this.bootstrapped || this.reconcileTicks >= 24) return;
     this.reconcileTicks += 1;
 
     const tenantId = this.config.get<string>('DEFAULT_TENANT_ID', SEED_TENANT_ID);

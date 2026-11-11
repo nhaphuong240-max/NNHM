@@ -82,7 +82,12 @@ export function PublicUnitDetailPage() {
     [unitId],
   );
 
-  const { state: streamState } = useUnitStatusStream({ onStatusChange: handleStreamStatus });
+  const { state: streamState } = useUnitStatusStream({
+    unitId,
+    tenantId: detail?.meta.tenantId,
+    enabled: Boolean(unitId && detail?.meta.tenantId),
+    onStatusChange: handleStreamStatus,
+  });
 
   const leadAttribution = useMemo(() => {
     const utm: Record<string, string> = {};

@@ -1,8 +1,8 @@
 import { getSession, type AuthSession } from './auth';
-import { DEFAULT_TENANT_ID, PRIVACY_POLICY_VERSION } from './constants';
+import { PRIVACY_POLICY_VERSION } from './constants';
 import { getSeekerSession } from './seeker';
 
-export { DEFAULT_TENANT_ID, PRIVACY_POLICY_VERSION };
+export { PRIVACY_POLICY_VERSION };
 
 const API_BASE = import.meta.env.VITE_API_URL ?? '/api/v1';
 

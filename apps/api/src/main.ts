@@ -3,7 +3,9 @@ import { NestFactory } from '@nestjs/core';
 import { initOpenTelemetry } from './infrastructure/telemetry/otel.bootstrap';
 import { ProductionHttpExceptionFilter } from './infrastructure/security/production-http-exception.filter';
 import { AppModule } from './app.module';
+import { refuseDefaultTenantAtBoot } from './common/default-tenant-flag';
 
+refuseDefaultTenantAtBoot();
 initOpenTelemetry();
 
 function parseCorsOrigins(): string[] | boolean {

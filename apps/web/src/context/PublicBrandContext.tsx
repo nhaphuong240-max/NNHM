@@ -2,7 +2,6 @@ import { createContext, useContext, useEffect, useMemo, useState, type ReactNode
 import { fetchPublicBrand } from '../lib/api';
 import { applyBrandTheme, FALLBACK_PUBLIC_BRAND, type PublicBrand } from '../lib/apply-brand-theme';
 import { resolveTenantFromHost } from '../lib/tenant-host';
-import { DEFAULT_TENANT_ID } from '../lib/constants';
 
 const PublicBrandContext = createContext<PublicBrand | null>(null);
 
@@ -12,7 +11,11 @@ export function PublicBrandProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let active = true;
     const hostTenant = resolveTenantFromHost(window.location.hostname);
-    fetchPublicBrand(hostTenant ?? DEFAULT_TENANT_ID)
+    if (!hostTenant) {
+      setPublicBrand({ ...FALLBACK_PUBLIC_BRAND, displayName: 'Không xác định được tenant từ tên miền này.' });
+      return;
+    }
+    fetchPublicBrand(hostTenant)
       .then((res) => {
         if (!active) return;
         const data: PublicBrand = {
