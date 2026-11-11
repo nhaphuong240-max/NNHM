@@ -40,7 +40,8 @@ export function DeveloperIntelligencePage() {
         fetchIntelligenceMarketBrief(),
         fetchIntelligenceBilling(),
       ]);
-      setDistricts((h as { data?: HeatmapPoint[] }).data ?? []);
+      const heatmap = (h as { data?: { districts?: HeatmapPoint[] } | HeatmapPoint[] }).data;
+      setDistricts(Array.isArray(heatmap) ? heatmap : heatmap?.districts ?? []);
       const pData = (p as { data?: { avgPriceBand?: string; csv?: string } }).data;
       setPricingBand(pData?.avgPriceBand ?? '—');
       setCsvPreview((pData?.csv ?? '').split('\n').slice(0, 6).join('\n'));

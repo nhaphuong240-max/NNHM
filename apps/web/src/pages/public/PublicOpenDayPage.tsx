@@ -16,10 +16,24 @@ export function PublicOpenDayPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    void fetchOpenDays(projectId).then((res) => {
-      setEvents(res.data);
-      if (res.data[0]) setSelected(res.data[0].id);
-    });
+    if (!projectId) {
+      setEvents([]);
+      setSelected('');
+      setError('Cần projectId trên đường dẫn để xem open day.');
+      return;
+    }
+    setError(null);
+    void fetchOpenDays(projectId)
+      .then((res) => {
+        setEvents(res.data);
+        setSelected(res.data[0]?.id ?? '');
+      })
+      .catch((err: unknown) => {
+        setEvents([]);
+        setSelected('');
+        const message = err instanceof Error ? err.message : 'Không tải open day';
+        setError(message.includes('422') ? 'Thiếu projectId.' : message);
+      });
   }, [projectId]);
 
   async function onSubmit(e: FormEvent) {

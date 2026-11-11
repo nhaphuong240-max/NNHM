@@ -10,6 +10,11 @@ export type BookingStatus = 'RESERVED' | 'DEPOSITED' | 'EXPIRED' | 'CANCELLED' |
 
 @Entity({ name: 'bookings' })
 @Index(['tenantId', 'idempotencyKey'], { unique: true })
+@Index(['unitId'], {
+  unique: true,
+  where:
+    "((status)::text = ANY ((ARRAY['RESERVED'::character varying, 'DEPOSITED'::character varying])::text[]))",
+})
 export class BookingEntity {
   @PrimaryColumn({ type: 'varchar', length: 32 })
   id!: string;
@@ -41,6 +46,10 @@ export class BookingEntity {
 
   @Column({ name: 'deposit_amount', type: 'bigint', nullable: true })
   depositAmount!: string | null;
+
+  /** Server obligation currency. Clients do not choose this. */
+  @Column({ type: 'varchar', length: 3, default: 'VND' })
+  currency!: string;
 
   @Column({ type: 'text', nullable: true })
   notes!: string | null;

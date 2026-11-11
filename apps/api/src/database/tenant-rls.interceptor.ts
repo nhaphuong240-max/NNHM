@@ -1,10 +1,11 @@
 import {
   CallHandler,
   ExecutionContext,
+  ForbiddenException,
   Injectable,
   NestInterceptor,
 } from '@nestjs/common';
-import { Observable, from, switchMap, tap } from 'rxjs';
+import { Observable } from 'rxjs';
 import type { AuthUser } from '../modules/identity/identity.types';
 import { TenantRlsService } from './tenant-rls.service';
 
@@ -24,21 +25,38 @@ export class TenantRlsInterceptor implements NestInterceptor {
     }>();
 
     const user = request.user;
-    const headerTenant = request.headers['x-tenant-id']?.trim();
-    const tenantId = request.tenantId ?? headerTenant ?? null;
-    const isPlatformAdmin = user?.role === 'PLATFORM_ADMIN';
+    const headerTenant = request.headers['x-tenant-id']?.trim() || null;
+    const boundTenant = request.tenantId?.trim() || null;
+    const userTenant = user?.tenantId?.trim() || null;
 
-    if (!tenantId && !isPlatformAdmin) {
-      return next.handle();
+    let tenantId: string | null = null;
+    if (user) {
+      tenantId = userTenant;
+      if (boundTenant && userTenant && boundTenant !== userTenant) {
+        throw new ForbiddenException({
+          detail: 'token tenant does not match the signed-in tenant',
+        });
+      }
+    } else if (boundTenant) {
+      tenantId = boundTenant;
     }
 
-    return from(this.tenantRls.bindRequestContext(tenantId, isPlatformAdmin)).pipe(
-      switchMap(() => next.handle()),
-      tap({
-        finalize: () => {
-          void this.tenantRls.clearRequestContext();
+    if (headerTenant && tenantId && headerTenant !== tenantId) {
+      throw new ForbiddenException({
+        detail: 'X-Tenant-Id does not match the tenant already bound to this request',
+      });
+    }
+
+    const isPlatformAdmin = user?.role === 'PLATFORM_ADMIN';
+    return new Observable((subscriber) => {
+      let inner: { unsubscribe: () => void } | undefined;
+      this.tenantRls.runWithContext(
+        { tenantId: tenantId ?? '', isPlatformAdmin },
+        () => {
+          inner = next.handle().subscribe(subscriber);
         },
-      }),
-    );
+      );
+      return () => inner?.unsubscribe();
+    });
   }
 }

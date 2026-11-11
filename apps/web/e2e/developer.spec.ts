@@ -13,15 +13,17 @@ test.describe('Developer UX production', () => {
   test('anchor dashboard loads trust + GMV KPIs', async ({ page }) => {
     await page.goto('/developer/anchor');
     await expect(page.getByRole('heading', { name: /Anchor Network Dashboard/i })).toBeVisible();
-    await expect(page.getByText(/Trust score/i)).toBeVisible();
-    await expect(page.getByText(/GMV deposited/i)).toBeVisible();
+    await expect(page.getByText('Trust score', { exact: true })).toBeVisible();
+    await expect(page.getByText('GMV deposited', { exact: true })).toBeVisible();
   });
 
   test('data intelligence production tabs', async ({ page }) => {
     await page.goto('/developer/intelligence');
     await expect(page.getByRole('heading', { name: /Data Intelligence/i })).toBeVisible();
-    await expect(page.getByText(/Absorption heatmap/i)).toBeVisible({ timeout: 15000 });
+    await expect(page.getByRole('heading', { name: 'Absorption heatmap', exact: true })).toBeVisible({
+      timeout: 15000,
+    });
     await page.getByRole('button', { name: 'Billing' }).click();
-    await expect(page.getByText(/MRR/i)).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText('MRR ước tính', { exact: true })).toBeVisible({ timeout: 15000 });
   });
 });

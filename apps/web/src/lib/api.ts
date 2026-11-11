@@ -48,7 +48,7 @@ export async function trackAnalyticsEvent(input: {
 }) {
   await fetch(`${API_BASE}/analytics/events`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-Tenant-Id': DEFAULT_TENANT_ID },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ ...input, source: 'web' }),
   }).catch(() => undefined);
 }
@@ -136,7 +136,7 @@ export async function fetchLeadNotifications(leadId: string) {
 export async function parseNlSearch(query: string) {
   const res = await fetch(`${API_BASE}/search/nl`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-Tenant-Id': DEFAULT_TENANT_ID },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ query }),
   });
   if (!res.ok) throw new Error(`NL search failed: ${res.status}`);
@@ -171,17 +171,13 @@ export type CmsGeoArea = {
 
 export async function fetchCmsAreas(city?: string) {
   const qs = city ? `?city=${encodeURIComponent(city)}` : '';
-  const res = await fetch(`${API_BASE}/cms/areas${qs}`, {
-    headers: { 'X-Tenant-Id': DEFAULT_TENANT_ID },
-  });
+  const res = await fetch(`${API_BASE}/cms/areas${qs}`);
   if (!res.ok) throw new Error(`CMS areas failed: ${res.status}`);
   return res.json() as Promise<{ data: CmsGeoArea[]; meta: { count: number } }>;
 }
 
 export async function fetchCmsArea(slug: string) {
-  const res = await fetch(`${API_BASE}/cms/areas/${encodeURIComponent(slug)}`, {
-    headers: { 'X-Tenant-Id': DEFAULT_TENANT_ID },
-  });
+  const res = await fetch(`${API_BASE}/cms/areas/${encodeURIComponent(slug)}`);
   if (!res.ok) throw new Error(`CMS area failed: ${res.status}`);
   return res.json() as Promise<{
     data: {
@@ -199,9 +195,7 @@ export async function fetchCmsArea(slug: string) {
 }
 
 export async function fetchDsrMasterplan(projectId: string) {
-  const res = await fetch(`${API_BASE}/dsr/projects/${encodeURIComponent(projectId)}/masterplan`, {
-    headers: { 'X-Tenant-Id': DEFAULT_TENANT_ID },
-  });
+  const res = await fetch(`${API_BASE}/dsr/projects/${encodeURIComponent(projectId)}/masterplan`);
   if (!res.ok) throw new Error(`DSR failed: ${res.status}`);
   return res.json() as Promise<{
     data: {
@@ -222,7 +216,6 @@ export async function fetchDsrDrillDown(
   const qs = params.toString() ? `?${params.toString()}` : '';
   const res = await fetch(
     `${API_BASE}/dsr/projects/${encodeURIComponent(projectId)}/drill${qs}`,
-    { headers: { 'X-Tenant-Id': DEFAULT_TENANT_ID } },
   );
   if (!res.ok) throw new Error(`DSR drill failed: ${res.status}`);
   return res.json() as Promise<{
@@ -240,22 +233,28 @@ export async function createDsrShareLink(input: {
   unitId?: string;
   visitorId?: string;
 }) {
-  const res = await fetch(`${API_BASE}/dsr/share-links`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-Tenant-Id': DEFAULT_TENANT_ID,
-    },
-    body: JSON.stringify(input),
-  });
+  const session = getSession();
+  const entryToken = import.meta.env.VITE_PUBLIC_CATALOG_TOKEN?.trim();
+  if (!session && !entryToken) {
+    throw new Error('share link requires a signed-in user or a configured catalog token');
+  }
+  const res = session
+    ? await authFetch('/dsr/share-links', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(input),
+      })
+    : await fetch(`${API_BASE}/dsr/share-links`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...input, entryToken }),
+      });
   if (!res.ok) throw new Error(`Share link failed: ${res.status}`);
   return res.json() as Promise<{ data: { token: string; url: string; expiresAt: string } }>;
 }
 
 export async function openShareLink(token: string) {
-  const res = await fetch(`${API_BASE}/dsr/share/${encodeURIComponent(token)}`, {
-    headers: { 'X-Tenant-Id': DEFAULT_TENANT_ID },
-  });
+  const res = await fetch(`${API_BASE}/dsr/share/${encodeURIComponent(token)}`);
   if (!res.ok) throw new Error(`Share link failed: ${res.status}`);
   return res.json() as Promise<{ data: { redirect: string } }>;
 }
@@ -269,9 +268,7 @@ export type OpenDayEvent = {
 
 export async function fetchOpenDays(projectId?: string) {
   const qs = projectId ? `?projectId=${encodeURIComponent(projectId)}` : '';
-  const res = await fetch(`${API_BASE}/open-days${qs}`, {
-    headers: { 'X-Tenant-Id': DEFAULT_TENANT_ID },
-  });
+  const res = await fetch(`${API_BASE}/open-days${qs}`);
   if (!res.ok) throw new Error(`Open days failed: ${res.status}`);
   return res.json() as Promise<{ data: OpenDayEvent[] }>;
 }
@@ -279,7 +276,7 @@ export async function fetchOpenDays(projectId?: string) {
 export async function rsvpOpenDay(eventId: string, body: { fullName: string; phone: string }) {
   const res = await fetch(`${API_BASE}/open-days/${eventId}/rsvp`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-Tenant-Id': DEFAULT_TENANT_ID },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
   if (!res.ok) throw new Error(`RSVP failed: ${res.status}`);
@@ -305,9 +302,7 @@ export type WalkInCheckIn = {
 };
 
 export async function fetchWalkInGallery(token: string) {
-  const res = await fetch(`${API_BASE}/walk-in/galleries/${encodeURIComponent(token)}`, {
-    headers: { 'X-Tenant-Id': DEFAULT_TENANT_ID },
-  });
+  const res = await fetch(`${API_BASE}/walk-in/galleries/${encodeURIComponent(token)}`);
   if (!res.ok) throw new Error(`Walk-in gallery failed: ${res.status}`);
   return res.json() as Promise<{ data: { id: string; title: string; projectId: string; token: string } }>;
 }
@@ -318,7 +313,7 @@ export async function walkInCheckIn(
 ) {
   const res = await fetch(`${API_BASE}/walk-in/galleries/${encodeURIComponent(token)}/check-in`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-Tenant-Id': DEFAULT_TENANT_ID },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
   if (!res.ok) throw new Error(`Walk-in check-in failed: ${res.status}`);
@@ -366,11 +361,15 @@ export async function openDealDispute(registrationId: string, summary?: string) 
   return res.json();
 }
 
-export async function requestSeekerOtp(phone: string, visitorId?: string) {
+export async function requestSeekerOtp(phone: string, visitorId: string | undefined, entryToken: string) {
   const res = await fetch(`${API_BASE}/auth/seeker/otp/request`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-Tenant-Id': DEFAULT_TENANT_ID },
-    body: JSON.stringify({ phone, visitorId }),
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      phone,
+      visitorId,
+      entryToken,
+    }),
   });
   if (!res.ok) throw new Error(`OTP request failed: ${res.status}`);
   return res.json() as Promise<{ data: { challengeId: string; expiresIn: number } }>;
@@ -384,7 +383,7 @@ export async function verifySeekerOtp(input: {
 }) {
   const res = await fetch(`${API_BASE}/auth/seeker/otp/verify`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-Tenant-Id': DEFAULT_TENANT_ID },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(input),
   });
   if (!res.ok) throw new Error(`OTP verify failed: ${res.status}`);
@@ -413,17 +412,13 @@ export async function searchUnits(params: {
   if (params.transactionType) qs.set('transactionType', params.transactionType);
   if (params.sort) qs.set('sort', params.sort);
 
-  const res = await fetch(`${API_BASE}/search/units?${qs.toString()}`, {
-    headers: { 'X-Tenant-Id': DEFAULT_TENANT_ID },
-  });
+  const res = await fetch(`${API_BASE}/search/units?${qs.toString()}`);
   if (!res.ok) throw new Error(`Search failed: ${res.status}`);
   return res.json();
 }
 
 export async function fetchSearchStats() {
-  const res = await fetch(`${API_BASE}/search/stats`, {
-    headers: { 'X-Tenant-Id': DEFAULT_TENANT_ID },
-  });
+  const res = await fetch(`${API_BASE}/search/stats`);
   if (!res.ok) throw new Error(`Stats failed: ${res.status}`);
   return res.json() as Promise<{
     data: { totalListings: number; verifiedListings: number; lastIndexedAt: string | null };
@@ -499,9 +494,7 @@ export type HomepagePack = {
 };
 
 export async function fetchHomepagePack() {
-  const res = await fetch(`${API_BASE}/cms/homepage`, {
-    headers: { 'X-Tenant-Id': DEFAULT_TENANT_ID },
-  });
+  const res = await fetch(`${API_BASE}/cms/homepage`);
   if (!res.ok) throw new Error(`Homepage pack failed: ${res.status}`);
   return res.json() as Promise<{ data: HomepagePack; meta: { tenantId: string } }>;
 }
@@ -541,9 +534,7 @@ export type ProjectDetailResponse = {
 };
 
 export async function fetchProjectDetail(projectId: string) {
-  const res = await fetch(`${API_BASE}/search/projects/${encodeURIComponent(projectId)}`, {
-    headers: { 'X-Tenant-Id': DEFAULT_TENANT_ID },
-  });
+  const res = await fetch(`${API_BASE}/search/projects/${encodeURIComponent(projectId)}`);
   if (!res.ok) throw new Error(`Project failed: ${res.status}`);
   return res.json() as Promise<ProjectDetailResponse>;
 }
@@ -561,9 +552,7 @@ export async function fetchSearchMap(
     params.set('west', String(bbox.west));
   }
   const qs = params.toString() ? `?${params.toString()}` : '';
-  const res = await fetch(`${API_BASE}/search/map${qs}`, {
-    headers: { 'X-Tenant-Id': DEFAULT_TENANT_ID },
-  });
+  const res = await fetch(`${API_BASE}/search/map${qs}`);
   if (!res.ok) throw new Error(`Map failed: ${res.status}`);
   return res.json() as Promise<{
     data: {
@@ -576,9 +565,7 @@ export async function fetchSearchMap(
 }
 
 export async function fetchUnitMedia(unitId: string) {
-  const res = await fetch(`${API_BASE}/search/units/${encodeURIComponent(unitId)}/media`, {
-    headers: { 'X-Tenant-Id': DEFAULT_TENANT_ID },
-  });
+  const res = await fetch(`${API_BASE}/search/units/${encodeURIComponent(unitId)}/media`);
   if (!res.ok) throw new Error(`Media failed: ${res.status}`);
   return res.json() as Promise<{
     data: { id: string; attributes: { url: string; isCover: boolean; mimeType: string } }[];
@@ -616,9 +603,7 @@ export async function fetchRecommendations(params: {
   if (params.maxPrice !== undefined) qs.set('maxPrice', String(params.maxPrice));
   if (params.limit !== undefined) qs.set('limit', String(params.limit));
 
-  const res = await fetch(`${API_BASE}/search/recommendations?${qs.toString()}`, {
-    headers: { 'X-Tenant-Id': DEFAULT_TENANT_ID },
-  });
+  const res = await fetch(`${API_BASE}/search/recommendations?${qs.toString()}`);
   if (!res.ok) throw new Error(`Recommendations failed: ${res.status}`);
   return res.json() as Promise<{
     data: RecommendationHit[];
@@ -1744,7 +1729,6 @@ export type ChatMessage = { role: 'user' | 'assistant'; text: string; at: string
 export async function startPublicChatSession() {
   const res = await fetch(`${API_BASE}/ai/chat/sessions`, {
     method: 'POST',
-    headers: { 'X-Tenant-Id': DEFAULT_TENANT_ID },
   });
   if (!res.ok) throw new Error(`Chat session failed: ${res.status}`);
   return res.json() as Promise<{ data: { sessionId: string; messages: ChatMessage[] } }>;
@@ -1757,7 +1741,7 @@ export async function sendPublicChatMessage(input: {
 }) {
   const res = await fetch(`${API_BASE}/ai/chat/messages`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-Tenant-Id': DEFAULT_TENANT_ID },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(input),
   });
   if (!res.ok) throw new Error(`Chat message failed: ${res.status}`);
@@ -1813,9 +1797,7 @@ export async function beginSsoAuthorize(input: {
     'redirectUri',
     input.redirectUri ?? `${window.location.origin}/auth/sso/callback`,
   );
-  const res = await fetch(`${API_BASE}/auth/sso/authorize?${qs}`, {
-    headers: { 'X-Tenant-Id': DEFAULT_TENANT_ID },
-  });
+  const res = await fetch(`${API_BASE}/auth/sso/authorize?${qs}`);
   if (!res.ok) throw new Error(`SSO authorize failed: ${res.status}`);
   return res.json() as Promise<{
     data: { authorizationUrl: string; state: string; mode: string };
@@ -1829,7 +1811,7 @@ export async function loginSsoPilot(input: {
 }) {
   const res = await fetch(`${API_BASE}/auth/sso/login`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-Tenant-Id': DEFAULT_TENANT_ID },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(input),
   });
   if (!res.ok) throw new Error(`SSO login failed: ${res.status}`);
@@ -1855,9 +1837,9 @@ export async function fetchTenantBrand() {
 }
 
 /** P4 — public marketplace brand (no auth) */
-export async function fetchPublicBrand(tenantId: string = DEFAULT_TENANT_ID) {
+export async function fetchPublicBrand(tenantId?: string) {
   const res = await fetch(`${API_BASE}/tenants/branding/public`, {
-    headers: { 'X-Tenant-Id': tenantId },
+    headers: tenantId ? { 'X-Tenant-Id': tenantId } : undefined,
   });
   if (!res.ok) throw new Error(`Public brand failed: ${res.status}`);
   return res.json() as Promise<{ data: TenantBrandConfig }>;
@@ -1956,9 +1938,7 @@ export type BnplApplication = {
 };
 
 export async function fetchBnplPlans() {
-  const res = await fetch(`${API_BASE}/bnpl/plans`, {
-    headers: { 'X-Tenant-Id': DEFAULT_TENANT_ID },
-  });
+  const res = await fetch(`${API_BASE}/bnpl/plans`);
   if (!res.ok) throw new Error(`BNPL plans failed: ${res.status}`);
   return res.json() as Promise<{ data: { id: string; label: string; installments: number }[] }>;
 }
@@ -1990,7 +1970,6 @@ export async function simulateBnplPartnerWebhook(input: {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'X-Tenant-Id': DEFAULT_TENANT_ID,
     },
     body: JSON.stringify(input),
   });
@@ -2032,9 +2011,7 @@ export type MapBuilding = {
 
 export async function fetchPublicMap(projectId?: string) {
   const qs = projectId ? `?projectId=${encodeURIComponent(projectId)}` : '';
-  const res = await fetch(`${API_BASE}/portal/public/map${qs}`, {
-    headers: { 'X-Tenant-Id': DEFAULT_TENANT_ID },
-  });
+  const res = await fetch(`${API_BASE}/portal/public/map${qs}`);
   if (!res.ok) throw new Error(`Map failed: ${res.status}`);
   return res.json() as Promise<{
     data: {
@@ -2923,9 +2900,7 @@ export type LeadSubmitResult = {
 };
 
 export async function fetchUnitDetail(unitId: string): Promise<UnitDetail> {
-  const res = await fetch(`${API_BASE}/search/units/${encodeURIComponent(unitId)}`, {
-    headers: { 'X-Tenant-Id': DEFAULT_TENANT_ID },
-  });
+  const res = await fetch(`${API_BASE}/search/units/${encodeURIComponent(unitId)}`);
   if (!res.ok) {
     const body = (await res.json().catch(() => null)) as { detail?: string } | null;
     throw new Error(body?.detail ?? `Unit not found (${res.status})`);
@@ -2949,7 +2924,6 @@ export async function submitLead(input: {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'X-Tenant-Id': DEFAULT_TENANT_ID,
     },
     body: JSON.stringify({
       ...input,
@@ -2986,7 +2960,7 @@ export async function savePublicSearch(input: {
 }) {
   const res = await fetch(`${API_BASE}/saved-searches`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-Tenant-Id': DEFAULT_TENANT_ID },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(input),
   });
   if (!res.ok) throw new Error(`Không lưu được tìm kiếm (${res.status})`);
@@ -2996,7 +2970,7 @@ export async function savePublicSearch(input: {
 export async function fetchSavedSearches(visitorId: string) {
   const res = await fetch(
     `${API_BASE}/saved-searches?visitorId=${encodeURIComponent(visitorId)}`,
-    { headers: { 'X-Tenant-Id': DEFAULT_TENANT_ID } },
+    {  },
   );
   if (!res.ok) throw new Error(`Không tải được tìm kiếm đã lưu (${res.status})`);
   return res.json() as Promise<{ data: SavedSearchRecord[] }>;
@@ -3005,7 +2979,7 @@ export async function fetchSavedSearches(visitorId: string) {
 export async function deleteSavedSearch(id: string, visitorId: string) {
   const res = await fetch(
     `${API_BASE}/saved-searches/${encodeURIComponent(id)}?visitorId=${encodeURIComponent(visitorId)}`,
-    { method: 'DELETE', headers: { 'X-Tenant-Id': DEFAULT_TENANT_ID } },
+    { method: 'DELETE' },
   );
   if (!res.ok) throw new Error(`Không xóa được (${res.status})`);
   return res.json();
@@ -3025,7 +2999,7 @@ export async function requestViewing(input: {
 }) {
   const res = await fetch(`${API_BASE}/viewings`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-Tenant-Id': DEFAULT_TENANT_ID },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(input),
   });
   if (!res.ok) {
@@ -3939,7 +3913,7 @@ export type BuyerDealDetail = BuyerDealSummary & {
 };
 
 function buyerPortalHeaders(): Record<string, string> {
-  const headers: Record<string, string> = { 'X-Tenant-Id': DEFAULT_TENANT_ID };
+  const headers: Record<string, string> = {};
   const seeker = getSeekerSession();
   if (seeker?.accessToken) {
     headers.Authorization = `Bearer ${seeker.accessToken}`;
@@ -3971,7 +3945,6 @@ export async function sendBuyerDealNotifyStub(bookingId: string) {
     `${API_BASE}/portal/buyer/deals/${encodeURIComponent(bookingId)}/notifications/stub`,
     {
       method: 'POST',
-      headers: { 'X-Tenant-Id': DEFAULT_TENANT_ID },
     },
   );
   if (!res.ok) throw new Error(`Buyer notify stub failed: ${res.status}`);
@@ -4035,9 +4008,7 @@ export type LocalityInsight = {
 };
 
 export async function fetchLocalityInsight(slug: string) {
-  const res = await fetch(`${API_BASE}/market/locality/${encodeURIComponent(slug)}`, {
-    headers: { 'X-Tenant-Id': DEFAULT_TENANT_ID },
-  });
+  const res = await fetch(`${API_BASE}/market/locality/${encodeURIComponent(slug)}`);
   if (!res.ok) throw new Error(`Locality insight failed: ${res.status}`);
   return res.json() as Promise<{ data: LocalityInsight | null; meta: Record<string, unknown> }>;
 }
@@ -4201,7 +4172,7 @@ export type ContractSignSession = {
   providerMode?: string;
 };
 
-export async function fetchContractSignSession(contractId: string, tenantId = DEFAULT_TENANT_ID) {
+export async function fetchContractSignSession(contractId: string, tenantId: string) {
   const res = await fetch(
     `${API_BASE}/contracts/${encodeURIComponent(contractId)}/sign-session`,
     { headers: { 'X-Tenant-Id': tenantId } },
@@ -4216,7 +4187,7 @@ export async function fetchContractSignSession(contractId: string, tenantId = DE
 export async function signContract(
   contractId: string,
   input: { signerName: string; otp: string; consent: boolean; envelopeId?: string },
-  tenantId = DEFAULT_TENANT_ID,
+  tenantId: string,
 ) {
   const res = await fetch(`${API_BASE}/contracts/${encodeURIComponent(contractId)}/sign`, {
     method: 'POST',
@@ -4662,7 +4633,7 @@ export async function createPaymentIntent(input: {
 export async function fetchPaymentCheckout(intentId: string): Promise<PaymentCheckout> {
   const res = await fetch(
     `${API_BASE}/payment-intents/${encodeURIComponent(intentId)}/checkout`,
-    { headers: { 'X-Tenant-Id': DEFAULT_TENANT_ID } },
+    {  },
   );
   if (!res.ok) {
     const body = (await res.json().catch(() => null)) as { detail?: string } | null;

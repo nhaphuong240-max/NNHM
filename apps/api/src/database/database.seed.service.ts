@@ -147,8 +147,17 @@ const PILOT_CDT_USERS = [
   },
 ] as const;
 
-/** RFC 6238 test vector — TOTP when tenant mfaSandbox=false (OPS-S2). */
-const SEED_MFA_TOTP_SECRET = 'JBSWY3DPEHPK3PXP';
+const SANDBOX_MFA_TENANTS = new Set<string>([
+  SEED_TENANT_ID,
+  PILOT_CDT_TENANT_ID,
+  ...LIVE_PILOT_SEEDS.map((pilot) => pilot.tenantId),
+]);
+
+const SANDBOX_MFA_EMAILS = new Set<string>(
+  [...DEMO_USERS, ...PILOT_CDT_USERS]
+    .filter((user) => user.role === 'DEVELOPER_ADMIN' || user.role === 'FINANCE_ADMIN')
+    .map((user) => user.email),
+);
 
 @Injectable()
 export class DatabaseSeedService implements OnModuleInit {
@@ -253,6 +262,7 @@ export class DatabaseSeedService implements OnModuleInit {
     await this.ensureNetworkScaleT7S6();
     await this.ensureEnterpriseT7S8();
     await this.ensureWave0OrgAgents();
+    await this.ensureMfaTotpSecrets();
   }
 
   private async ensurePilotCdtAnchor() {
@@ -1237,16 +1247,24 @@ Ngày lập: 29/07/2026
     }
   }
 
-  /** OPS-S2 — TOTP secret for DEVELOPER_ADMIN + FINANCE_ADMIN (RFC test vector). */
+  /** Sandbox/CI only. The secret comes from SEED_MFA_TOTP_SECRET and is never logged. */
   private async ensureMfaTotpSecrets() {
+    const env = this.config.get<string>('NODE_ENV') ?? '';
+    if (env === 'production' || env === 'staging') return;
+    if (this.config.get<string>('MFA_SEED_SANDBOX') !== 'true') return;
+    const secret = this.config.get<string>('SEED_MFA_TOTP_SECRET')?.trim();
+    if (!secret) return;
     const rows = await this.users.find();
+    let assigned = 0;
     for (const user of rows) {
       if (user.role !== 'DEVELOPER_ADMIN' && user.role !== 'FINANCE_ADMIN') continue;
+      if (!SANDBOX_MFA_EMAILS.has(user.email) || !SANDBOX_MFA_TENANTS.has(user.tenantId)) continue;
       if (user.mfaSecret) continue;
-      user.mfaSecret = SEED_MFA_TOTP_SECRET;
+      user.mfaSecret = secret;
       await this.users.save(user);
-      this.logger.log(`MFA seed — TOTP secret for ${user.email} (mfaSandbox=false tenants)`);
+      assigned += 1;
     }
+    if (assigned > 0) this.logger.log(`MFA sandbox seed assigned to ${assigned} trial users`);
   }
 
   private async ensureLeads() {

@@ -14,12 +14,17 @@ const ts = require('typescript');
 const root = path.resolve(__dirname, '../apps/api/src/database');
 const entityDir = path.join(root, 'entities');
 
+function readTableArray(source, constName) {
+  const match = source.match(new RegExp(`${constName} = \\[([\\s\\S]*?)\\]`));
+  if (!match) return [];
+  return match[1].match(/'([^']+)'/g).map((item) => item.slice(1, -1));
+}
+
+const rlsSource = fs.readFileSync(path.join(root, 'rls/tenant-scoped-tables.ts'), 'utf8');
 const RLS_TABLES = new Set([
-  ...fs
-    .readFileSync(path.join(root, 'rls/tenant-scoped-tables.ts'), 'utf8')
-    .match(/TENANT_ID_TABLES = \[([\s\S]*?)\]/)[1]
-    .match(/'([^']+)'/g)
-    .map((item) => item.slice(1, -1)),
+  ...readTableArray(rlsSource, 'TENANT_ID_TABLES'),
+  ...readTableArray(rlsSource, 'REMAINING_TENANT_ID_TABLES'),
+  ...readTableArray(rlsSource, 'SPEC_TENANT_TABLES'),
   'tenants',
   'agency_applications',
 ]);

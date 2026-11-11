@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ScheduleModule } from '@nestjs/schedule';
+import { PublicTenantModule } from './common/public-tenant.module';
 import { DatabaseModule } from './database/database.module';
 import { TenantRlsInterceptor } from './database/tenant-rls.interceptor';
 import { RedisModule } from './infrastructure/redis/redis.module';
@@ -59,6 +60,7 @@ import { MarketInsightModule } from './modules/market-insight/market-insight.mod
   imports: [
     ScheduleModule.forRoot(),
     DatabaseModule,
+    PublicTenantModule,
     RedisModule,
     SecurityModule,
     TelemetryModule,

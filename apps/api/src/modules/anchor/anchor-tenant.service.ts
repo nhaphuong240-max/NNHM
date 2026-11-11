@@ -310,6 +310,7 @@ export class AnchorTenantService {
   }
 
   async getAnchorDashboard(tenantId: string) {
+    await this.ensureSeedAnchors();
     const profile = await this.profiles.findOne({ where: { tenantId, tier: 'ANCHOR' } });
     if (!profile) {
       throw new NotFoundException({ detail: `Anchor profile for ${tenantId} not found` });

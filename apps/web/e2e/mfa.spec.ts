@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { generateTotp, SEED_MFA_TOTP_SECRET } from './helpers/totp';
+import { generateTotp } from './helpers/totp';
 
 const API_BASE = process.env.E2E_API_URL ?? 'http://127.0.0.1:3000/api/v1';
 const PILOT_TENANT = 'ten_pilot_cdt_01';
@@ -31,7 +31,9 @@ test.describe('OPS-S2 E2E · MFA TOTP', () => {
     });
     expect(rejectRes.status).toBe(401);
 
-    const totp = generateTotp(SEED_MFA_TOTP_SECRET);
+    const secret = process.env.SEED_MFA_TOTP_SECRET;
+    expect(secret, 'SEED_MFA_TOTP_SECRET is required for the sandbox TOTP').toBeTruthy();
+    const totp = generateTotp(secret!);
     const okRes = await fetch(`${API_BASE}/auth/mfa/verify`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

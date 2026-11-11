@@ -23,7 +23,9 @@ export function SeekerOtpModal({ onClose, onVerified }: Props) {
     setBusy(true);
     setError(null);
     try {
-      const res = await requestSeekerOtp(phone.trim(), getVisitorId());
+      const entryToken = import.meta.env.VITE_PUBLIC_CATALOG_TOKEN?.trim();
+      if (!entryToken) throw new Error('catalog token is not configured');
+      const res = await requestSeekerOtp(phone.trim(), getVisitorId(), entryToken);
       setChallengeId(res.data.challengeId);
       setStep('code');
     } catch (err) {

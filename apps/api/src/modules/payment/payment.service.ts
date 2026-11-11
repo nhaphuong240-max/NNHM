@@ -11,6 +11,7 @@ import { BookingEntity } from '../../database/entities/booking.entity';
 import type { PaymentMethod } from '../../database/entities/payment-intent.entity';
 import { PaymentIntentEntity } from '../../database/entities/payment-intent.entity';
 import { UnitEntity } from '../../database/entities/unit.entity';
+import { serverObligationAmount, serverObligationCurrency } from '../spec-target/spec-target.rules';
 import { AuditService } from '../audit/audit.service';
 import { StreamEventsService } from '../stream/stream-events.service';
 import { SmsPaymentNotifyService } from '../sms/sms-payment-notify.service';
@@ -71,10 +72,6 @@ export class PaymentService {
       throw new UnprocessableEntityException({ detail: 'bookingId is required' });
     }
 
-    if (!Number.isFinite(input.amount) || input.amount <= 0) {
-      throw new UnprocessableEntityException({ detail: 'amount must be a positive number' });
-    }
-
     const booking = await this.bookings.findOne({
       where: { id: input.bookingId, tenantId },
     });
@@ -89,17 +86,31 @@ export class PaymentService {
       });
     }
 
+    const amount = serverObligationAmount(booking.depositAmount);
+    if (amount == null) {
+      throw new UnprocessableEntityException({ detail: 'payment obligation is missing on the booking' });
+    }
+    if (input.amount != null && input.amount !== amount) {
+      throw new UnprocessableEntityException({ detail: 'client amount is not accepted' });
+    }
+
     const tenantRails = await this.rails.resolve(tenantId);
     const method: PaymentMethod = input.method ?? tenantRails.paymentMethod;
 
     const ttlMinutes = this.config.get<number>('PAYMENT_INTENT_TTL_MINUTES', DEFAULT_TTL_MINUTES);
     const expiresAt = new Date(Date.now() + ttlMinutes * 60 * 1000);
     const id = `pi_${randomUUID().replace(/-/g, '').slice(0, 8)}`;
-    const currency = input.currency ?? 'VND';
+    const currency = serverObligationCurrency(booking.currency);
+    if (!currency) {
+      throw new UnprocessableEntityException({ detail: 'payment currency is missing on the booking' });
+    }
+    if (input.currency != null && input.currency.trim().toUpperCase() !== currency) {
+      throw new UnprocessableEntityException({ detail: 'client currency is not accepted' });
+    }
 
     let routed = await this.orchestrator.resolveRoute(tenantId, {
       method,
-      amount: input.amount,
+      amount,
     });
     let gatewayMethod = routed.method;
     let routeDecision = routed.decision;
@@ -111,7 +122,7 @@ export class PaymentService {
         intentId: id,
         tenantId,
         bookingId: booking.id,
-        amount: input.amount,
+        amount,
         currency,
         returnUrl: input.returnUrl,
         expiresAt,
@@ -120,7 +131,7 @@ export class PaymentService {
       if (routeDecision?.fallback && routeDecision.fallback !== gatewayMethod) {
         routed = await this.orchestrator.resolveRoute(
           tenantId,
-          { method, amount: input.amount },
+          { method, amount },
           true,
         );
         gatewayMethod = routed.method;
@@ -130,7 +141,7 @@ export class PaymentService {
           intentId: id,
           tenantId,
           bookingId: booking.id,
-          amount: input.amount,
+          amount,
           currency,
           returnUrl: input.returnUrl,
           expiresAt,
@@ -144,7 +155,7 @@ export class PaymentService {
       id,
       tenantId,
       bookingId: booking.id,
-      amount: String(input.amount),
+      amount: String(amount),
       currency,
       method: gatewayMethod,
       status: 'PENDING',
@@ -161,7 +172,7 @@ export class PaymentService {
       action: 'CREATE',
       payload: {
         bookingId: booking.id,
-        amount: input.amount,
+        amount,
         method: gatewayMethod,
         requestedMethod: method,
         gatewayRef: gateway.gatewayRef,
@@ -177,7 +188,7 @@ export class PaymentService {
         paymentIntentId: id,
         bookingId: booking.id,
         unitId: booking.unitId,
-        amount: input.amount,
+        amount,
         status: 'PENDING',
         timestamp: row.createdAt.toISOString(),
       },
@@ -187,7 +198,7 @@ export class PaymentService {
       tenantId,
       paymentIntentId: id,
       bookingId: booking.id,
-      amount: input.amount,
+      amount,
     });
 
     return { data: mapPaymentIntent(row) };

@@ -11,6 +11,24 @@
         "LeadScoringService does not assign the sale when the suggestion is rejected or still pending"
       ],
       "reason": "HOT lead mặc định chờ người duyệt; requireHumanApproval=true là quyết định đã chốt, không tự gán sale."
+    },
+    {
+      "file": "src/database/tenant-rls.service.spec.ts",
+      "removed": "TenantRlsService binds tenant session variables",
+      "added": ["TenantRlsService does not bind the tenant on a random pooled query"],
+      "reason": "GUC gắn trên cùng connection của request, không gọi dataSource.query lên một connection ngẫu nhiên."
+    },
+    {
+      "file": "src/database/tenant-rls.service.spec.ts",
+      "removed": "TenantRlsService runs callback as platform admin",
+      "added": ["TenantRlsService runs callback as platform admin on the same async context"],
+      "reason": "Platform admin đi qua AsyncLocalStorage của request, không set_config trên pool."
+    },
+    {
+      "file": "src/modules/spec-target/spec-target.rules.spec.ts",
+      "removed": "spec target rules G02 lets one of fifty claims take the hold",
+      "added": ["spec target rules rejects a second active hold in memory as a helper only"],
+      "reason": "Biến JavaScript không phải bằng chứng G02. Hold đồng thời nằm ở scripts/t02-rls-hold-proof.js trên Postgres."
     }
   ],
   "knownFailingSuites": []

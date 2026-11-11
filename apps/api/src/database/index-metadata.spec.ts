@@ -11,7 +11,7 @@ function indexes(className: string, unique: boolean): string[][] {
 
 describe('TypeORM composite index metadata', () => {
   it('registers every entity before reading index metadata', () => {
-    expect(databaseEntities.length).toBe(79);
+    expect(databaseEntities.length).toBe(94);
   });
 
   it('keeps the approved money uniques on the full column set', () => {
