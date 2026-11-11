@@ -101,7 +101,11 @@ function wrapClient(client: PgClient) {
   client.query = ((...args: unknown[]) => {
     const first = args[0];
     const text = typeof first === 'string' ? first : (first as { text?: string } | null)?.text ?? '';
-    if (isTxnControl(text) || text.includes('set_config') || text.includes('app.current_tenant_id')) {
+    if (isTxnControl(text)) {
+      client.__rlsBound = undefined;
+      return original(...args);
+    }
+    if (text.includes('set_config') || text.includes('app.current_tenant_id')) {
       return original(...args);
     }
     const store = rlsStorage.getStore();
@@ -150,20 +154,43 @@ function resetClient(client: PgClient): Promise<void> {
 }
 
 function isTxnControl(sql: string): boolean {
-  const text = sql.trim().replace(/;+\s*$/, '').replace(/\s+/g, ' ').toUpperCase();
+  const text = stripLeadingComments(sql).replace(/;+\s*$/, '').replace(/\s+/g, ' ').toUpperCase();
   return (
     text === 'BEGIN' ||
     text.startsWith('BEGIN ') ||
-    text === 'COMMIT' ||
-    text.startsWith('COMMIT ') ||
-    text === 'ROLLBACK' ||
-    text.startsWith('ROLLBACK ') ||
     text === 'START TRANSACTION' ||
     text.startsWith('START TRANSACTION ') ||
+    text === 'COMMIT' ||
+    text.startsWith('COMMIT ') ||
+    text === 'END' ||
+    text.startsWith('END ') ||
+    text === 'ROLLBACK' ||
+    text.startsWith('ROLLBACK ') ||
+    text === 'ABORT' ||
+    text.startsWith('ABORT ') ||
     text.startsWith('SAVEPOINT ') ||
     text.startsWith('RELEASE SAVEPOINT ') ||
     text.startsWith('SET TRANSACTION ')
   );
+}
+
+function stripLeadingComments(sql: string): string {
+  let text = sql.trim();
+  while (text.length) {
+    if (text.startsWith('--')) {
+      const newline = text.indexOf('\n');
+      text = (newline === -1 ? '' : text.slice(newline + 1)).trim();
+      continue;
+    }
+    if (text.startsWith('/*')) {
+      const end = text.indexOf('*/');
+      if (end === -1) break;
+      text = text.slice(end + 2).trim();
+      continue;
+    }
+    break;
+  }
+  return text;
 }
 
 type PoolCallback = (

@@ -42,6 +42,7 @@ const PROOF_IDS = [
   'mem_t02_app_x',
   'mem_t02_app_ok',
   'mem_t02_app_dup',
+  'mem_t02_app_d',
 ];
 
 function fail(message) {
@@ -52,6 +53,12 @@ function isDuplicateKey(error) {
   const message = String(error && error.message ? error.message : error);
   const code = error && (error.code || (error.driverError && error.driverError.code));
   return code === '23505' || /duplicate key/i.test(message);
+}
+
+function assertOnlyTenant(rows, tenantId, label) {
+  if (!rows.some((row) => row.tenantId === tenantId)) fail(`${label} did not see its own row`);
+  const foreign = rows.filter((row) => row.tenantId !== tenantId).map((row) => row.id);
+  if (foreign.length) fail(`${label} saw ${foreign.join(',')}`);
 }
 
 async function main() {
@@ -198,6 +205,98 @@ async function main() {
       fail('tenant B saw tenant A after the rolled-back transaction');
     }
     if (!afterIds.includes('mem_t02_app_b')) fail('tenant B did not see its own row after rollback');
+
+    const fresh = dataSource.createQueryRunner();
+    await fresh.connect();
+    try {
+      await service.runAsTenant('ten_rls_app_a', async () => {
+        await fresh.startTransaction();
+        try {
+          await fresh.manager.insert(OrgMembershipEntity, {
+            id: 'mem_t02_app_dup',
+            tenantId: 'ten_rls_app_a',
+            userId: 'usr_app_a',
+            orgId: 'org_app_a',
+            roleCode: 'SALES',
+            status: 'ACTIVE',
+            payload: {},
+          });
+          fail('(a) duplicate insert did not raise 23505');
+        } catch (error) {
+          if (!isDuplicateKey(error)) throw error;
+          await fresh.rollbackTransaction();
+        }
+        assertOnlyTenant(await fresh.manager.find(OrgMembershipEntity), 'ten_rls_app_a', '(a)');
+      });
+    } finally {
+      await fresh.release();
+    }
+
+    const swapped = dataSource.createQueryRunner();
+    await swapped.connect();
+    try {
+      await service.runAsTenant('ten_rls_app_b', () => swapped.manager.find(OrgMembershipEntity));
+      await service.runAsTenant('ten_rls_app_a', async () => {
+        await swapped.startTransaction();
+        await swapped.manager.find(OrgMembershipEntity);
+        await swapped.rollbackTransaction();
+        assertOnlyTenant(await swapped.manager.find(OrgMembershipEntity), 'ten_rls_app_a', '(b)');
+      });
+    } finally {
+      await swapped.release();
+    }
+
+    const adminFirst = dataSource.createQueryRunner();
+    await adminFirst.connect();
+    try {
+      await service.runAsPlatformAdmin(() => adminFirst.manager.find(OrgMembershipEntity));
+      await service.runAsTenant('ten_rls_app_a', async () => {
+        await adminFirst.startTransaction();
+        await adminFirst.manager.find(OrgMembershipEntity);
+        await adminFirst.rollbackTransaction();
+        assertOnlyTenant(await adminFirst.manager.find(OrgMembershipEntity), 'ten_rls_app_a', '(c)');
+      });
+    } finally {
+      await adminFirst.release();
+    }
+
+    const outer = dataSource.createQueryRunner();
+    await outer.connect();
+    try {
+      await service.runAsTenant('ten_rls_app_a', async () => {
+        await outer.startTransaction();
+        await outer.startTransaction();
+        try {
+          await outer.manager.insert(OrgMembershipEntity, {
+            id: 'mem_t02_app_dup',
+            tenantId: 'ten_rls_app_a',
+            userId: 'usr_app_a',
+            orgId: 'org_app_a',
+            roleCode: 'SALES',
+            status: 'ACTIVE',
+            payload: {},
+          });
+          fail('(d) duplicate insert did not raise 23505');
+        } catch (error) {
+          if (!isDuplicateKey(error)) throw error;
+          await outer.rollbackTransaction();
+        }
+        await outer.manager.insert(OrgMembershipEntity, {
+          id: 'mem_t02_app_d',
+          tenantId: 'ten_rls_app_a',
+          userId: 'usr_app_d',
+          orgId: 'org_app_d',
+          roleCode: 'SALES',
+          status: 'ACTIVE',
+          payload: {},
+        });
+        await outer.commitTransaction();
+      });
+    } finally {
+      await outer.release();
+    }
+    const committed = await admin.query(`SELECT id FROM org_memberships WHERE id = 'mem_t02_app_d'`);
+    if (committed.rowCount !== 1) fail('(d) outer insert did not commit after ROLLBACK TO SAVEPOINT');
 
     console.log('PASS app NOSUPERUSER repository isolates tenants on one pooled client');
   } finally {

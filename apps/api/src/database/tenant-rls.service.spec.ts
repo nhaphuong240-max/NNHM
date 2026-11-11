@@ -220,4 +220,86 @@ describe('TenantRlsService', () => {
     expect(secondRelease).toHaveBeenCalledTimes(1);
     expect(recorded.filter((row) => row.text.includes("set_config('app.current_tenant_id', '', false)"))).toHaveLength(2);
   });
+
+  it('rebinds after the first query of a rolled-back transaction', async () => {
+    await service.runAsTenant('ten_a', async () => {
+      const checked = await checkout();
+      await checked.query('BEGIN');
+      await checked.query('SELECT id FROM org_memberships WHERE id = $1', ['mem_a']);
+      await checked.query('ROLLBACK');
+      await checked.query('SELECT id FROM org_memberships');
+      checked.release();
+      await new Promise((resolve) => setImmediate(resolve));
+    });
+
+    const binds = recorded.filter((row) => row.params?.[0] === 'ten_a');
+    expect(binds).toHaveLength(2);
+    const readAt = recorded.findIndex((row) => row.text === 'SELECT id FROM org_memberships');
+    expect(recorded[readAt - 1]?.text).toContain("set_config('app.current_tenant_id'");
+    expect(recorded[readAt - 1]?.params).toEqual(['ten_a', 'false']);
+  });
+
+  it('rebinds tenant A after tenant B was bound and the transaction rolls back', async () => {
+    const checked = await checkout();
+    await service.runAsTenant('ten_b', async () => {
+      await checked.query('SELECT id FROM org_memberships');
+    });
+    await service.runAsTenant('ten_a', async () => {
+      await checked.query('START TRANSACTION');
+      await checked.query('SELECT id FROM org_memberships WHERE tenant_id = $1', ['ten_a']);
+      await checked.query('ROLLBACK');
+      await checked.query('SELECT id FROM org_memberships');
+    });
+    checked.release();
+    await new Promise((resolve) => setImmediate(resolve));
+
+    const reads = recorded
+      .map((row, index) => ({ index, row }))
+      .filter((item) => item.row.text === 'SELECT id FROM org_memberships');
+    expect(reads).toHaveLength(2);
+    expect(recorded[reads[1].index - 1]?.params).toEqual(['ten_a', 'false']);
+    expect(recorded.filter((row) => row.params?.[0] === 'ten_b')).toHaveLength(1);
+  });
+
+  it('rebinds without admin after a platform-admin transaction rolls back', async () => {
+    const checked = await checkout();
+    await service.runAsPlatformAdmin(async () => {
+      await checked.query('SELECT id FROM org_memberships');
+    });
+    await service.runAsTenant('ten_a', async () => {
+      await checked.query('BEGIN');
+      await checked.query('SELECT id FROM org_memberships WHERE tenant_id = $1', ['ten_a']);
+      await checked.query('-- session GUC\nROLLBACK');
+      await checked.query('SELECT id FROM org_memberships');
+    });
+    checked.release();
+    await new Promise((resolve) => setImmediate(resolve));
+
+    let lastRead = -1;
+    recorded.forEach((row, index) => {
+      if (row.text === 'SELECT id FROM org_memberships') lastRead = index;
+    });
+    expect(recorded[lastRead - 1]?.params).toEqual(['ten_a', 'false']);
+    expect(recorded.filter((row) => row.params?.[1] === 'true')).toHaveLength(1);
+  });
+
+  it('rebinds the outer insert after a savepoint rolls back', async () => {
+    await service.runAsTenant('ten_a', async () => {
+      const checked = await checkout();
+      await checked.query('BEGIN');
+      await checked.query('SAVEPOINT typeorm_1');
+      await checked.query('SELECT id FROM org_memberships WHERE id = $1', ['mem_a']);
+      await checked.query('/* undo */ ROLLBACK TO SAVEPOINT typeorm_1');
+      await checked.query('INSERT INTO org_memberships (id, tenant_id) VALUES ($1, $2)', ['mem_ok', 'ten_a']);
+      await checked.query('END');
+      checked.release();
+      await new Promise((resolve) => setImmediate(resolve));
+    });
+
+    const insertAt = recorded.findIndex((row) => row.text.startsWith('INSERT INTO org_memberships'));
+    expect(insertAt).toBeGreaterThan(0);
+    expect(recorded[insertAt - 1]?.params).toEqual(['ten_a', 'false']);
+    const endAt = recorded.findIndex((row) => row.text === 'END');
+    expect(recorded[endAt - 1]?.text.startsWith('INSERT INTO org_memberships')).toBe(true);
+  });
 });
