@@ -66,3 +66,4 @@ Chuỗi `ten_dev_01` còn lại, không phải fallback của request không có
 | `*.spec.ts` và e2e `developer.spec.ts`, `ops.spec.ts`, `mfa.spec.ts` | không đổi | fixture gọi tenant tường minh |
 | `anchor-tenant.service.ts:60`, `:165`, `:341`, `:371` | not-done | catalog anchor synthetic và nhãn GMV của đúng tenant seed, không phải nguồn tenant của request ẩn danh |
 | `public-tenant-token.ts:37` | done | comment; catalog token không còn đổ về seed |
+| `modules/identity/README.md:33`, `modules/marketing/README.md:24`, `modules/meta/README.md:36`, `modules/zalo/README.md:85` | not-done | ví dụ curl và bảng seed cho người đã đăng nhập, không phải đường runtime khi không có user |
