@@ -18,7 +18,7 @@ Không production-ready. D01–D12 chưa có chữ ký.
 | T08 | partial | `exception-item.service.ts` `open` / `resolve`. Người mở không tự đóng | Không bịa hạn SLA. T17 workspace chưa gắn | T07 |
 | T09 | partial | `1758150000000-ActiveHoldUnique.ts`, `docs/t09/active-hold-unique.md:7` | Giữ unique toàn cục theo `unit_id`. Không thêm unique `(tenant_id, unit_id)` | T02 |
 | T10 | partial | `payment.service.ts` lấy amount/currency từ server | Chỉ sandbox. Không gọi cổng thật | T09, D07 |
-| T11 | not-done | Webhook chữ ký cũ. Notary chưa HMAC | Replay/journal và chữ ký notary thuộc bước 1 | T10, D07 |
+| T11 | partial | `notary-connector.controller.ts` HMAC và `recordDeliveryOnce` | Replay thanh toán đã có từ trước. Không gọi cổng thật | T10, D07 |
 | T12 | not-done | `refundWithinNet` `spec-target.rules.ts:172-174` | Chưa tách maker/checker | T10, D06 |
 | T13 | not-done | `contract-artifacts.entity.ts`. `contracts/:id` còn `@Public` | Token ký có hạn, đúng contract/tenant | T10, D08 |
 | T14 | not-done (rules-only) | `handover-checklists.entity.ts` | Không làm ERP | T13, D09 |

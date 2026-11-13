@@ -4,6 +4,7 @@ import { DataSource } from 'typeorm';
 import { oneLookedUpTenant, recordUnscopedAudit } from '../../common/public-tenant-lookup';
 import { assertHeaderMatches } from '../../common/resolve-tenant-id';
 import { verifyWebhookSignature } from '../payment/webhook/webhook-signature.util';
+import { notaryJournalId } from './notary-webhook-journal';
 import { Public } from '../identity/decorators/public.decorator';
 import { ApiMarketplaceService } from '../api-marketplace/api-marketplace.service';
 
@@ -56,24 +57,38 @@ export class NotaryConnectorController {
     }
     assertHeaderMatches(tenantHeader, tenantId);
     const partner = await this.marketplace.findPartnerByCategory(tenantId, 'NOTARY');
-    await this.marketplace.recordDelivery({
+    const milestoneId = body.milestoneId ?? 'ms_contract';
+    const contractRef = body.contractRef ?? '';
+    const journal = await this.marketplace.recordDeliveryOnce({
       tenantId,
       partnerId: partner?.id ?? 'ptn_notary_stub',
       event: 'notary.status',
       status: body.notarizationStatus === 'REJECTED' ? 'FAILED' : 'DELIVERED',
       responseCode: body.notarizationStatus === 'REJECTED' ? 422 : 200,
       payload: body as unknown as Record<string, unknown>,
+      journalId: notaryJournalId({
+        tenantId,
+        bookingId: body.bookingId,
+        milestoneId,
+        notarizationStatus: body.notarizationStatus,
+        contractRef,
+      }),
     });
 
     return {
       data: {
         bookingId: body.bookingId,
-        milestoneId: body.milestoneId ?? 'ms_contract',
+        milestoneId,
         notarizationStatus: body.notarizationStatus,
-        contractRef: body.contractRef ?? null,
+        contractRef: contractRef || null,
         escrowLinked: true,
       },
-      meta: { uc: ['T5-S4', 'T5-S6'], connector: 'NOTARY', mode: 'sandbox' },
+      meta: {
+        uc: ['T5-S4', 'T5-S6'],
+        connector: 'NOTARY',
+        mode: 'sandbox',
+        idempotentReplay: journal.replay,
+      },
     };
   }
 }

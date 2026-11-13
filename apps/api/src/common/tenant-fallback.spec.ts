@@ -285,7 +285,7 @@ describe('tenant fallback is closed', () => {
 
     const marketplace = {
       findPartnerByCategory: jest.fn(async () => null),
-      recordDelivery: jest.fn(async () => undefined),
+      recordDeliveryOnce: jest.fn(async () => ({ replay: false, delivery: { id: 'nry_test' } })),
     };
     const notaryConfig = { get: (key: string) => (key === 'NOTARY_WEBHOOK_SECRET' ? secret : '') } as ConfigService;
     const missingBody = { bookingId: 'bk_missing', notarizationStatus: 'COMPLETED' as const };
@@ -295,7 +295,7 @@ describe('tenant fallback is closed', () => {
       notaryMissing.handleWebhook('', signWebhookPayload(missingBody, secret), missingBody),
     ).rejects.toBeInstanceOf(NotFoundException);
     await expect(notaryMissing.handleWebhook('', 'bad', missingBody)).rejects.toBeInstanceOf(UnauthorizedException);
-    expect(marketplace.recordDelivery).not.toHaveBeenCalled();
+    expect(marketplace.recordDeliveryOnce).not.toHaveBeenCalled();
     const notaryFound = new NotaryConnectorController(
       marketplace as never,
       dataSourceReturning([{ tenant_id: TENANT_B }]),
@@ -305,8 +305,8 @@ describe('tenant fallback is closed', () => {
       notaryFound.handleWebhook(SEED, signWebhookPayload(foundBody, secret), foundBody),
     ).rejects.toBeInstanceOf(ForbiddenException);
     await notaryFound.handleWebhook(TENANT_B, signWebhookPayload(foundBody, secret), foundBody);
-    expect(marketplace.recordDelivery).toHaveBeenCalledWith(expect.objectContaining({ tenantId: TENANT_B }));
-    expect(JSON.stringify(marketplace.recordDelivery.mock.calls)).not.toContain(SEED);
+    expect(marketplace.recordDeliveryOnce).toHaveBeenCalledWith(expect.objectContaining({ tenantId: TENANT_B }));
+    expect(JSON.stringify(marketplace.recordDeliveryOnce.mock.calls)).not.toContain(SEED);
   });
 
   it('simulate rail requires a user tenant or one stored externalRef', async () => {
