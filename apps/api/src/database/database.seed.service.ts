@@ -6,6 +6,7 @@ import { createHash } from 'crypto';
 import { mkdirSync, writeFileSync } from 'fs';
 import { dirname, join } from 'path';
 import { Repository } from 'typeorm';
+import { mfaSandboxSeedAllowed } from './mfa-sandbox-seed';
 import {
   AuditEventEntity,
   BookingEntity,
@@ -1249,9 +1250,14 @@ Ngày lập: 29/07/2026
 
   /** Sandbox/CI only. The secret comes from SEED_MFA_TOTP_SECRET and is never logged. */
   private async ensureMfaTotpSecrets() {
-    const env = this.config.get<string>('NODE_ENV') ?? '';
-    if (env === 'production' || env === 'staging') return;
-    if (this.config.get<string>('MFA_SEED_SANDBOX') !== 'true') return;
+    if (
+      !mfaSandboxSeedAllowed(
+        this.config.get<string>('NODE_ENV'),
+        this.config.get<string>('MFA_SEED_SANDBOX'),
+      )
+    ) {
+      return;
+    }
     const secret = this.config.get<string>('SEED_MFA_TOTP_SECRET')?.trim();
     if (!secret) return;
     const rows = await this.users.find();

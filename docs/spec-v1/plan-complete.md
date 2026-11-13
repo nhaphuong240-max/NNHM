@@ -27,7 +27,7 @@ Không production-ready. D01–D12 chưa có chữ ký.
 | T17 | partial | `exception-item.service.ts` `listMine` | Workspace cũ không bị thay. Không trả payload | T08 |
 | T18 | partial | `data-intelligence.service.ts` `unmeasuredDataBilling`. `listingIsPubliclyIndexable` chỉ `PUBLISHED`. `DeveloperShell` noindex | Không có số KPI pilot. Không bịa đơn giá data product | T03, D11 |
 | T19–T20 | partial | `copilot.service.ts` citation `unit:` và `project:` từ dòng đã lưu. Abstain không citation. Mẫu investment không còn “giá trị” | Không có chỉ mục retrieval | D12 |
-| T21 | partial | Seed MFA chỉ khi `MFA_SEED_SANDBOX=true` | Không dùng secret thật | T03 |
+| T21 | partial | `mfa-sandbox-seed.ts` chỉ `development` hoặc `test` và cờ đúng `true` | Secret không được log. e2e vẫn cần biến sandbox | T03 |
 | T22 | implemented (tài liệu) | `docs/spec-v1/t22-t24-runbooks.md:5-12` | Không deploy, không restore DB thật | D01–D12 chưa ký |
 | T23 | implemented (tài liệu) | cùng file `:14-21` | Checklist, chưa bật pilot | T22 |
 | T24 | implemented (tài liệu) | cùng file `:23-32` | KPI chưa đo. Không tự đánh pass | T23 |
