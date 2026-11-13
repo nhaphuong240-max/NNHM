@@ -28,26 +28,26 @@ Không production-ready. D01–D12 chưa có chữ ký.
 | T18 | partial | `data-intelligence.service.ts` `unmeasuredDataBilling`. `listingIsPubliclyIndexable` chỉ `PUBLISHED`. `DeveloperShell` noindex | Không có số KPI pilot. Không bịa đơn giá data product | T03, D11 |
 | T19–T20 | partial | `copilot.service.ts` citation `unit:` và `project:` từ dòng đã lưu. Abstain không citation. Mẫu investment không còn “giá trị” | Không có chỉ mục retrieval | D12 |
 | T21 | partial | `mfa-sandbox-seed.ts` chỉ `development` hoặc `test` và cờ đúng `true` | Secret không được log. e2e vẫn cần biến sandbox | T03 |
-| T22 | implemented (tài liệu) | `docs/spec-v1/t22-t24-runbooks.md:5-12` | Không deploy, không restore DB thật | D01–D12 chưa ký |
-| T23 | implemented (tài liệu) | cùng file `:14-21` | Checklist, chưa bật pilot | T22 |
-| T24 | implemented (tài liệu) | cùng file `:23-32` | KPI chưa đo. Không tự đánh pass | T23 |
+| T22 | docs-only | `docs/spec-v1/t22-t24-runbooks.md:5-12` | Không có runtime. Không deploy, không restore DB thật | D01–D12 chưa ký |
+| T23 | docs-only | cùng file `:14-21` | Checklist. Không bật pilot | T22 |
+| T24 | docs-only | cùng file `:23-32` | KP01–KP04 chưa đo. Không tự đánh pass | T23 |
 
 ## G01–G12
 
 | Gate | Trạng thái | Bằng chứng | Còn thiếu |
 | --- | --- | --- | --- |
-| G01 | partial | `scripts/t02-rls-hold-proof.js:73` và `scripts/t02-rls-app-proof.js:3` trên DB cô lập. Test `G01 denies a grant...` trong `spec-target.rules.spec.ts:22` chỉ là hàm grant, không phải RLS | Cần người ký cho pen-test. Script CI là bằng chứng tự động hiện có |
-| G02 | partial | `scripts/t02-rls-hold-proof.js:105`, ≥50 insert một căn | Không dùng test biến JavaScript làm bằng chứng |
-| G03 | not-done | Không có định nghĩa G03 trong repo | Chờ SPEC hoặc chữ ký. Không tự bịa |
-| G04 | not-done | Không có định nghĩa G04 trong repo | Chờ SPEC hoặc chữ ký |
-| G05 | not-done (rules-only) | `spec-target.rules.spec.ts:78` nhãn sandbox không thành `PAID` | Chưa gắn service thanh toán/đối soát |
-| G06 | not-done (rules-only) | Cùng test G05 | Chưa tách maker/checker hoàn tiền |
-| G07 | not-done | Không có định nghĩa G07 trong repo | Chờ SPEC hoặc chữ ký |
-| G08 | not-done | Không có định nghĩa G08 trong repo | Chờ SPEC hoặc chữ ký |
-| G09 | not-done (rules-only) | `spec-target.rules.spec.ts:90` | Chưa gắn export service |
-| G10 | not-done | Không có định nghĩa G10 trong repo | Chờ SPEC hoặc chữ ký |
-| G11 | not-done | Không có định nghĩa G11 trong repo | Chờ SPEC hoặc chữ ký |
-| G12 | not-done | Không có định nghĩa G12 trong repo | Chờ ký. Không tự đánh pass |
+| G01 | chờ ký | Job `t02-isolated-db` chạy harness, gồm `t02-rls-hold-proof.js` và `t02-rls-app-proof.js`. Test grant trong `spec-target.rules.spec.ts` không phải RLS | Pen-test người ký. Không tự đánh pass |
+| G02 | chờ ký | Cùng job. Proof ≥50 insert một căn, một hold active | Không dùng biến JavaScript |
+| G03 | undefined | Không có định nghĩa trong repo | Không bịa check |
+| G04 | undefined | Không có định nghĩa trong repo | Không bịa check |
+| G05 | chờ ký | Job `api` chạy `settlement-label.service.spec.ts`. Service trả `NOT_PAID` khi evidence null | Chữ ký đối soát |
+| G06 | partial, chờ ký | Job `api` chạy `refund-check.service.spec.ts`. Người đề xuất không tự duyệt | `createRefund` sandbox một người vẫn còn |
+| G07 | undefined | Không có định nghĩa trong repo | Không bịa check |
+| G08 | undefined | Không có định nghĩa trong repo | Không bịa check |
+| G09 | partial, chờ ký | Job `api` chạy `export-job.service.spec.ts` | `maskPhone` chưa gắn |
+| G10 | undefined | Không có định nghĩa trong repo | Không bịa check |
+| G11 | undefined | Không có định nghĩa trong repo | Không bịa check |
+| G12 | undefined | Không có định nghĩa trong repo | Không bịa check |
 
 ## Nợ bước 1, trước khi nối các gói rules-only
 

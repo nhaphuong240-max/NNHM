@@ -24,9 +24,28 @@ Không phải production-ready. `not-done (rules-only)` nghĩa là có bảng ho
 | T18 | partial | `unmeasuredDataBilling` trả `estimatedMrrVnd: null`. Heatmap meta `measured: false`. Chỉ listing `PUBLISHED` được index. Developer shell `noindex` | Heatmap/MRR chưa đo pilot. Locator e2e giữ heading. Local macOS 12 không cài Chromium Playwright 1.62 |
 | T19–T20 | partial | Câu có nguồn ghi `citations` là id căn và dự án đã lưu. Không có tên dự án thì `không đủ dữ liệu` và không có citation. Mẫu investment bỏ cụm “giá trị” | Không có chỉ mục retrieval riêng. Không tự đánh pass |
 | T21 | partial | `mfaSandboxSeedAllowed` chỉ đúng khi `NODE_ENV` là `development` hoặc `test` và `MFA_SEED_SANDBOX` đúng `true`. Production, staging, và env rỗng bị từ chối | e2e CI vẫn cần tên biến `SEED_MFA_TOTP_SECRET`. Không ghi giá trị secret |
-| T22 | implemented (tài liệu) | `docs/spec-v1/t22-t24-runbooks.md` | không deploy |
-| T23 | implemented (tài liệu) | cùng file | không bật pilot |
-| T24 | implemented (tài liệu) | cùng file | không có số liệu pilot |
+| T22 | docs-only | `docs/spec-v1/t22-t24-runbooks.md` | Không có runtime. Không deploy. Không restore DB thật |
+| T23 | docs-only | cùng file | Checklist. Không tạo tài khoản, không nhập PII, không thu tiền, không bật pilot |
+| T24 | docs-only | cùng file | KP01–KP04 chưa đo. Không đề xuất expand, hold, hay stop |
+
+## G01–G12
+
+Gate có định nghĩa trong repo thì job CI hiện có đã chạy bằng chứng đó. Không thêm job mới để tự đánh pass. Gate cần người ký vẫn là chờ ký. Gate không có định nghĩa trong repo là undefined.
+
+| Gate | Trạng thái | Bằng chứng tự động | Chờ ký |
+| --- | --- | --- | --- |
+| G01 | chờ ký | Job `t02-isolated-db` chạy `scripts/t02-harness.sh`, trong đó `scripts/t02-rls-hold-proof.js` và `scripts/t02-rls-app-proof.js`. Test grant trong `spec-target.rules.spec.ts` không phải bằng chứng RLS | Pen-test người ký. Không tự đánh pass |
+| G02 | chờ ký | Cùng job, proof ≥50 insert một căn, một hold active | Không dùng biến JavaScript làm bằng chứng |
+| G03 | undefined | Không có định nghĩa G03 trong repo | Không bịa check |
+| G04 | undefined | Không có định nghĩa G04 trong repo | Không bịa check |
+| G05 | chờ ký | Job `api` chạy Jest `settlement-label.service.spec.ts`. `settlement-label.service.ts` trả `NOT_PAID` khi không có chứng từ | Chữ ký đối soát. Không tự đánh pass |
+| G06 | partial, chờ ký | Job `api` chạy `refund-check.service.spec.ts`. Người đề xuất không tự duyệt | `RefundService.createRefund` sandbox một người vẫn còn |
+| G07 | undefined | Không có định nghĩa G07 trong repo | Không bịa check |
+| G08 | undefined | Không có định nghĩa G08 trong repo | Không bịa check |
+| G09 | partial, chờ ký | Job `api` chạy `export-job.service.spec.ts`. `exportJobAllowed` chặn người yêu cầu tự duyệt | `maskPhone` chưa gắn. Chưa có allowlist mục đích |
+| G10 | undefined | Không có định nghĩa G10 trong repo | Không bịa check |
+| G11 | undefined | Không có định nghĩa G11 trong repo | Không bịa check |
+| G12 | undefined | Không có định nghĩa G12 trong repo | Không bịa check |
 
 Fallback `DEFAULT_TENANT_ID` khi không có user. Đã đóng trên nhánh `tenant-fallback-close`. Không production-ready. Các gói T03–T24 phía trên không đổi.
 
