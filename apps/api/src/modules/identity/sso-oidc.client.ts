@@ -1,4 +1,4 @@
-import { createHash, randomBytes } from 'crypto';
+import { createHash, createHmac, randomBytes, timingSafeEqual } from 'crypto';
 
 export type OidcDiscovery = {
   issuer: string;
@@ -28,13 +28,23 @@ export function createPkcePair() {
   return { verifier, challenge };
 }
 
-export function createOidcState(payload: Record<string, unknown>) {
-  return Buffer.from(JSON.stringify(payload)).toString('base64url');
+export function createOidcState(payload: Record<string, unknown>, secret: string) {
+  const body = Buffer.from(JSON.stringify(payload)).toString('base64url');
+  const sig = createHmac('sha256', secret).update(body).digest('base64url');
+  return `${body}.${sig}`;
 }
 
-export function parseOidcState(state: string): Record<string, unknown> | null {
+export function parseOidcState(state: string, secret: string): Record<string, unknown> | null {
+  const dot = state.lastIndexOf('.');
+  if (dot <= 0 || !secret) return null;
+  const body = state.slice(0, dot);
+  const sig = state.slice(dot + 1);
+  const expected = createHmac('sha256', secret).update(body).digest('base64url');
+  const left = Buffer.from(sig);
+  const right = Buffer.from(expected);
+  if (left.length !== right.length || !timingSafeEqual(left, right)) return null;
   try {
-    return JSON.parse(Buffer.from(state, 'base64url').toString('utf8')) as Record<string, unknown>;
+    return JSON.parse(Buffer.from(body, 'base64url').toString('utf8')) as Record<string, unknown>;
   } catch {
     return null;
   }

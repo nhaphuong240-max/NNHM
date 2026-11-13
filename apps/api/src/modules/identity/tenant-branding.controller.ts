@@ -1,6 +1,7 @@
 import { Body, Controller, Get, Headers, HttpCode, Post } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { resolveTenantId } from '../../common/resolve-tenant-id';
+import { requireHostTenant } from '../../common/resolve-tenant-from-host';
+import { assertHeaderMatches, resolveTenantId } from '../../common/resolve-tenant-id';
 import { Public } from './decorators/public.decorator';
 import { CurrentUser } from './decorators/current-user.decorator';
 import type { AuthUser } from './identity.types';
@@ -16,8 +17,13 @@ export class TenantBrandingController {
   /** P4 — public marketplace white-label (no auth) */
   @Public()
   @Get('public')
-  getPublic(@Headers('x-tenant-id') tenantHeader: string | undefined) {
-    return this.branding.getBrand(resolveTenantId(this.config, undefined, tenantHeader));
+  getPublic(
+    @Headers('x-tenant-id') tenantHeader: string | undefined,
+    @Headers('host') host: string | undefined,
+  ) {
+    const tenantId = requireHostTenant(host);
+    assertHeaderMatches(tenantHeader, tenantId);
+    return this.branding.getBrand(tenantId);
   }
 
   @Get()

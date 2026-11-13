@@ -7,7 +7,6 @@ import {
   type ContractSignSession,
 } from '../../lib/api';
 import { brand } from '../../theme/tokens';
-import { DEFAULT_TENANT_ID } from '../../lib/constants';
 
 const DEMO_CONTRACT_ID = 'ctr_esign_demo01';
 const PILOT_CONTRACT_ID = 'ctr_pilot_deposit01';
@@ -19,7 +18,7 @@ export function BuyerEsignPage() {
   const contractId = params.get('contractId')?.trim() || DEMO_CONTRACT_ID;
   const tenantId =
     params.get('tenantId')?.trim() ||
-    (contractId === PILOT_CONTRACT_ID ? PILOT_TENANT_ID : DEFAULT_TENANT_ID);
+    (contractId === PILOT_CONTRACT_ID ? PILOT_TENANT_ID : '');
 
   const [session, setSession] = useState<ContractSignSession | null>(null);
   const [signerName, setSignerName] = useState('');
@@ -27,7 +26,9 @@ export function BuyerEsignPage() {
   const [consent, setConsent] = useState(false);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(
+    tenantId ? null : 'Thiếu tenant trên đường dẫn. Thêm tenantId vào địa chỉ trang ký.',
+  );
   const [success, setSuccess] = useState<{
     documentId?: string;
     documentVaultRef?: string;
@@ -35,6 +36,11 @@ export function BuyerEsignPage() {
   } | null>(null);
 
   const load = useCallback(async () => {
+    if (!tenantId) {
+      setLoading(false);
+      setError('Thiếu tenant trên đường dẫn. Thêm tenantId vào địa chỉ trang ký.');
+      return;
+    }
     setLoading(true);
     setError(null);
     try {

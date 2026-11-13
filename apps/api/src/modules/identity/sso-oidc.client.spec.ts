@@ -9,9 +9,12 @@ import {
 
 describe('sso-oidc.client', () => {
   it('creates and parses OIDC state', () => {
-    const state = createOidcState({ tenantId: 'ten_dev_01', providerId: 'sso_1' });
-    const parsed = parseOidcState(state);
+    const secret = 'sso-state-secret-for-test';
+    const state = createOidcState({ tenantId: 'ten_dev_01', providerId: 'sso_1' }, secret);
+    const parsed = parseOidcState(state, secret);
     expect(parsed?.tenantId).toBe('ten_dev_01');
+    expect(parseOidcState(state, 'other-secret-value')).toBeNull();
+    expect(parseOidcState(Buffer.from('{"tenantId":"ten_dev_01"}').toString('base64url'), secret)).toBeNull();
   });
 
   it('buildAuthorizeUrl includes PKCE params', () => {

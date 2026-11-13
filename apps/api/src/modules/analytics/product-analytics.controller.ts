@@ -1,6 +1,7 @@
 import { Body, Controller, Headers, Post } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { resolveTenantId } from '../../common/resolve-tenant-id';
+import { DataSource } from 'typeorm';
+import { tenantFromTokenOrProject } from '../../common/public-tenant-lookup';
+import { assertHeaderMatches } from '../../common/resolve-tenant-id';
 import { Public } from '../identity/decorators/public.decorator';
 import type { AnalyticsEventName } from '../../database/entities/analytics-event.entity';
 import { ProductAnalyticsService } from './product-analytics.service';
@@ -9,13 +10,13 @@ import { ProductAnalyticsService } from './product-analytics.service';
 export class ProductAnalyticsController {
   constructor(
     private readonly analytics: ProductAnalyticsService,
-    private readonly config: ConfigService,
+    private readonly dataSource: DataSource,
   ) {}
 
   /** P0 FR-EVT-001 — public product analytics beacon */
   @Public()
   @Post('events')
-  trackEvents(
+  async trackEvents(
     @Headers('x-tenant-id') tenantHeader: string | undefined,
     @Body()
     body: {
@@ -37,9 +38,16 @@ export class ProductAnalyticsController {
       entityType?: string;
       entityId?: string;
       payload?: Record<string, unknown>;
+      entryToken?: string;
+      projectId?: string;
     },
   ) {
-    const tenantId = resolveTenantId(this.config, undefined, tenantHeader);
+    const tenantId = await tenantFromTokenOrProject(
+      this.dataSource,
+      body.entryToken,
+      body.projectId,
+    );
+    assertHeaderMatches(tenantHeader, tenantId);
     if (body.events?.length) {
       return this.analytics.trackBatch(
         tenantId,

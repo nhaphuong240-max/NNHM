@@ -6,7 +6,9 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { randomUUID } from 'crypto';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
+import { lookupTenants } from '../../common/public-tenant-lookup';
+import { assertHeaderMatches } from '../../common/resolve-tenant-id';
 import { AuditEventEntity } from '../../database/entities/audit-event.entity';
 import { AuditService } from '../audit/audit.service';
 import { TenantConfigService } from '../tenant-config/tenant-config.service';
@@ -49,7 +51,32 @@ export class SsoService {
     private readonly config: ConfigService,
     private readonly tenantConfig: TenantConfigService,
     private readonly rails: RailResolverService,
+    private readonly dataSource: DataSource,
   ) {}
+
+  private stateSecret(): string {
+    const secret =
+      this.config.get<string>('SSO_STATE_SECRET') || this.config.get<string>('JWT_SECRET') || '';
+    if (secret.length < 16) {
+      throw new UnprocessableEntityException({ detail: 'SSO state secret is not configured' });
+    }
+    return secret;
+  }
+
+  /** Tenant comes from the stored IdP row, never from a query or header. */
+  async beginAuthorizeForProvider(
+    input: { providerId: string; emailHint?: string; redirectUri?: string },
+    header?: string,
+  ) {
+    const tenants = await lookupTenants(this.dataSource, 'sso_provider', input.providerId);
+    if (tenants.length !== 1) {
+      throw new UnprocessableEntityException({
+        detail: 'SSO provider is not bound to one tenant',
+      });
+    }
+    assertHeaderMatches(header, tenants[0]!);
+    return this.beginAuthorize(tenants[0]!, input);
+  }
 
   /** OPS-S6-03 — tenant LIVE_RAILS.ssoOidc* wins over process env. */
   private async ssoRails(tenantId: string) {
@@ -162,12 +189,15 @@ export class SsoService {
     );
 
     const { verifier, challenge } = createPkcePair();
-    const state = createOidcState({
-      tenantId,
-      providerId: provider.id,
-      emailHint: input.emailHint?.trim(),
-      webRedirect: callbackUrl,
-    });
+    const state = createOidcState(
+      {
+        tenantId,
+        providerId: provider.id,
+        emailHint: input.emailHint?.trim(),
+        webRedirect: callbackUrl,
+      },
+      this.stateSecret(),
+    );
     this.pendingOidc.set(state, {
       tenantId,
       providerId: provider.id,
@@ -204,9 +234,15 @@ export class SsoService {
   }
 
   async handleCallback(input: { code: string; state: string }) {
-    const statePayload = parseOidcState(input.state);
+    const statePayload = parseOidcState(input.state, this.stateSecret());
     const pending = this.pendingOidc.get(input.state);
-    if (!pending || pending.expiresAt < Date.now()) {
+    if (
+      !statePayload ||
+      typeof statePayload.tenantId !== 'string' ||
+      !pending ||
+      pending.expiresAt < Date.now() ||
+      pending.tenantId !== statePayload.tenantId
+    ) {
       throw new UnauthorizedException({ detail: 'Invalid or expired SSO state' });
     }
     this.pendingOidc.delete(input.state);
@@ -296,6 +332,20 @@ export class SsoService {
       },
       meta: { uc: ['UC-ID-06'], screen: 'SCR-AUTH-002', mode: useMock ? 'oidc-mock-callback' : 'oidc-live' },
     };
+  }
+
+  async loginForProvider(
+    input: { providerId: string; email: string; externalGroups?: string[] },
+    header?: string,
+  ) {
+    const tenants = await lookupTenants(this.dataSource, 'sso_provider', input.providerId);
+    if (tenants.length !== 1) {
+      throw new UnprocessableEntityException({
+        detail: 'SSO provider is not bound to one tenant',
+      });
+    }
+    assertHeaderMatches(header, tenants[0]!);
+    return this.login(tenants[0]!, input);
   }
 
   /** Legacy pilot login — kept for admin testing */

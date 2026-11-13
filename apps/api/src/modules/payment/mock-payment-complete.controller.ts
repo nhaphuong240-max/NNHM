@@ -1,7 +1,9 @@
 import { Controller, Get, NotFoundException, Query, Res } from '@nestjs/common';
 import type { Response } from 'express';
 import { ConfigService } from '@nestjs/config';
-import { SEED_TENANT_ID } from '../../database/database.seed.service';
+import { DataSource } from 'typeorm';
+import { oneLookedUpTenant } from '../../common/public-tenant-lookup';
+import { assertHeaderMatches } from '../../common/resolve-tenant-id';
 import { isLiveDeploymentEnv } from '../../infrastructure/security/production-security.service';
 import { configEnvReader } from '../../infrastructure/config-env-reader';
 import { Public } from '../identity/decorators/public.decorator';
@@ -16,6 +18,7 @@ export class MockPaymentCompleteController {
     private readonly webhook: PaymentWebhookService,
     private readonly config: ConfigService,
     private readonly rails: RailResolverService,
+    private readonly dataSource: DataSource,
   ) {}
 
   @Public()
@@ -31,7 +34,8 @@ export class MockPaymentCompleteController {
       throw new NotFoundException();
     }
 
-    const tenantId = tenantQuery?.trim() || SEED_TENANT_ID;
+    const tenantId = await oneLookedUpTenant(this.dataSource, 'payment_intent', intentId, 'not-found');
+    assertHeaderMatches(tenantQuery, tenantId);
     const liveRails = await this.rails.resolve(tenantId);
     if (!liveRails.simulateEndpoints) {
       throw new NotFoundException();

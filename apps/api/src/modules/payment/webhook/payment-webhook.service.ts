@@ -1,4 +1,5 @@
 import {
+  ForbiddenException,
   Injectable,
   NotFoundException,
   UnauthorizedException,
@@ -7,7 +8,6 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { SEED_TENANT_ID } from '../../../database/database.seed.service';
 import { BookingEntity } from '../../../database/entities/booking.entity';
 import { PaymentIntentEntity } from '../../../database/entities/payment-intent.entity';
 import { RefundEntity } from '../../../database/entities/refund.entity';
@@ -61,7 +61,19 @@ export class PaymentWebhookService {
       throw new UnprocessableEntityException({ detail: 'paymentIntentId is required' });
     }
 
-    const tenantId = payload.tenantId?.trim() || SEED_TENANT_ID;
+    const stored = await this.intents.findOne({ where: { id: payload.paymentIntentId } });
+    if (!stored) {
+      throw new NotFoundException({
+        detail: `PaymentIntent ${payload.paymentIntentId} not found`,
+      });
+    }
+    const claimedTenant = payload.tenantId?.trim();
+    if (claimedTenant && claimedTenant !== stored.tenantId) {
+      throw new ForbiddenException({
+        detail: 'webhook tenant does not match the stored payment intent',
+      });
+    }
+    const tenantId = stored.tenantId;
     const claim = await this.idempotency.claim(
       tenantId,
       payload.eventId,

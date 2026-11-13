@@ -1,6 +1,5 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { Link, Navigate, useLocation, useSearchParams } from 'react-router-dom';
-import { DEFAULT_TENANT_ID } from '../../lib/constants';
 import {
   completeMfaLogin,
   fetchPublicTenants,
@@ -83,7 +82,7 @@ export function AuthLoginPage() {
   const from = fromParam ?? fromState ?? '/';
 
   const [tenants, setTenants] = useState<TenantOption[]>([]);
-  const [tenantId, setTenantId] = useState(DEFAULT_TENANT_ID);
+  const [tenantId, setTenantId] = useState('');
   const [email, setEmail] = useState('agent@sunrise-dev.vn');
   const [password, setPassword] = useState('Agent123!');
   const [showPassword, setShowPassword] = useState(false);
@@ -99,7 +98,10 @@ export function AuthLoginPage() {
 
   useEffect(() => {
     fetchPublicTenants()
-      .then(setTenants)
+      .then((rows) => {
+        setTenants(rows);
+        setTenantId((current) => current || rows[0]?.id || '');
+      })
       .catch(() => undefined);
   }, []);
 
@@ -111,6 +113,10 @@ export function AuthLoginPage() {
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
+    if (!tenantId.trim()) {
+      setError('Chọn tenant trước khi đăng nhập.');
+      return;
+    }
     if (failCount >= 5) {
       setError('Tài khoản tạm khóa 15 phút sau 5 lần sai (demo BR-14).');
       return;
@@ -161,7 +167,7 @@ export function AuthLoginPage() {
     if ('tenantId' in account && account.tenantId) {
       setTenantId(account.tenantId);
     } else {
-      setTenantId(DEFAULT_TENANT_ID);
+      setError('Tài khoản demo chưa gắn tenant.');
     }
     setError(null);
     setMfaChallenge(null);
@@ -271,7 +277,7 @@ export function AuthLoginPage() {
                   </option>
                 ))
               ) : (
-                <option value={DEFAULT_TENANT_ID}>{DEFAULT_TENANT_ID}</option>
+                <option value="">Chưa có tenant</option>
               )}
             </select>
           </label>

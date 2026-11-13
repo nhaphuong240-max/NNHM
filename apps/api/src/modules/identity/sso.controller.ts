@@ -59,11 +59,10 @@ export class SsoController {
     @Query('emailHint') emailHint?: string,
     @Query('redirectUri') redirectUri?: string,
   ) {
-    return this.sso.beginAuthorize(resolveTenantId(this.config, undefined, tenantHeader), {
-      providerId,
-      emailHint,
-      redirectUri,
-    });
+    return this.sso.beginAuthorizeForProvider(
+      { providerId, emailHint, redirectUri },
+      tenantHeader,
+    );
   }
 
   @Public()
@@ -90,6 +89,6 @@ export class SsoController {
     @Headers('x-tenant-id') tenantHeader: string | undefined,
     @Body() body: { providerId: string; email: string; externalGroups?: string[] },
   ) {
-    return this.sso.login(resolveTenantId(this.config, undefined, tenantHeader), body);
+    return this.sso.loginForProvider(body, tenantHeader);
   }
 }

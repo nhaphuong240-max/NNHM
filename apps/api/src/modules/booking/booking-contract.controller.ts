@@ -1,6 +1,8 @@
 import { Body, Controller, Get, Headers, HttpCode, Param, Post, Query } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { resolveTenantId } from '../../common/resolve-tenant-id';
+import { DataSource } from 'typeorm';
+import { oneLookedUpTenant } from '../../common/public-tenant-lookup';
+import { assertHeaderMatches, resolveTenantId } from '../../common/resolve-tenant-id';
 import { Public } from '../identity/decorators/public.decorator';
 import { CurrentUser } from '../identity/decorators/current-user.decorator';
 import type { AuthUser } from '../identity/identity.types';
@@ -12,7 +14,14 @@ export class BookingContractController {
   constructor(
     private readonly contracts: BookingContractService,
     private readonly config: ConfigService,
+    private readonly dataSource: DataSource,
   ) {}
+
+  private async contractTenant(contractId: string | undefined, header: string | undefined) {
+    const tenantId = await oneLookedUpTenant(this.dataSource, 'contract', contractId, 'not-found');
+    assertHeaderMatches(header, tenantId);
+    return tenantId;
+  }
 
   /** UC-BK-06 — template catalog */
   @Get('templates')
@@ -60,13 +69,13 @@ export class BookingContractController {
   @Public()
   @Post('webhooks/esign')
   @HttpCode(200)
-  esignWebhook(
+  async esignWebhook(
     @Headers('x-tenant-id') tenantHeader: string | undefined,
     @Headers('x-esign-signature') signature: string | undefined,
     @Body() body: { contractId?: string; event?: string; signatureRef?: string; envelopeId?: string },
   ) {
     return this.contracts.handleEsignWebhook(
-      resolveTenantId(this.config, undefined, tenantHeader),
+      await this.contractTenant(body.contractId, tenantHeader),
       body,
       JSON.stringify(body),
       signature,
@@ -76,12 +85,12 @@ export class BookingContractController {
   /** UC-BK-07 — buyer sign session (public + tenant header) */
   @Public()
   @Get(':contractId/sign-session')
-  signSession(
+  async signSession(
     @Headers('x-tenant-id') tenantHeader: string | undefined,
     @Param('contractId') contractId: string,
   ) {
     return this.contracts.getSignSession(
-      resolveTenantId(this.config, undefined, tenantHeader),
+      await this.contractTenant(contractId, tenantHeader),
       contractId,
     );
   }
@@ -89,12 +98,12 @@ export class BookingContractController {
   /** UC-BK-07 — contract detail for buyer e-sign */
   @Public()
   @Get(':contractId')
-  detail(
+  async detail(
     @Headers('x-tenant-id') tenantHeader: string | undefined,
     @Param('contractId') contractId: string,
   ) {
     return this.contracts.getContract(
-      resolveTenantId(this.config, undefined, tenantHeader),
+      await this.contractTenant(contractId, tenantHeader),
       contractId,
     );
   }
@@ -103,13 +112,13 @@ export class BookingContractController {
   @Public()
   @Post(':contractId/sign')
   @HttpCode(200)
-  sign(
+  async sign(
     @Headers('x-tenant-id') tenantHeader: string | undefined,
     @Param('contractId') contractId: string,
     @Body() body: ContractSignInput,
   ) {
     return this.contracts.signContract(
-      resolveTenantId(this.config, undefined, tenantHeader),
+      await this.contractTenant(contractId, tenantHeader),
       contractId,
       body,
     );

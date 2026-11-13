@@ -1,5 +1,17 @@
-import { Body, Controller, Headers, HttpCode, Post, UnauthorizedException } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Headers,
+  HttpCode,
+  NotFoundException,
+  Post,
+  UnauthorizedException,
+  UnprocessableEntityException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { DataSource } from 'typeorm';
+import { lookupTenants, recordUnscopedAudit } from '../../common/public-tenant-lookup';
+import { assertHeaderMatches } from '../../common/resolve-tenant-id';
 import { createHmac, timingSafeEqual } from 'crypto';
 import { configEnvReader } from '../../infrastructure/config-env-reader';
 import { webhookSkipVerifyAllowed } from '../../infrastructure/security/production-security.service';
@@ -33,6 +45,7 @@ export class BankConnectorController {
     private readonly reconcile: ReconciliationService,
     private readonly settlement: CommissionSettlementService,
     private readonly config: ConfigService,
+    private readonly dataSource: DataSource,
   ) {}
 
   private connectorMode(): 'sandbox' | 'live' {
@@ -60,13 +73,41 @@ export class BankConnectorController {
       status: 'SUCCESS' | 'FAILED' | 'SUBMITTED';
     },
   ) {
-    const tenantId = tenantHeader?.trim() || this.config.get('DEFAULT_TENANT_ID', 'ten_dev_01');
+    const bookingTenants = body.bookingId
+      ? await lookupTenants(this.dataSource, 'booking', body.bookingId)
+      : [];
+    const intentTenants = body.paymentIntentId
+      ? await lookupTenants(this.dataSource, 'payment_intent', body.paymentIntentId)
+      : [];
+    const candidates = [...new Set([...bookingTenants, ...intentTenants])];
+    if (candidates.length !== 1) {
+      await recordUnscopedAudit(this.dataSource, {
+        tenantId: null,
+        entityType: 'bank_webhook',
+        entityId: body.transactionId || 'missing',
+        action: 'WEBHOOK_REJECTED',
+        payload: { reason: candidates.length > 1 ? 'ambiguous-record' : 'no-matching-record' },
+      });
+      if (candidates.length > 1) {
+        throw new UnprocessableEntityException({ detail: 'bank webhook matches more than one tenant' });
+      }
+      throw new NotFoundException({ detail: 'bank webhook does not match a stored booking or intent' });
+    }
+    const tenantId = candidates[0]!;
+    assertHeaderMatches(tenantHeader, tenantId);
     const mode = this.connectorMode();
     const skipVerify = webhookSkipVerifyAllowed(configEnvReader(this.config));
     const secret = this.config.get<string>('BANK_WEBHOOK_SECRET', 'wereal-bank-dev-secret');
     const rawBody = JSON.stringify(body);
 
     if (mode === 'live' && !verifyBankWebhookSignature(rawBody, signature, secret, skipVerify)) {
+      await recordUnscopedAudit(this.dataSource, {
+        tenantId,
+        entityType: 'bank_webhook',
+        entityId: body.transactionId || 'missing',
+        action: 'WEBHOOK_REJECTED',
+        payload: { reason: 'bad-signature' },
+      });
       throw new UnauthorizedException({ detail: 'Invalid bank webhook signature' });
     }
 

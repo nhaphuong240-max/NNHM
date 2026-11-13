@@ -1,6 +1,9 @@
 import { Body, Controller, Get, Headers, Param, Post, Query } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { resolveTenantId } from '../../common/resolve-tenant-id';
+import { DataSource } from 'typeorm';
+import { oneLookedUpTenant } from '../../common/public-tenant-lookup';
+import { requireHostTenant } from '../../common/resolve-tenant-from-host';
+import { assertHeaderMatches, resolveTenantId } from '../../common/resolve-tenant-id';
 import { Public } from '../identity/decorators/public.decorator';
 import { CurrentUser } from '../identity/decorators/current-user.decorator';
 import type { AuthUser } from '../identity/identity.types';
@@ -12,6 +15,7 @@ export class PortalController {
   constructor(
     private readonly portal: PortalService,
     private readonly config: ConfigService,
+    private readonly dataSource: DataSource,
   ) {}
 
   @Get('admin/dashboard')
@@ -46,86 +50,92 @@ export class PortalController {
   /** UC-BK-02 · SCR-BUYER-002 — public buyer deal tracker (tenant header) */
   @Public()
   @Get('buyer/deals')
-  buyerDeals(
+  async buyerDeals(
     @CurrentUser() user: AuthUser | undefined,
     @Headers('x-tenant-id') tenantHeader: string | undefined,
+    @Headers('host') host?: string,
   ) {
-    const tenantId = resolveTenantId(this.config, user, tenantHeader);
+    const tenantId = user?.tenantId?.trim()
+      ? resolveTenantId(this.config, user, tenantHeader)
+      : requireHostTenant(host);
+    assertHeaderMatches(tenantHeader, tenantId);
     return this.portal.getBuyerDeals(tenantId, resolveSeekerPhone(user));
   }
 
   @Public()
   @Get('buyer/deals/:bookingId')
-  buyerDeal(
+  async buyerDeal(
     @CurrentUser() user: AuthUser | undefined,
     @Headers('x-tenant-id') tenantHeader: string | undefined,
     @Param('bookingId') bookingId: string,
   ) {
-    const tenantId = resolveTenantId(this.config, user, tenantHeader);
+    const tenantId = user?.tenantId?.trim()
+      ? resolveTenantId(this.config, user, tenantHeader)
+      : await oneLookedUpTenant(this.dataSource, 'booking', bookingId, 'not-found');
+    assertHeaderMatches(tenantHeader, tenantId);
     return this.portal.getBuyerDeal(tenantId, bookingId, resolveSeekerPhone(user));
   }
 
   /** UC-UX-02 — demo ZNS notify stub for buyer deal tracker */
   @Public()
   @Post('buyer/deals/:bookingId/notifications/stub')
-  buyerDealNotifyStub(
+  async buyerDealNotifyStub(
     @Headers('x-tenant-id') tenantHeader: string | undefined,
     @Param('bookingId') bookingId: string,
   ) {
-    return this.portal.sendBuyerDealNotificationStub(
-      resolveTenantId(this.config, undefined, tenantHeader),
-      bookingId,
-    );
+    const tenantId = await oneLookedUpTenant(this.dataSource, 'booking', bookingId, 'not-found');
+    assertHeaderMatches(tenantHeader, tenantId);
+    return this.portal.sendBuyerDealNotificationStub(tenantId, bookingId);
   }
 
   @Public()
   @Post('buyer/devices/register')
   registerBuyerDevice(
     @Headers('x-tenant-id') tenantHeader: string | undefined,
+    @Headers('host') host: string | undefined,
     @Body() body: { pushToken?: string; platform?: string },
   ) {
-    return this.portal.registerBuyerDevice(
-      resolveTenantId(this.config, undefined, tenantHeader),
-      body,
-    );
+    const tenantId = requireHostTenant(host);
+    assertHeaderMatches(tenantHeader, tenantId);
+    return this.portal.registerBuyerDevice(tenantId, body);
   }
 
   @Public()
   @Post('buyer/deals/:bookingId/bnpl')
-  applyBuyerBnpl(
+  async applyBuyerBnpl(
     @Headers('x-tenant-id') tenantHeader: string | undefined,
     @Param('bookingId') bookingId: string,
     @Body() body: { planId?: string },
   ) {
-    return this.portal.applyBuyerBnpl(
-      resolveTenantId(this.config, undefined, tenantHeader),
-      bookingId,
-      body.planId ?? 'bnpl_3',
-    );
+    const tenantId = await oneLookedUpTenant(this.dataSource, 'booking', bookingId, 'not-found');
+    assertHeaderMatches(tenantHeader, tenantId);
+    return this.portal.applyBuyerBnpl(tenantId, bookingId, body.planId ?? 'bnpl_3');
   }
 
   @Public()
   @Get('buyer/deals/:bookingId/sign-session')
-  buyerSignSession(
+  async buyerSignSession(
     @Headers('x-tenant-id') tenantHeader: string | undefined,
     @Param('bookingId') bookingId: string,
   ) {
-    return this.portal.getBuyerSignSession(
-      resolveTenantId(this.config, undefined, tenantHeader),
-      bookingId,
-    );
+    const tenantId = await oneLookedUpTenant(this.dataSource, 'booking', bookingId, 'not-found');
+    assertHeaderMatches(tenantHeader, tenantId);
+    return this.portal.getBuyerSignSession(tenantId, bookingId);
   }
 
   /** UC-UX-06 · SCR-PUBLIC-003 */
   @Public()
   @Get('public/map')
-  publicMap(
+  async publicMap(
     @Headers('x-tenant-id') tenantHeader: string | undefined,
+    @Headers('host') host: string | undefined,
     @Query('projectId') projectId?: string,
   ) {
-    return this.portal.getPublicMap(
-      resolveTenantId(this.config, undefined, tenantHeader),
-      projectId?.trim(),
-    );
+    const id = projectId?.trim();
+    const tenantId = id
+      ? await oneLookedUpTenant(this.dataSource, 'project', id, 'not-found')
+      : requireHostTenant(host);
+    assertHeaderMatches(tenantHeader, tenantId);
+    return this.portal.getPublicMap(tenantId, id);
   }
 }
