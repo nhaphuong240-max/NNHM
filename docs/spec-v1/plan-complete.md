@@ -12,7 +12,7 @@ Không production-ready. D01–D12 chưa có chữ ký.
 | T02 | done (schema đã merge) | `1738339100000-BaselineCoreSchema.ts`, `1738339201000-EnableTenantRls.ts`, `scripts/t02-harness.sh` | Không sửa migration đã có trên main | T01 |
 | T03 | partial | `coverage.md:9`. RLS còn lại `1758130000000`. Bind trong `tenant-rls.service.ts` | Jest superuser không phải G01. Một số route ẩn danh còn nợ ở bước 1 | T02 |
 | T04 | partial | `export-job.service.ts` dùng `exportJobAllowed`. Người yêu cầu không tự duyệt. Không xuất dòng | `maskPhone` chưa gắn. Chưa audit append-only cho job | T03, D02, D03 |
-| T05 | not-done (rules-only) | `allocationAllowsPlacement` `spec-target.rules.ts:120-132` | Chưa có luồng phân bổ/thu hồi gắn service | T03, D01 |
+| T05 | partial | `allocation.service.ts` `grant` / `revoke` / `placement` dùng `allocationAllowsPlacement` | Chỉ tenant đang là `stockOwnerTenantId`. Chưa gán căn sang booking | T03, D01 |
 | T06 | partial | `price-book.service.ts` `openVersion` dùng `priceWindowsOverlap`. Quote `ACCEPTED` bị chặn ở `changeQuoteStatus` | Chưa có biểu thuế, phí, ưu đãi. Vai trò ghi tạm là `DEVELOPER_ADMIN` | T03, D04 |
 | T07 | not-done (rules-only) | `coverage.md:13`. Lead HOT chờ duyệt là bất biến đã merge | Dedup chưa vào service | T03, D05 |
 | T08 | not-done (rules-only) | `exception-items.entity.ts` | SLA/tranh chấp chưa gắn service mới | T07 |
