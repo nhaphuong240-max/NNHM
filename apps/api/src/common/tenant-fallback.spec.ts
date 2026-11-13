@@ -11,6 +11,7 @@ import { TenantBrandingController } from '../modules/identity/tenant-branding.co
 import { NotaryConnectorController } from '../modules/integrations/notary-connector.controller';
 import { PaymentBnplController } from '../modules/payment/payment-bnpl.controller';
 import { PaymentController } from '../modules/payment/payment.controller';
+import { mintContractSignToken } from '../modules/booking/contract-sign-token';
 import { signWebhookPayload } from '../modules/payment/webhook/webhook-signature.util';
 import { PortalController } from '../modules/portal/portal.controller';
 import { SearchController } from '../modules/search/search.controller';
@@ -93,10 +94,10 @@ describe('tenant fallback is closed', () => {
     const missing = new PortalController(portal as never, config(), dataSourceReturning([]));
     await expect(missing.buyerDeals(undefined, undefined, undefined)).rejects.toBeInstanceOf(NotFoundException);
     await expect(missing.buyerDeal(undefined, undefined, 'bk_missing')).rejects.toBeInstanceOf(NotFoundException);
-    await expect(missing.buyerDealNotifyStub(undefined, 'bk_missing')).rejects.toBeInstanceOf(NotFoundException);
+    await expect(missing.buyerDealNotifyStub(undefined, undefined, 'bk_missing')).rejects.toBeInstanceOf(NotFoundException);
     expect(() => missing.registerBuyerDevice(undefined, undefined, {})).toThrow(NotFoundException);
-    await expect(missing.applyBuyerBnpl(undefined, 'bk_missing', {})).rejects.toBeInstanceOf(NotFoundException);
-    await expect(missing.buyerSignSession(undefined, 'bk_missing')).rejects.toBeInstanceOf(NotFoundException);
+    await expect(missing.applyBuyerBnpl(undefined, undefined, 'bk_missing', {})).rejects.toBeInstanceOf(NotFoundException);
+    await expect(missing.buyerSignSession(undefined, undefined, 'bk_missing')).rejects.toBeInstanceOf(NotFoundException);
     await expect(missing.publicMap(undefined, undefined, undefined)).rejects.toBeInstanceOf(NotFoundException);
     expect(portal.getBuyerDeals).not.toHaveBeenCalled();
     expect(portal.getBuyerDeal).not.toHaveBeenCalled();
@@ -212,15 +213,20 @@ describe('tenant fallback is closed', () => {
     await expect(payFound.checkout(TENANT_B, 'pi_b')).resolves.toEqual({ meta: { tenantId: TENANT_B } });
 
     const contracts = { getSignSession: jest.fn(async (tenantId: string) => ({ meta: { tenantId } })) };
-    const contractMissing = new BookingContractController(contracts as never, config(), dataSourceReturning([]));
-    await expect(contractMissing.signSession(undefined, 'ctr_missing')).rejects.toBeInstanceOf(NotFoundException);
+    const signSecret = 'contract-sign-test-secret';
+    const signConfig = {
+      get: (key: string, fallback?: string) => (key === 'JWT_SECRET' ? signSecret : fallback),
+    } as ConfigService;
+    const contractMissing = new BookingContractController(contracts as never, signConfig, dataSourceReturning([]));
+    await expect(contractMissing.signSession(undefined, undefined, 'ctr_missing')).rejects.toBeInstanceOf(NotFoundException);
     const contractFound = new BookingContractController(
       contracts as never,
-      config(),
+      signConfig,
       dataSourceReturning([{ tenant_id: TENANT_B }]),
     );
-    await expect(contractFound.signSession(SEED, 'ctr_b')).rejects.toBeInstanceOf(ForbiddenException);
-    await expect(contractFound.signSession(TENANT_B, 'ctr_b')).resolves.toEqual({ meta: { tenantId: TENANT_B } });
+    const signToken = mintContractSignToken({ tenantId: TENANT_B, contractId: 'ctr_b', secret: signSecret });
+    await expect(contractFound.signSession(SEED, signToken, 'ctr_b')).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(contractFound.signSession(TENANT_B, signToken, 'ctr_b')).resolves.toEqual({ meta: { tenantId: TENANT_B } });
 
     const search = { getUnitDetail: jest.fn(async (tenantId: string) => ({ meta: { tenantId } })) };
     const searchMissing = new SearchController(search as never, {} as never, dataSourceReturning([]));
@@ -281,22 +287,24 @@ describe('tenant fallback is closed', () => {
       findPartnerByCategory: jest.fn(async () => null),
       recordDelivery: jest.fn(async () => undefined),
     };
-    const notaryMissing = new NotaryConnectorController(marketplace as never, dataSourceReturning([]));
+    const notaryConfig = { get: (key: string) => (key === 'NOTARY_WEBHOOK_SECRET' ? secret : '') } as ConfigService;
+    const missingBody = { bookingId: 'bk_missing', notarizationStatus: 'COMPLETED' as const };
+    const foundBody = { bookingId: 'bk_b', notarizationStatus: 'COMPLETED' as const };
+    const notaryMissing = new NotaryConnectorController(marketplace as never, dataSourceReturning([]), notaryConfig);
     await expect(
-      notaryMissing.handleWebhook('', {
-        bookingId: 'bk_missing',
-        notarizationStatus: 'COMPLETED',
-      }),
+      notaryMissing.handleWebhook('', signWebhookPayload(missingBody, secret), missingBody),
     ).rejects.toBeInstanceOf(NotFoundException);
+    await expect(notaryMissing.handleWebhook('', 'bad', missingBody)).rejects.toBeInstanceOf(UnauthorizedException);
     expect(marketplace.recordDelivery).not.toHaveBeenCalled();
     const notaryFound = new NotaryConnectorController(
       marketplace as never,
       dataSourceReturning([{ tenant_id: TENANT_B }]),
+      notaryConfig,
     );
     await expect(
-      notaryFound.handleWebhook(SEED, { bookingId: 'bk_b', notarizationStatus: 'COMPLETED' }),
+      notaryFound.handleWebhook(SEED, signWebhookPayload(foundBody, secret), foundBody),
     ).rejects.toBeInstanceOf(ForbiddenException);
-    await notaryFound.handleWebhook(TENANT_B, { bookingId: 'bk_b', notarizationStatus: 'COMPLETED' });
+    await notaryFound.handleWebhook(TENANT_B, signWebhookPayload(foundBody, secret), foundBody);
     expect(marketplace.recordDelivery).toHaveBeenCalledWith(expect.objectContaining({ tenantId: TENANT_B }));
     expect(JSON.stringify(marketplace.recordDelivery.mock.calls)).not.toContain(SEED);
   });

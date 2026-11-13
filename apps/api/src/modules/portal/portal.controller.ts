@@ -80,11 +80,13 @@ export class PortalController {
   @Public()
   @Post('buyer/deals/:bookingId/notifications/stub')
   async buyerDealNotifyStub(
+    @CurrentUser() user: AuthUser | undefined,
     @Headers('x-tenant-id') tenantHeader: string | undefined,
     @Param('bookingId') bookingId: string,
   ) {
     const tenantId = await oneLookedUpTenant(this.dataSource, 'booking', bookingId, 'not-found');
     assertHeaderMatches(tenantHeader, tenantId);
+    await this.portal.requireOwnedBuyerBooking(tenantId, bookingId, user);
     return this.portal.sendBuyerDealNotificationStub(tenantId, bookingId);
   }
 
@@ -103,23 +105,27 @@ export class PortalController {
   @Public()
   @Post('buyer/deals/:bookingId/bnpl')
   async applyBuyerBnpl(
+    @CurrentUser() user: AuthUser | undefined,
     @Headers('x-tenant-id') tenantHeader: string | undefined,
     @Param('bookingId') bookingId: string,
     @Body() body: { planId?: string },
   ) {
     const tenantId = await oneLookedUpTenant(this.dataSource, 'booking', bookingId, 'not-found');
     assertHeaderMatches(tenantHeader, tenantId);
+    await this.portal.requireOwnedBuyerBooking(tenantId, bookingId, user);
     return this.portal.applyBuyerBnpl(tenantId, bookingId, body.planId ?? 'bnpl_3');
   }
 
   @Public()
   @Get('buyer/deals/:bookingId/sign-session')
   async buyerSignSession(
+    @CurrentUser() user: AuthUser | undefined,
     @Headers('x-tenant-id') tenantHeader: string | undefined,
     @Param('bookingId') bookingId: string,
   ) {
     const tenantId = await oneLookedUpTenant(this.dataSource, 'booking', bookingId, 'not-found');
     assertHeaderMatches(tenantHeader, tenantId);
+    await this.portal.requireOwnedBuyerBooking(tenantId, bookingId, user);
     return this.portal.getBuyerSignSession(tenantId, bookingId);
   }
 

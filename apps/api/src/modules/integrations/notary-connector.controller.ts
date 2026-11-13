@@ -1,7 +1,9 @@
-import { Body, Controller, Headers, HttpCode, Post } from '@nestjs/common';
+import { Body, Controller, Headers, HttpCode, Post, UnauthorizedException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { DataSource } from 'typeorm';
 import { oneLookedUpTenant, recordUnscopedAudit } from '../../common/public-tenant-lookup';
 import { assertHeaderMatches } from '../../common/resolve-tenant-id';
+import { verifyWebhookSignature } from '../payment/webhook/webhook-signature.util';
 import { Public } from '../identity/decorators/public.decorator';
 import { ApiMarketplaceService } from '../api-marketplace/api-marketplace.service';
 
@@ -11,12 +13,14 @@ export class NotaryConnectorController {
   constructor(
     private readonly marketplace: ApiMarketplaceService,
     private readonly dataSource: DataSource,
+    private readonly config: ConfigService,
   ) {}
 
   @Post('webhook')
   @HttpCode(200)
   async handleWebhook(
     @Headers('x-tenant-id') tenantHeader: string,
+    @Headers('x-webhook-signature') signature: string | undefined,
     @Body()
     body: {
       bookingId: string;
@@ -25,6 +29,18 @@ export class NotaryConnectorController {
       contractRef?: string;
     },
   ) {
+    const secret = this.config.get<string>('NOTARY_WEBHOOK_SECRET') ?? '';
+    const payload = body as unknown as Record<string, unknown>;
+    if (!secret || !verifyWebhookSignature(payload, signature, secret)) {
+      await recordUnscopedAudit(this.dataSource, {
+        tenantId: null,
+        entityType: 'booking',
+        entityId: body.bookingId || 'missing',
+        action: 'WEBHOOK_REJECTED',
+        payload: { reason: 'bad-signature', connector: 'NOTARY' },
+      });
+      throw new UnauthorizedException({ detail: 'notary webhook signature is invalid' });
+    }
     let tenantId: string;
     try {
       tenantId = await oneLookedUpTenant(this.dataSource, 'booking', body.bookingId, 'not-found');

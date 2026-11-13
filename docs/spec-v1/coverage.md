@@ -70,6 +70,13 @@ Chuỗi `ten_dev_01` còn lại, không phải fallback của request không có
 | `public-tenant-token.ts:37` | done | comment; catalog token không còn đổ về seed |
 | `modules/identity/README.md:33`, `modules/marketing/README.md:24`, `modules/meta/README.md:36`, `modules/zalo/README.md:85` | not-done | ví dụ curl và bảng seed cho người đã đăng nhập, không phải đường runtime khi không có user |
 | Tách id beachhead khỏi `ten_dev_01` | not-done | host chính thức đang trỏ đúng id seed vì dữ liệu beachhead nằm ở id đó. PR riêng, có migration dữ liệu, mới được đổi id. Không làm trong PR này |
+| Buyer ownership | done | `portal.controller.ts` gọi `requireOwnedBuyerBooking` trước notify stub, BNPL và sign-session | `requires the seeker phone on the booking lead before BNPL, notify, or sign-session` |
+| Contract sign token | done | `booking-contract.controller.ts` `signedContractTenant`. Không còn `@Public` trên detail, sign-session, sign | `rejects a contract sign token for another contract or after it expires` |
+| Notary HMAC | done | `notary-connector.controller.ts` `NOTARY_WEBHOOK_SECRET` | webhook test từ chối chữ ký sai bằng `UnauthorizedException` |
+| Stream theo căn | done | `stream-events.service.ts` `streamEventMatchesUnit` | `forwards only the requested unit on the status stream` |
+| Audit chưa xác thực | done | `unscoped-audit-limit.ts` tối đa 8 lần mỗi phút cho cùng entity | `stops unauthenticated audit inserts after the rate limit` |
+| SSO provider | done | `public-tenant-lookup.ts` `TENANT_LOOKUP_SQL.sso_provider` chỉ `tenant_config_versions` | `reads an SSO provider from tenant config and not from audit events` |
+| Anchor seed | done | `anchor-tenant.service.ts` `ANCHOR_TENANT_SEEDS` chỉ là catalog seed. Dashboard không còn coi `ten_dev_01` là GMV sống | không còn nhánh runtime `tenantId === 'ten_dev_01'` |
 
 Deploy khi đưa host beachhead ra môi trường thật:
 

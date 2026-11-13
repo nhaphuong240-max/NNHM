@@ -1,9 +1,11 @@
-import { Body, Controller, Get, Headers, HttpCode, Param, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Headers, HttpCode, Param, Post, Query, UnauthorizedException, UnprocessableEntityException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DataSource } from 'typeorm';
 import { oneLookedUpTenant } from '../../common/public-tenant-lookup';
 import { assertHeaderMatches, resolveTenantId } from '../../common/resolve-tenant-id';
 import { Public } from '../identity/decorators/public.decorator';
+import { AllowContractSignToken } from './allow-contract-sign-token.decorator';
+import { readContractSignToken } from './contract-sign-token';
 import { CurrentUser } from '../identity/decorators/current-user.decorator';
 import type { AuthUser } from '../identity/identity.types';
 import { BookingContractService } from './booking-contract.service';
@@ -17,9 +19,30 @@ export class BookingContractController {
     private readonly dataSource: DataSource,
   ) {}
 
+  private signSecret(): string {
+    const secret = this.config.get<string>('CONTRACT_SIGN_SECRET') || this.config.get<string>('JWT_SECRET') || '';
+    if (secret.length < 16) {
+      throw new UnprocessableEntityException({ detail: 'contract sign secret is not configured' });
+    }
+    return secret;
+  }
+
   private async contractTenant(contractId: string | undefined, header: string | undefined) {
     const tenantId = await oneLookedUpTenant(this.dataSource, 'contract', contractId, 'not-found');
     assertHeaderMatches(header, tenantId);
+    return tenantId;
+  }
+
+  private async signedContractTenant(
+    contractId: string,
+    header: string | undefined,
+    signToken: string | undefined,
+  ) {
+    const tenantId = await this.contractTenant(contractId, header);
+    const claims = readContractSignToken(signToken, this.signSecret());
+    if (!claims || claims.contractId !== contractId || claims.tenantId !== tenantId) {
+      throw new UnauthorizedException({ detail: 'contract sign token is missing, expired, or for another contract' });
+    }
     return tenantId;
   }
 
@@ -82,43 +105,46 @@ export class BookingContractController {
     );
   }
 
-  /** UC-BK-07 — buyer sign session (public + tenant header) */
-  @Public()
+  /** UC-BK-07 — buyer sign session. Requires a short-lived token for this contract. */
+  @AllowContractSignToken()
   @Get(':contractId/sign-session')
   async signSession(
     @Headers('x-tenant-id') tenantHeader: string | undefined,
+    @Headers('x-contract-sign-token') signToken: string | undefined,
     @Param('contractId') contractId: string,
   ) {
     return this.contracts.getSignSession(
-      await this.contractTenant(contractId, tenantHeader),
+      await this.signedContractTenant(contractId, tenantHeader, signToken),
       contractId,
     );
   }
 
   /** UC-BK-07 — contract detail for buyer e-sign */
-  @Public()
+  @AllowContractSignToken()
   @Get(':contractId')
   async detail(
     @Headers('x-tenant-id') tenantHeader: string | undefined,
+    @Headers('x-contract-sign-token') signToken: string | undefined,
     @Param('contractId') contractId: string,
   ) {
     return this.contracts.getContract(
-      await this.contractTenant(contractId, tenantHeader),
+      await this.signedContractTenant(contractId, tenantHeader, signToken),
       contractId,
     );
   }
 
-  /** UC-BK-07 — submit e-sign (OTP stub) */
-  @Public()
+  /** UC-BK-07 — submit e-sign (OTP stub). The token is access control, not a legal signature. */
+  @AllowContractSignToken()
   @Post(':contractId/sign')
   @HttpCode(200)
   async sign(
     @Headers('x-tenant-id') tenantHeader: string | undefined,
+    @Headers('x-contract-sign-token') signToken: string | undefined,
     @Param('contractId') contractId: string,
     @Body() body: ContractSignInput,
   ) {
     return this.contracts.signContract(
-      await this.contractTenant(contractId, tenantHeader),
+      await this.signedContractTenant(contractId, tenantHeader, signToken),
       contractId,
       body,
     );

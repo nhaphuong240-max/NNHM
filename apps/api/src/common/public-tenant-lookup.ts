@@ -2,6 +2,7 @@ import { NotFoundException, UnprocessableEntityException } from '@nestjs/common'
 import { DataSource, QueryRunner } from 'typeorm';
 import { rlsStorage } from '../database/tenant-rls.service';
 import { configuredCatalogToken, secretFromPublicToken, tenantIdFromPublicToken } from './public-tenant-token';
+import { allowUnscopedAuditWrite } from './unscoped-audit-limit';
 
 /** Exact match only. The client value is never concatenated into a LIKE pattern. */
 export const PUBLIC_TOKEN_LOOKUP_SQL = `
@@ -58,7 +59,7 @@ export async function lookupTenantByResource(
 }
 
 /** Identifiers are fixed here. The caller value is only a bound parameter. */
-const TENANT_LOOKUP_SQL = {
+export const TENANT_LOOKUP_SQL = {
   project: 'SELECT DISTINCT tenant_id FROM projects WHERE id = $1',
   booking: 'SELECT DISTINCT tenant_id FROM bookings WHERE id = $1',
   payment_intent: 'SELECT DISTINCT tenant_id FROM payment_intents WHERE id = $1',
@@ -70,9 +71,6 @@ const TENANT_LOOKUP_SQL = {
   sso_provider: `
     SELECT DISTINCT tenant_id FROM tenant_config_versions
     WHERE domain = 'SSO_PROVIDER' AND entity_id = $1
-    UNION
-    SELECT DISTINCT tenant_id FROM audit_events
-    WHERE entity_type = 'sso_provider' AND entity_id = $1
   `,
 } as const;
 
@@ -152,6 +150,8 @@ export async function recordUnscopedAudit(
   },
 ): Promise<void> {
   const tenantId = (input.tenantId ?? 'unbound').slice(0, 32);
+  const entityId = input.entityId.slice(0, 64);
+  if (!allowUnscopedAuditWrite(`${input.entityType}:${entityId}:${input.action}`)) return;
   await withLookupConnection(dataSource, (runner) =>
     runner.query(
       `INSERT INTO audit_events (tenant_id, entity_type, entity_id, action, payload)
@@ -159,7 +159,7 @@ export async function recordUnscopedAudit(
       [
         tenantId,
         input.entityType.slice(0, 64),
-        input.entityId.slice(0, 64),
+        entityId,
         input.action.slice(0, 32),
         JSON.stringify(input.payload),
       ],

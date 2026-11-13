@@ -1356,6 +1356,7 @@
                   "data": [
                     {
                       "id": "bld_A",
+                      "type": "building",
                       "attributes": {
                         "name": "Block A",
                         "floors": 35

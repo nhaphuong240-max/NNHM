@@ -34,6 +34,8 @@ import type {
   OmnichannelDashboardAttributes,
 } from './portal.types';
 import { phonesMatch } from '../crm/phone.util';
+import type { AuthUser } from '../identity/identity.types';
+import { resolveSeekerPhone } from './seeker-phone.util';
 import { BuyerDealNotifyService } from './buyer-deal-notify.service';
 import {
   groupBuildingsFromPins,
@@ -429,6 +431,14 @@ export class PortalService {
     if (!lead || !phonesMatch(lead.phone, seekerPhone)) {
       throw new ForbiddenException({ detail: 'Deal not available for this phone' });
     }
+  }
+
+  /** Buyer routes that change or open a deal must match the seeker phone on the lead. */
+  async requireOwnedBuyerBooking(tenantId: string, bookingId: string, user?: AuthUser) {
+    const row = await this.bookings.findOne({ where: { id: bookingId.trim(), tenantId } });
+    if (!row) throw new NotFoundException({ detail: `Booking ${bookingId} not found` });
+    await this.assertBookingOwnedBySeeker(tenantId, row, resolveSeekerPhone(user));
+    return row;
   }
 
   /** UC-BK-02 · SCR-BUYER-002 — buyer deal list (seeker-scoped) */

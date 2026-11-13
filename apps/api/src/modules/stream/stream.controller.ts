@@ -31,6 +31,6 @@ export class StreamController {
       ? resolveTenantId(this.config, user, tenantHeader)
       : await oneLookedUpTenant(this.dataSource, 'unit', unitId, 'not-found');
     assertHeaderMatches(tenantHeader ?? tenantIdQuery, tenantId);
-    return this.streamEvents.subscribeUnits(tenantId);
+    return this.streamEvents.subscribeUnits(tenantId, unitId!.trim());
   }
 }
