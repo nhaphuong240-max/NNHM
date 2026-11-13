@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuditEventEntity } from '../../database/entities/audit-event.entity';
 import { BookingEntity } from '../../database/entities/booking.entity';
+import { ContractArtifactEntity } from '../../database/entities/contract-artifacts.entity';
 import { LeadEntity } from '../../database/entities/lead.entity';
 import { PaymentIntentEntity } from '../../database/entities/payment-intent.entity';
 import { ProjectEntity } from '../../database/entities/project.entity';
@@ -16,6 +17,8 @@ import { TenantWebhooksModule } from '../tenant-webhooks/tenant-webhooks.module'
 import { CrmModule } from '../crm/crm.module';
 import { NotifyModule } from '../notify/notify.module';
 import { BookingContractController } from './booking-contract.controller';
+import { ContractArtifactController } from './contract-artifact.controller';
+import { ContractArtifactService } from './contract-artifact.service';
 import { BookingContractEsignProviderService } from './booking-contract-esign-provider.service';
 import { BookingContractEsignSmsService } from './booking-contract-esign-sms.service';
 import { VnptEsignAdapter, EsignAdapterRegistry } from './vnpt-esign.adapter';
@@ -31,6 +34,7 @@ import { BookingService } from './booking.service';
   imports: [
     TypeOrmModule.forFeature([
       BookingEntity,
+      ContractArtifactEntity,
       UnitEntity,
       PaymentIntentEntity,
       LeadEntity,
@@ -48,10 +52,16 @@ import { BookingService } from './booking.service';
     CrmModule,
     NotifyModule,
   ],
-  controllers: [BookingController, BookingContractController, BookingWorkflowController],
+  controllers: [
+    BookingController,
+    BookingContractController,
+    BookingWorkflowController,
+    ContractArtifactController,
+  ],
   providers: [
     BookingService,
     BookingContractService,
+    ContractArtifactService,
     BookingContractEsignSmsService,
     BookingContractEsignProviderService,
     VnptEsignAdapter,

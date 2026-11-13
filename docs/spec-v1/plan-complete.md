@@ -20,7 +20,7 @@ Không production-ready. D01–D12 chưa có chữ ký.
 | T10 | partial | `payment.service.ts` lấy amount/currency từ server | Chỉ sandbox. Không gọi cổng thật | T09, D07 |
 | T11 | partial | `notary-connector.controller.ts` HMAC và `recordDeliveryOnce` | Replay thanh toán đã có từ trước. Không gọi cổng thật | T10, D07 |
 | T12 | partial | `refund-check.service.ts` dùng `refundWithinNet`. Người đề xuất không tự duyệt | Luồng `createRefund` sandbox chưa tách. Không bịa phí | T10, D06 |
-| T13 | not-done | `contract-artifacts.entity.ts`. `contracts/:id` còn `@Public` | Token ký có hạn, đúng contract/tenant | T10, D08 |
+| T13 | partial | `contract-artifact.service.ts` giữ `PENDING_REVIEW`. Token ký ở `contract-sign-token.ts` | OTP sandbox vẫn có thể ghi `SIGNED`. Không ghi `EXECUTED` | T10, D08 |
 | T14 | not-done (rules-only) | `handover-checklists.entity.ts` | Không làm ERP | T13, D09 |
 | T15 | not-done | `coverage.md:21` | Chưa có earned/payable/paid trên service | T10, D10 |
 | T16 | not-done | `settlementLabel` `spec-target.rules.ts:177-181` | Chưa gắn settlement service | T15, D10 |
