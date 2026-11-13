@@ -19,7 +19,7 @@ Không production-ready. D01–D12 chưa có chữ ký.
 | T09 | partial | `1758150000000-ActiveHoldUnique.ts`, `docs/t09/active-hold-unique.md:7` | Giữ unique toàn cục theo `unit_id`. Không thêm unique `(tenant_id, unit_id)` | T02 |
 | T10 | partial | `payment.service.ts` lấy amount/currency từ server | Chỉ sandbox. Không gọi cổng thật | T09, D07 |
 | T11 | partial | `notary-connector.controller.ts` HMAC và `recordDeliveryOnce` | Replay thanh toán đã có từ trước. Không gọi cổng thật | T10, D07 |
-| T12 | not-done | `refundWithinNet` `spec-target.rules.ts:172-174` | Chưa tách maker/checker | T10, D06 |
+| T12 | partial | `refund-check.service.ts` dùng `refundWithinNet`. Người đề xuất không tự duyệt | Luồng `createRefund` sandbox chưa tách. Không bịa phí | T10, D06 |
 | T13 | not-done | `contract-artifacts.entity.ts`. `contracts/:id` còn `@Public` | Token ký có hạn, đúng contract/tenant | T10, D08 |
 | T14 | not-done (rules-only) | `handover-checklists.entity.ts` | Không làm ERP | T13, D09 |
 | T15 | not-done | `coverage.md:21` | Chưa có earned/payable/paid trên service | T10, D10 |

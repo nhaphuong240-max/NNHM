@@ -15,7 +15,7 @@ Không phải production-ready. `not-done (rules-only)` nghĩa là có bảng ho
 | T09 | partial | `1758150000000-ActiveHoldUnique.ts`, `docs/t09/active-hold-unique.md` | `scripts/t02-rls-hold-proof.js` ≥50 insert cùng một căn |
 | T10 | partial | `payment.service.ts` | `payment.service.spec.ts`: amount và currency do server |
 | T11 | partial | Notary HMAC đã có. `notaryJournalId` ghi một dòng `api_webhook_deliveries`. Lần sau `idempotentReplay` và không tăng bộ đếm | Cổng thanh toán vẫn sandbox. Chưa gọi nhà cung cấp thật |
-| T12 | not-done | `refundWithinNet` | `RefundService` chưa tách maker/checker |
+| T12 | partial | `refund-check.service.ts` đề xuất và người khác mới `CHECKED`. Không ghi `PAID`, không gọi cổng | `RefundService.createRefund` sandbox một người vẫn còn |
 | T13 | not-done | `contract-artifacts.entity.ts` | luồng ký cũ chưa ép `PENDING_REVIEW` |
 | T14 | not-done (rules-only) | `handover-checklists.entity.ts` | không làm ERP |
 | T15 | not-done | — | không có rule earned/payable/paid trong code |
