@@ -16,6 +16,7 @@ on:
       - 'openapi.ops-s6-extensions.yaml'
       - 'openapi.json'
       - '.spectral.yaml'
+      - '.github/workflows/openapi-contract.yml'
 
 jobs:
   contract:
