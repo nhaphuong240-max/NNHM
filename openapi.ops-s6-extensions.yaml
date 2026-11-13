@@ -18,7 +18,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '../openapi.yaml#/components/schemas/ApiResponse'
+                $ref: 'openapi.yaml#/components/schemas/ApiResponse'
       security:
       - BearerAuth: []
   /admin/config/rails/resolved:
@@ -27,14 +27,14 @@ paths:
       operationId: get_admin_rails_resolved
       summary: 'OPS-S1: GET /admin/config/rails/resolved'
       parameters:
-      - $ref: '../openapi.yaml#/components/parameters/XTenantId'
+      - $ref: 'openapi.yaml#/components/parameters/XTenantId'
       responses:
         '200':
           description: Tenant LIVE_RAILS overlay merged with process env
           content:
             application/json:
               schema:
-                $ref: '../openapi.yaml#/components/schemas/ApiResponse'
+                $ref: 'openapi.yaml#/components/schemas/ApiResponse'
       security:
       - BearerAuth: []
   /commission/settlement/runs:
@@ -43,14 +43,14 @@ paths:
       operationId: get_commission_settlement_runs
       summary: 'OPS-S5: GET /commission/settlement/runs'
       parameters:
-      - $ref: '../openapi.yaml#/components/parameters/XTenantId'
+      - $ref: 'openapi.yaml#/components/parameters/XTenantId'
       responses:
         '200':
           description: Settlement run history
           content:
             application/json:
               schema:
-                $ref: '../openapi.yaml#/components/schemas/ApiResponse'
+                $ref: 'openapi.yaml#/components/schemas/ApiResponse'
       security:
       - BearerAuth: []
     post:
@@ -58,14 +58,14 @@ paths:
       operationId: post_commission_settlement_runs
       summary: 'OPS-S5: POST /commission/settlement/runs'
       parameters:
-      - $ref: '../openapi.yaml#/components/parameters/XTenantId'
+      - $ref: 'openapi.yaml#/components/parameters/XTenantId'
       responses:
         '201':
           description: Settlement run created (SUBMITTED or COMPLETED)
           content:
             application/json:
               schema:
-                $ref: '../openapi.yaml#/components/schemas/ApiResponse'
+                $ref: 'openapi.yaml#/components/schemas/ApiResponse'
       security:
       - BearerAuth: []
   /commission/settlement/runs/{runId}/reconcile:
@@ -74,7 +74,7 @@ paths:
       operationId: post_commission_settlement_reconcile
       summary: 'OPS-S5-05: POST /commission/settlement/runs/{runId}/reconcile'
       parameters:
-      - $ref: '../openapi.yaml#/components/parameters/XTenantId'
+      - $ref: 'openapi.yaml#/components/parameters/XTenantId'
       - name: runId
         in: path
         required: true
@@ -86,7 +86,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '../openapi.yaml#/components/schemas/ApiResponse'
+                $ref: 'openapi.yaml#/components/schemas/ApiResponse'
       security:
       - BearerAuth: []
   /commission/lines:
@@ -95,14 +95,14 @@ paths:
       operationId: get_commission_lines
       summary: 'UC-COM-03: GET /commission/lines'
       parameters:
-      - $ref: '../openapi.yaml#/components/parameters/XTenantId'
+      - $ref: 'openapi.yaml#/components/parameters/XTenantId'
       responses:
         '200':
           description: Payable commission lines
           content:
             application/json:
               schema:
-                $ref: '../openapi.yaml#/components/schemas/ApiResponse'
+                $ref: 'openapi.yaml#/components/schemas/ApiResponse'
       security:
       - BearerAuth: []
   /commission/lines/approve:
@@ -111,14 +111,14 @@ paths:
       operationId: post_commission_lines_approve
       summary: 'UC-COM-03: POST /commission/lines/approve'
       parameters:
-      - $ref: '../openapi.yaml#/components/parameters/XTenantId'
+      - $ref: 'openapi.yaml#/components/parameters/XTenantId'
       responses:
         '200':
           description: Lines approved for settlement
           content:
             application/json:
               schema:
-                $ref: '../openapi.yaml#/components/schemas/ApiResponse'
+                $ref: 'openapi.yaml#/components/schemas/ApiResponse'
       security:
       - BearerAuth: []
   /integrations/bank/webhook:
@@ -127,28 +127,28 @@ paths:
       operationId: post_integrations_bank_webhook
       summary: 'OPS-S5-01: POST /integrations/bank/webhook'
       parameters:
-      - $ref: '../openapi.yaml#/components/parameters/XTenantId'
+      - $ref: 'openapi.yaml#/components/parameters/XTenantId'
       responses:
         '200':
           description: Bank connector webhook accepted
           content:
             application/json:
               schema:
-                $ref: '../openapi.yaml#/components/schemas/ApiResponse'
+                $ref: 'openapi.yaml#/components/schemas/ApiResponse'
   /tenants/branding:
     get:
       tags: [Identity]
       operationId: get_tenants_branding
       summary: 'OPS-S6-02: GET /tenants/branding'
       parameters:
-      - $ref: '../openapi.yaml#/components/parameters/XTenantId'
+      - $ref: 'openapi.yaml#/components/parameters/XTenantId'
       responses:
         '200':
           description: Tenant white-label brand config
           content:
             application/json:
               schema:
-                $ref: '../openapi.yaml#/components/schemas/ApiResponse'
+                $ref: 'openapi.yaml#/components/schemas/ApiResponse'
       security:
       - BearerAuth: []
     post:
@@ -156,14 +156,14 @@ paths:
       operationId: post_tenants_branding
       summary: 'OPS-S6-02: POST /tenants/branding'
       parameters:
-      - $ref: '../openapi.yaml#/components/parameters/XTenantId'
+      - $ref: 'openapi.yaml#/components/parameters/XTenantId'
       responses:
         '200':
           description: Brand updated
           content:
             application/json:
               schema:
-                $ref: '../openapi.yaml#/components/schemas/ApiResponse'
+                $ref: 'openapi.yaml#/components/schemas/ApiResponse'
       security:
       - BearerAuth: []
   /health/enterprise:
@@ -177,7 +177,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '../openapi.yaml#/components/schemas/ApiResponse'
+                $ref: 'openapi.yaml#/components/schemas/ApiResponse'
   /health/observability:
     get:
       tags: [Health]
@@ -189,34 +189,34 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '../openapi.yaml#/components/schemas/ApiResponse'
+                $ref: 'openapi.yaml#/components/schemas/ApiResponse'
   /auth/sso/providers:
     get:
       tags: [Identity]
       operationId: get_auth_sso_providers
       summary: 'OPS-S6-03: GET /auth/sso/providers'
       parameters:
-      - $ref: '../openapi.yaml#/components/parameters/XTenantId'
+      - $ref: 'openapi.yaml#/components/parameters/XTenantId'
       responses:
         '200':
           description: SSO providers (empty when tenant ssoOidcEnabled=false)
           content:
             application/json:
               schema:
-                $ref: '../openapi.yaml#/components/schemas/ApiResponse'
+                $ref: 'openapi.yaml#/components/schemas/ApiResponse'
     post:
       tags: [Identity]
       operationId: post_auth_sso_providers
       summary: 'UC-ID-06: POST /auth/sso/providers'
       parameters:
-      - $ref: '../openapi.yaml#/components/parameters/XTenantId'
+      - $ref: 'openapi.yaml#/components/parameters/XTenantId'
       responses:
         '200':
           description: SSO provider upserted
           content:
             application/json:
               schema:
-                $ref: '../openapi.yaml#/components/schemas/ApiResponse'
+                $ref: 'openapi.yaml#/components/schemas/ApiResponse'
       security:
       - BearerAuth: []
   /auth/sso/authorize:
@@ -225,14 +225,14 @@ paths:
       operationId: get_auth_sso_authorize
       summary: 'UC-ID-06: GET /auth/sso/authorize'
       parameters:
-      - $ref: '../openapi.yaml#/components/parameters/XTenantId'
+      - $ref: 'openapi.yaml#/components/parameters/XTenantId'
       responses:
         '200':
           description: OIDC authorization redirect URL
           content:
             application/json:
               schema:
-                $ref: '../openapi.yaml#/components/schemas/ApiResponse'
+                $ref: 'openapi.yaml#/components/schemas/ApiResponse'
   /auth/sso/login:
     post:
       tags: [Identity]
@@ -244,14 +244,14 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '../openapi.yaml#/components/schemas/ApiResponse'
+                $ref: 'openapi.yaml#/components/schemas/ApiResponse'
   /contracts/{contractId}/sign-session:
     get:
       tags: [Booking]
       operationId: get_contracts_sign_session
       summary: 'OPS-S5-03: GET /contracts/{contractId}/sign-session'
       parameters:
-      - $ref: '../openapi.yaml#/components/parameters/XTenantId'
+      - $ref: 'openapi.yaml#/components/parameters/XTenantId'
       - name: contractId
         in: path
         required: true
@@ -263,14 +263,14 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '../openapi.yaml#/components/schemas/ApiResponse'
+                $ref: 'openapi.yaml#/components/schemas/ApiResponse'
   /contracts/{contractId}/sign:
     post:
       tags: [Booking]
       operationId: post_contracts_sign
       summary: 'OPS-S5-03: POST /contracts/{contractId}/sign'
       parameters:
-      - $ref: '../openapi.yaml#/components/parameters/XTenantId'
+      - $ref: 'openapi.yaml#/components/parameters/XTenantId'
       - name: contractId
         in: path
         required: true
@@ -282,21 +282,21 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '../openapi.yaml#/components/schemas/ApiResponse'
+                $ref: 'openapi.yaml#/components/schemas/ApiResponse'
   /crm/inbox:
     get:
       tags: [CRM]
       operationId: get_crm_inbox
       summary: 'OPS-S4-03: GET /crm/inbox'
       parameters:
-      - $ref: '../openapi.yaml#/components/parameters/XTenantId'
+      - $ref: 'openapi.yaml#/components/parameters/XTenantId'
       responses:
         '200':
           description: Omnichannel inbox threads
           content:
             application/json:
               schema:
-                $ref: '../openapi.yaml#/components/schemas/ApiResponse'
+                $ref: 'openapi.yaml#/components/schemas/ApiResponse'
       security:
       - BearerAuth: []
   /kyc/profiles/{subjectType}/{subjectId}/approve:
@@ -305,7 +305,7 @@ paths:
       operationId: post_kyc_approve
       summary: 'BR-23: POST /kyc/profiles/{subjectType}/{subjectId}/approve'
       parameters:
-      - $ref: '../openapi.yaml#/components/parameters/XTenantId'
+      - $ref: 'openapi.yaml#/components/parameters/XTenantId'
       - name: subjectType
         in: path
         required: true
@@ -322,7 +322,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '../openapi.yaml#/components/schemas/ApiResponse'
+                $ref: 'openapi.yaml#/components/schemas/ApiResponse'
       security:
       - BearerAuth: []
   /ledger/reconciliation:
@@ -331,14 +331,14 @@ paths:
       operationId: get_ledger_reconciliation
       summary: 'OPS-S3: GET /ledger/reconciliation'
       parameters:
-      - $ref: '../openapi.yaml#/components/parameters/XTenantId'
+      - $ref: 'openapi.yaml#/components/parameters/XTenantId'
       responses:
         '200':
           description: Daily reconciliation reports
           content:
             application/json:
               schema:
-                $ref: '../openapi.yaml#/components/schemas/ApiResponse'
+                $ref: 'openapi.yaml#/components/schemas/ApiResponse'
       security:
       - BearerAuth: []
   /payment-intents/{id}/checkout:
@@ -347,7 +347,7 @@ paths:
       operationId: post_payment_checkout
       summary: 'OPS-S2: POST /payment-intents/{id}/checkout'
       parameters:
-      - $ref: '../openapi.yaml#/components/parameters/XTenantId'
+      - $ref: 'openapi.yaml#/components/parameters/XTenantId'
       - name: id
         in: path
         required: true
@@ -359,7 +359,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '../openapi.yaml#/components/schemas/ApiResponse'
+                $ref: 'openapi.yaml#/components/schemas/ApiResponse'
       security:
       - BearerAuth: []
   /webhooks/vnpay:
@@ -373,35 +373,35 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '../openapi.yaml#/components/schemas/ApiResponse'
+                $ref: 'openapi.yaml#/components/schemas/ApiResponse'
   /zalo/webhook:
     post:
       tags: [Zalo]
       operationId: post_zalo_webhook
       summary: 'OPS-S4-01: POST /zalo/webhook'
       parameters:
-      - $ref: '../openapi.yaml#/components/parameters/XTenantId'
+      - $ref: 'openapi.yaml#/components/parameters/XTenantId'
       responses:
         '200':
           description: Zalo lead webhook
           content:
             application/json:
               schema:
-                $ref: '../openapi.yaml#/components/schemas/ApiResponse'
+                $ref: 'openapi.yaml#/components/schemas/ApiResponse'
   /sms/send:
     post:
       tags: [SMS]
       operationId: post_sms_send
       summary: 'OPS-S4-04: POST /sms/send'
       parameters:
-      - $ref: '../openapi.yaml#/components/parameters/XTenantId'
+      - $ref: 'openapi.yaml#/components/parameters/XTenantId'
       responses:
         '200':
           description: SMS OTP send
           content:
             application/json:
               schema:
-                $ref: '../openapi.yaml#/components/schemas/ApiResponse'
+                $ref: 'openapi.yaml#/components/schemas/ApiResponse'
       security:
       - BearerAuth: []
   /mobile-agent/push-tokens:
@@ -410,14 +410,14 @@ paths:
       operationId: post_mobile_push_tokens
       summary: 'OPS-S4-05: POST /mobile-agent/push-tokens'
       parameters:
-      - $ref: '../openapi.yaml#/components/parameters/XTenantId'
+      - $ref: 'openapi.yaml#/components/parameters/XTenantId'
       responses:
         '200':
           description: Push token registered
           content:
             application/json:
               schema:
-                $ref: '../openapi.yaml#/components/schemas/ApiResponse'
+                $ref: 'openapi.yaml#/components/schemas/ApiResponse'
       security:
       - BearerAuth: []
   /public/search:
@@ -431,7 +431,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '../openapi.yaml#/components/schemas/ApiResponse'
+                $ref: 'openapi.yaml#/components/schemas/ApiResponse'
   /public/units/{unitId}:
     get:
       tags: [Search]
@@ -449,21 +449,21 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '../openapi.yaml#/components/schemas/ApiResponse'
+                $ref: 'openapi.yaml#/components/schemas/ApiResponse'
   /developer/units:
     get:
       tags: [GoldenRecord]
       operationId: get_developer_units
       summary: 'OPS-S6-02: GET /developer/units'
       parameters:
-      - $ref: '../openapi.yaml#/components/parameters/XTenantId'
+      - $ref: 'openapi.yaml#/components/parameters/XTenantId'
       responses:
         '200':
           description: Developer unit list
           content:
             application/json:
               schema:
-                $ref: '../openapi.yaml#/components/schemas/ApiResponse'
+                $ref: 'openapi.yaml#/components/schemas/ApiResponse'
       security:
       - BearerAuth: []
   /developer/units/import:
@@ -472,14 +472,14 @@ paths:
       operationId: post_developer_units_import
       summary: 'OPS-S3-02: POST /developer/units/import'
       parameters:
-      - $ref: '../openapi.yaml#/components/parameters/XTenantId'
+      - $ref: 'openapi.yaml#/components/parameters/XTenantId'
       responses:
         '200':
           description: GR CSV import
           content:
             application/json:
               schema:
-                $ref: '../openapi.yaml#/components/schemas/ApiResponse'
+                $ref: 'openapi.yaml#/components/schemas/ApiResponse'
       security:
       - BearerAuth: []
   /developer/commission:
@@ -488,14 +488,14 @@ paths:
       operationId: get_developer_commission
       summary: 'OPS-S6-02: GET /developer/commission'
       parameters:
-      - $ref: '../openapi.yaml#/components/parameters/XTenantId'
+      - $ref: 'openapi.yaml#/components/parameters/XTenantId'
       responses:
         '200':
           description: Developer commission dashboard
           content:
             application/json:
               schema:
-                $ref: '../openapi.yaml#/components/schemas/ApiResponse'
+                $ref: 'openapi.yaml#/components/schemas/ApiResponse'
       security:
       - BearerAuth: []
   /developer/absorption:
@@ -504,14 +504,14 @@ paths:
       operationId: get_developer_absorption
       summary: 'OPS-S6-02: GET /developer/absorption'
       parameters:
-      - $ref: '../openapi.yaml#/components/parameters/XTenantId'
+      - $ref: 'openapi.yaml#/components/parameters/XTenantId'
       responses:
         '200':
           description: Absorption analytics
           content:
             application/json:
               schema:
-                $ref: '../openapi.yaml#/components/schemas/ApiResponse'
+                $ref: 'openapi.yaml#/components/schemas/ApiResponse'
       security:
       - BearerAuth: []
   /portal/admin/omnichannel:
@@ -520,14 +520,14 @@ paths:
       operationId: get_portal_admin_omnichannel
       summary: 'P3-S6-01: GET /portal/admin/omnichannel'
       parameters:
-      - $ref: '../openapi.yaml#/components/parameters/XTenantId'
+      - $ref: 'openapi.yaml#/components/parameters/XTenantId'
       responses:
         '200':
           description: Omnichannel latency dashboard
           content:
             application/json:
               schema:
-                $ref: '../openapi.yaml#/components/schemas/ApiResponse'
+                $ref: 'openapi.yaml#/components/schemas/ApiResponse'
       security:
       - BearerAuth: []
   /health/slo:
@@ -541,7 +541,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '../openapi.yaml#/components/schemas/ApiResponse'
+                $ref: 'openapi.yaml#/components/schemas/ApiResponse'
   /commission/settlement/status:
     get:
       tags: [Commission]
@@ -553,18 +553,18 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '../openapi.yaml#/components/schemas/ApiResponse'
+                $ref: 'openapi.yaml#/components/schemas/ApiResponse'
   /meta/webhook:
     post:
       tags: [Meta]
       operationId: post_meta_webhook
       summary: 'OPS-S4: POST /meta/webhook'
       parameters:
-      - $ref: '../openapi.yaml#/components/parameters/XTenantId'
+      - $ref: 'openapi.yaml#/components/parameters/XTenantId'
       responses:
         '200':
           description: Meta lead webhook
           content:
             application/json:
               schema:
-                $ref: '../openapi.yaml#/components/schemas/ApiResponse'
+                $ref: 'openapi.yaml#/components/schemas/ApiResponse'

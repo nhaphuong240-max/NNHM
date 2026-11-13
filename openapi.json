@@ -113,6 +113,7 @@
                   "data": [
                     {
                       "id": "act_01",
+                      "type": "activity",
                       "attributes": {
                         "type": "CALL",
                         "summary": "Gọi tư vấn lần 1",
@@ -600,6 +601,7 @@
                   "data": [
                     {
                       "id": "aud_01",
+                      "type": "audit-log",
                       "attributes": {
                         "action": "UNIT_PRICE_CHANGED",
                         "actorId": "usr_dev",
@@ -827,6 +829,7 @@
                   "data": [
                     {
                       "id": "bk_01",
+                      "type": "booking",
                       "attributes": {
                         "status": "RESERVED",
                         "unitId": "un_01",
@@ -876,6 +879,7 @@
                 "example": {
                   "data": {
                     "id": "bk_01",
+                    "type": "booking",
                     "attributes": {
                       "status": "RESERVED",
                       "expiresAt": "2026-07-29T15:00:00+07:00",
@@ -1163,8 +1167,9 @@
                 "example": {
                   "data": [
                     {
+                      "id": "evt_01",
+                      "type": "booking-event",
                       "eventId": "evt_01",
-                      "type": "InventoryLocked",
                       "payload": {},
                       "occurredAt": "2026-07-28T15:00:01+07:00"
                     }
@@ -1225,6 +1230,8 @@
                 "example": {
                   "data": [
                     {
+                      "id": "btl_01",
+                      "type": "booking-timeline",
                       "timestamp": "2026-07-28T15:00:00+07:00",
                       "event": "BookingCreated",
                       "actor": "usr_agent",
@@ -1696,6 +1703,7 @@
                   "data": [
                     {
                       "id": "ld_01",
+                      "type": "lead",
                       "attributes": {
                         "fullName": "Thu Trang",
                         "phone": "+849***",
@@ -2068,6 +2076,7 @@
                   "data": [
                     {
                       "id": "le_01",
+                      "type": "ledger-entry",
                       "attributes": {
                         "debitAccount": "CASH_VNPAY",
                         "creditAccount": "DEPOSIT_LIABILITY",
@@ -2178,6 +2187,7 @@
                   "data": [
                     {
                       "id": "ls_01",
+                      "type": "listing",
                       "attributes": {
                         "title": "Căn 3PN view sông",
                         "status": "PUBLISHED",
@@ -2768,6 +2778,7 @@
                   "data": [
                     {
                       "id": "pay_01",
+                      "type": "payment",
                       "attributes": {
                         "amount": 50000000,
                         "status": "SUCCEEDED",
@@ -2884,6 +2895,7 @@
                   "data": [
                     {
                       "id": "prj_01",
+                      "type": "project",
                       "attributes": {
                         "name": "Vinhomes Q9",
                         "city": "HCM",
@@ -2934,6 +2946,7 @@
                 "example": {
                   "data": {
                     "id": "prj_01",
+                    "type": "project",
                     "attributes": {
                       "name": "Vinhomes Q9",
                       "status": "DRAFT"
@@ -3182,6 +3195,7 @@
                   "data": [
                     {
                       "id": "role_agent",
+                      "type": "role",
                       "attributes": {
                         "code": "AGENT",
                         "permissions": [
@@ -3345,6 +3359,7 @@
                   "data": [
                     {
                       "id": "un_01",
+                      "type": "unit",
                       "attributes": {
                         "code": "A-12-05",
                         "projectName": "Vinhomes Q9",
@@ -3398,7 +3413,12 @@
                   "$ref": "#/components/schemas/ApiResponse"
                 },
                 "example": {
-                  "description": "event: unit.status.changed\ndata: {\"unitId\":\"un_01\",\"status\":\"RESERVED\",\"timestamp\":\"2026-07-28T15:00:00+07:00\"}"
+                  "data": {
+                    "event": "unit.status.changed",
+                    "unitId": "un_01",
+                    "status": "RESERVED",
+                    "timestamp": "2026-07-28T15:00:00+07:00"
+                  }
                 }
               }
             }
@@ -3711,6 +3731,7 @@
                   "data": [
                     {
                       "id": "un_01",
+                      "type": "unit",
                       "attributes": {
                         "code": "A-12-05",
                         "status": "AVAILABLE",
@@ -3934,6 +3955,7 @@
                 "example": {
                   "data": {
                     "id": "un_01",
+                    "type": "unit",
                     "attributes": {
                       "code": "A-12-05",
                       "status": "AVAILABLE",
@@ -4109,6 +4131,8 @@
                 "example": {
                   "data": [
                     {
+                      "id": "uv_4",
+                      "type": "unit-version",
                       "version": 4,
                       "attributes": {
                         "basePrice": 3600000000,
@@ -4165,6 +4189,7 @@
                   "data": [
                     {
                       "id": "usr_01",
+                      "type": "user",
                       "attributes": {
                         "email": "nam@agency.vn",
                         "fullName": "Hoàng Nam",
@@ -4308,6 +4333,7 @@
                 "example": {
                   "data": {
                     "id": "usr_01",
+                    "type": "user",
                     "attributes": {
                       "email": "nam@agency.vn",
                       "roles": [
@@ -4430,9 +4456,11 @@
                   "$ref": "#/components/schemas/ApiResponse"
                 },
                 "example": {
-                  "received": true,
-                  "processed": true,
-                  "ledgerEntryId": "le_01"
+                  "data": {
+                    "received": true,
+                    "processed": true,
+                    "ledgerEntryId": "le_01"
+                  }
                 }
               }
             }
@@ -4566,7 +4594,13 @@
                 }
               },
               {
-                "type": "object"
+                "type": "object",
+                "not": {
+                  "required": [
+                    "id",
+                    "type"
+                  ]
+                }
               }
             ]
           },
