@@ -8,7 +8,7 @@ const TONE_INTROS: Record<CopilotTone, string> = {
   standard:
     'Căn hộ {code} tại {project} — diện tích thoáng, bố trí hợp lý, phù hợp gia đình trẻ và nhu cầu an cư thực.',
   investment:
-    'Cơ hội đầu tư tại {project} — căn {code} vị trí thuận lợi, tiềm năng cho thuê và tăng trưởng giá trị dài hạn.',
+    'Cơ hội đầu tư tại {project} — căn {code} vị trí thuận lợi, tiềm năng cho thuê dài hạn.',
 };
 
 const TONE_DETAILS: Record<CopilotTone, string> = {

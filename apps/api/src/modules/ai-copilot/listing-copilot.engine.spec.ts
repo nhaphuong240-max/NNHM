@@ -28,4 +28,10 @@ describe('generateListingCopilotCopy', () => {
     expect(result.title.toLowerCase()).toContain('đầu tư');
     expect(result.content.toLowerCase()).toContain('cho thuê');
   });
+
+  it('keeps the investment template free of an unsourced price phrase', () => {
+    const result = generateListingCopilotCopy(ctx, 'investment');
+    expect(result.content.toLowerCase()).not.toContain('giá');
+    expect(result.title.toLowerCase()).not.toContain('giá');
+  });
 });

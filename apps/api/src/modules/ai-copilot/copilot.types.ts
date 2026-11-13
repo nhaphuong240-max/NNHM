@@ -43,5 +43,6 @@ export interface CopilotGenerateResult {
     language: 'vi' | 'en';
     latencyMs: number;
     draftStatus?: 'PENDING' | 'APPROVED' | 'REJECTED';
+    citations?: string[];
   };
 }

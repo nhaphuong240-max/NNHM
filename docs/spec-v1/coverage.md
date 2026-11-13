@@ -22,7 +22,7 @@ Không phải production-ready. `not-done (rules-only)` nghĩa là có bảng ho
 | T16 | partial | `settlement-label.service.ts` đọc run và trả `NOT_PAID` khi không có chứng từ ngân hàng | Không đổi trạng thái run. Không gọi ngân hàng |
 | T17 | partial | `exception-item.service.ts` `listMine` chỉ trả id, severity, status, dueAt của đúng owner và tenant | Workspace cũ không đổi. Không trả payload |
 | T18 | partial | `unmeasuredDataBilling` trả `estimatedMrrVnd: null`. Heatmap meta `measured: false`. Chỉ listing `PUBLISHED` được index. Developer shell `noindex` | Heatmap/MRR chưa đo pilot. Locator e2e giữ heading. Local macOS 12 không cài Chromium Playwright 1.62 |
-| T19–T20 | partial | `copilot.service.ts` trả `không đủ dữ liệu` khi không có tên dự án trong bảng. Mô tả listing không còn dòng giá | Chưa retrieval. Mẫu investment vẫn có cụm “giá trị”. Không tự đánh pass |
+| T19–T20 | partial | Câu có nguồn ghi `citations` là id căn và dự án đã lưu. Không có tên dự án thì `không đủ dữ liệu` và không có citation. Mẫu investment bỏ cụm “giá trị” | Không có chỉ mục retrieval riêng. Không tự đánh pass |
 | T21 | partial | seed MFA chỉ khi `MFA_SEED_SANDBOX=true` | e2e MFA cần `SEED_MFA_TOTP_SECRET` |
 | T22 | implemented (tài liệu) | `docs/spec-v1/t22-t24-runbooks.md` | không deploy |
 | T23 | implemented (tài liệu) | cùng file | không bật pilot |

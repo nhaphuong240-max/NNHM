@@ -86,6 +86,7 @@ describe('CopilotService', () => {
     expect(res.data.attributes.content.length).toBeGreaterThan(20);
     expect(res.data.attributes.latencyMs).toBeGreaterThanOrEqual(0);
     expect(res.data.attributes.content.toLowerCase()).not.toContain('giá');
+    expect(res.data.attributes.citations).toEqual(['unit:un_01', 'project:prj_sunrise']);
   });
 
   it('answers không đủ dữ liệu when the project row has no name', async () => {
@@ -98,5 +99,6 @@ describe('CopilotService', () => {
     });
     expect(res.data.attributes.content).toBe('không đủ dữ liệu');
     expect(res.data.attributes.title).toBe('không đủ dữ liệu');
+    expect(res.data.attributes.citations).toBeUndefined();
   });
 });

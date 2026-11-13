@@ -133,6 +133,7 @@ export class CopilotService {
         tone,
         language,
         latencyMs,
+        citations: [`unit:${ctx.unitId}`, `project:${ctx.projectId}`],
       },
     };
 
@@ -217,6 +218,7 @@ export class CopilotService {
         language: input.language ?? 'vi',
         latencyMs,
         draftStatus: 'PENDING',
+        citations: [`lead:${leadId}`],
       },
     };
 
