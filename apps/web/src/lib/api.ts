@@ -2478,9 +2478,9 @@ export async function fetchIntelligenceBilling() {
     data: {
       tenantId: string;
       currency: string;
-      estimatedMrrVnd: number;
+      estimatedMrrVnd: number | null;
       billingTier: string;
-      lineItems: Array<{ productCode: string; enabled: boolean; unitPriceVnd: number }>;
+      lineItems: Array<{ productCode: string; enabled: boolean; unitPriceVnd: number | null }>;
     };
   }>;
 }

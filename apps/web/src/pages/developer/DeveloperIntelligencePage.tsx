@@ -25,7 +25,7 @@ export function DeveloperIntelligencePage() {
   const [pricingBand, setPricingBand] = useState<string>('—');
   const [csvPreview, setCsvPreview] = useState<string>('');
   const [briefSummary, setBriefSummary] = useState<string>('—');
-  const [billing, setBilling] = useState<{ mrr: number; tier: string; items: number } | null>(null);
+  const [billing, setBilling] = useState<{ mrr: number | null; tier: string; items: number } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -114,7 +114,7 @@ export function DeveloperIntelligencePage() {
             <p className="text-xs" style={{ color: brand.muted }}>
               MRR ước tính
             </p>
-            <p className="wereal-kpi-value">{billing.mrr.toLocaleString('vi-VN')} ₫</p>
+            <p className="wereal-kpi-value">{billing.mrr == null ? 'chưa đo' : billing.mrr.toLocaleString('vi-VN')}</p>
           </div>
           <div className="wereal-card p-4">
             <p className="text-xs" style={{ color: brand.muted }}>
@@ -135,6 +135,9 @@ export function DeveloperIntelligencePage() {
         <div className="grid gap-4 md:grid-cols-2">
           <section className="wereal-card p-4">
             <h2 className="font-semibold mb-3">Absorption heatmap</h2>
+            <p className="text-xs mb-2" style={{ color: brand.muted }}>
+              Chưa đo KPI pilot
+            </p>
             <div className="space-y-2">
               {districts.slice(0, 8).map((d, i) => (
                 <div key={d.code ?? i} className="flex items-center gap-2 text-sm">
