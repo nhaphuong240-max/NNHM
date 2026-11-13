@@ -26,7 +26,7 @@ Không production-ready. D01–D12 chưa có chữ ký.
 | T16 | not-done | `settlementLabel` `spec-target.rules.ts:177-181` | Chưa gắn settlement service | T15, D10 |
 | T17 | not-done (rules-only) | `exception-items.entity.ts` | Workspace cũ giữ nguyên | T08 |
 | T18 | partial | `DeveloperIntelligencePage.tsx`, e2e `developer.spec.ts` | Số liệu heatmap/MRR là nhãn, chưa đo pilot | T03, D11 |
-| T19–T20 | not-done (rules-only) | `copilotAnswer` `spec-target.rules.ts:194-197` | Chưa retrieval. Thiếu nguồn thì abstain | D12 |
+| T19–T20 | partial | `copilot.service.ts` abstain khi project không có tên. Listing copy bỏ dòng giá | Chưa retrieval. Mẫu investment còn cụm “giá trị” | D12 |
 | T21 | partial | Seed MFA chỉ khi `MFA_SEED_SANDBOX=true` | Không dùng secret thật | T03 |
 | T22 | implemented (tài liệu) | `docs/spec-v1/t22-t24-runbooks.md:5-12` | Không deploy, không restore DB thật | D01–D12 chưa ký |
 | T23 | implemented (tài liệu) | cùng file `:14-21` | Checklist, chưa bật pilot | T22 |

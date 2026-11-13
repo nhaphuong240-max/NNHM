@@ -19,6 +19,8 @@ describe('generateListingCopilotCopy', () => {
     expect(result.content).toContain('A-12-05');
     expect(result.content).toContain('Sunrise Tower A');
     expect(result.content).toContain('68');
+    expect(result.content).not.toContain('VND');
+    expect(result.content.toLowerCase()).not.toContain('giá');
   });
 
   it('varies tone for investment', () => {

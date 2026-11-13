@@ -20,16 +20,11 @@ const TONE_DETAILS: Record<CopilotTone, string> = {
     'Thị trường cho thuê ổn định, dòng tiền hấp dẫn. Sản phẩm minh bạch từ Golden Record — agent hỗ trợ pháp lý và thủ tục nhanh gọn.',
 };
 
-function formatVnd(amount: number): string {
-  return `${amount.toLocaleString('vi-VN')} VND`;
-}
-
 export function generateListingCopilotCopy(
   ctx: ListingCopilotContext,
   tone: CopilotTone = 'premium',
 ): { title: string; content: string } {
-  const floorLabel = ctx.floor != null ? `tầng ${ctx.floor}` : 'tầng cao';
-  const priceRef = ctx.priceDisplay ?? ctx.basePrice;
+  const floorLabel = ctx.floor != null ? ` · tầng ${ctx.floor}` : '';
 
   const title =
     tone === 'investment'
@@ -47,9 +42,8 @@ export function generateListingCopilotCopy(
   const content = [
     intro,
     '',
-    `• Mã căn: ${ctx.unitCode} · ${floorLabel}`,
+    `• Mã căn: ${ctx.unitCode}${floorLabel}`,
     `• Diện tích: ${ctx.area} m² · ${ctx.bedrooms} phòng ngủ`,
-    `• Giá tham chiếu marketing: ${formatVnd(priceRef)} (đối chiếu Golden Record)`,
     '',
     details,
     '',
