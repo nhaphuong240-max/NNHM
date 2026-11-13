@@ -16,6 +16,8 @@ import { TenantConfigModule } from '../tenant-config/tenant-config.module';
 import { CommissionController } from './commission.controller';
 import { CommissionStagesController } from './commission-stages.controller';
 import { CommissionStagesService } from './commission-stages.service';
+import { SettlementLabelController } from './settlement-label.controller';
+import { SettlementLabelService } from './settlement-label.service';
 import { CommissionExportService } from './commission-export.service';
 import { CommissionPayoutClient } from './commission-payout.client';
 import { CommissionPolicyService } from './commission-policy.service';
@@ -42,7 +44,7 @@ import { CommissionSnapshotService } from './commission-snapshot.service';
     KycModule,
     TenantConfigModule,
   ],
-  controllers: [CommissionController, CommissionStagesController],
+  controllers: [CommissionController, CommissionStagesController, SettlementLabelController],
   providers: [
     CommissionPolicyService,
     CommissionSnapshotService,
@@ -52,6 +54,7 @@ import { CommissionSnapshotService } from './commission-snapshot.service';
     CommissionExportService,
     CommissionPayoutClient,
     CommissionStagesService,
+    SettlementLabelService,
   ],
   exports: [
     CommissionPolicyService,

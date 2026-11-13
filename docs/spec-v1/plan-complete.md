@@ -23,7 +23,7 @@ Không production-ready. D01–D12 chưa có chữ ký.
 | T13 | partial | `contract-artifact.service.ts` giữ `PENDING_REVIEW`. Token ký ở `contract-sign-token.ts` | OTP sandbox vẫn có thể ghi `SIGNED`. Không ghi `EXECUTED` | T10, D08 |
 | T14 | partial | `handover-checklist.service.ts` không ghi ERP | Không sổ phải thu. Không đổi BNPL | T13, D09 |
 | T15 | partial | `commission-stages.service.ts` `stageCommissionAmount`. Không đổi rate | `paid` luôn 0 cho tới khi có chứng từ | T10, D10 |
-| T16 | not-done | `settlementLabel` `spec-target.rules.ts:177-181` | Chưa gắn settlement service | T15, D10 |
+| T16 | partial | `settlement-label.service.ts` dùng `settlementLabel` với chứng từ null | Run `COMPLETED` vẫn `NOT_PAID` | T15, D10 |
 | T17 | not-done (rules-only) | `exception-items.entity.ts` | Workspace cũ giữ nguyên | T08 |
 | T18 | partial | `DeveloperIntelligencePage.tsx`, e2e `developer.spec.ts` | Số liệu heatmap/MRR là nhãn, chưa đo pilot | T03, D11 |
 | T19–T20 | partial | `copilot.service.ts` abstain khi project không có tên. Listing copy bỏ dòng giá | Chưa retrieval. Mẫu investment còn cụm “giá trị” | D12 |

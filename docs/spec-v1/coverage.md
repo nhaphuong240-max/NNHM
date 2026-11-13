@@ -19,7 +19,7 @@ Không phải production-ready. `not-done (rules-only)` nghĩa là có bảng ho
 | T13 | partial | `contract-artifact.service.ts` chỉ ghi `PENDING_REVIEW`. Gọi `EXECUTED` thì 422. Token ký đã có từ bước 1 | OTP sandbox vẫn có thể ghi `SIGNED` trên hợp đồng cũ |
 | T14 | partial | `handover-checklist.service.ts` một checklist `OPEN` mỗi booking. Người khác mới `COMPLETE`. `erpPosted` luôn false | Không sổ phải thu, không BNPL |
 | T15 | partial | `commission-stages.service.ts` tách earned / payable / paid. `paid` luôn `0`. Không đổi số tiền đã lưu | Chưa có chứng từ ngân hàng để ghi `PAID` |
-| T16 | not-done | `settlementLabel` | hàm từ chối `PAID` khi không có chứng từ; chưa gắn settlement service |
+| T16 | partial | `settlement-label.service.ts` đọc run và trả `NOT_PAID` khi không có chứng từ ngân hàng | Không đổi trạng thái run. Không gọi ngân hàng |
 | T17 | not-done (rules-only) | `exception-items.entity.ts` | workspace cũ giữ nguyên |
 | T18 | partial | `DeveloperIntelligencePage.tsx` đọc `data.districts`; mart id 32 ký tự; entitlement trùng `23505` được bỏ qua | `developer.spec.ts` giữ locator. CI `e2e-pr` xanh: heading `Absorption heatmap` và `MRR ước tính`. `mfa.spec.ts` xanh. Local macOS 12 không cài được Chromium của Playwright 1.62 |
 | T19–T20 | partial | `copilot.service.ts` trả `không đủ dữ liệu` khi không có tên dự án trong bảng. Mô tả listing không còn dòng giá | Chưa retrieval. Mẫu investment vẫn có cụm “giá trị”. Không tự đánh pass |
