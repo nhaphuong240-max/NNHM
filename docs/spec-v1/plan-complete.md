@@ -24,7 +24,7 @@ Không production-ready. D01–D12 chưa có chữ ký.
 | T14 | partial | `handover-checklist.service.ts` không ghi ERP | Không sổ phải thu. Không đổi BNPL | T13, D09 |
 | T15 | partial | `commission-stages.service.ts` `stageCommissionAmount`. Không đổi rate | `paid` luôn 0 cho tới khi có chứng từ | T10, D10 |
 | T16 | partial | `settlement-label.service.ts` dùng `settlementLabel` với chứng từ null | Run `COMPLETED` vẫn `NOT_PAID` | T15, D10 |
-| T17 | not-done (rules-only) | `exception-items.entity.ts` | Workspace cũ giữ nguyên | T08 |
+| T17 | partial | `exception-item.service.ts` `listMine` | Workspace cũ không bị thay. Không trả payload | T08 |
 | T18 | partial | `DeveloperIntelligencePage.tsx`, e2e `developer.spec.ts` | Số liệu heatmap/MRR là nhãn, chưa đo pilot | T03, D11 |
 | T19–T20 | partial | `copilot.service.ts` abstain khi project không có tên. Listing copy bỏ dòng giá | Chưa retrieval. Mẫu investment còn cụm “giá trị” | D12 |
 | T21 | partial | Seed MFA chỉ khi `MFA_SEED_SANDBOX=true` | Không dùng secret thật | T03 |

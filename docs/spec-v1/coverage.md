@@ -20,7 +20,7 @@ Không phải production-ready. `not-done (rules-only)` nghĩa là có bảng ho
 | T14 | partial | `handover-checklist.service.ts` một checklist `OPEN` mỗi booking. Người khác mới `COMPLETE`. `erpPosted` luôn false | Không sổ phải thu, không BNPL |
 | T15 | partial | `commission-stages.service.ts` tách earned / payable / paid. `paid` luôn `0`. Không đổi số tiền đã lưu | Chưa có chứng từ ngân hàng để ghi `PAID` |
 | T16 | partial | `settlement-label.service.ts` đọc run và trả `NOT_PAID` khi không có chứng từ ngân hàng | Không đổi trạng thái run. Không gọi ngân hàng |
-| T17 | not-done (rules-only) | `exception-items.entity.ts` | workspace cũ giữ nguyên |
+| T17 | partial | `exception-item.service.ts` `listMine` chỉ trả id, severity, status, dueAt của đúng owner và tenant | Workspace cũ không đổi. Không trả payload |
 | T18 | partial | `DeveloperIntelligencePage.tsx` đọc `data.districts`; mart id 32 ký tự; entitlement trùng `23505` được bỏ qua | `developer.spec.ts` giữ locator. CI `e2e-pr` xanh: heading `Absorption heatmap` và `MRR ước tính`. `mfa.spec.ts` xanh. Local macOS 12 không cài được Chromium của Playwright 1.62 |
 | T19–T20 | partial | `copilot.service.ts` trả `không đủ dữ liệu` khi không có tên dự án trong bảng. Mô tả listing không còn dòng giá | Chưa retrieval. Mẫu investment vẫn có cụm “giá trị”. Không tự đánh pass |
 | T21 | partial | seed MFA chỉ khi `MFA_SEED_SANDBOX=true` | e2e MFA cần `SEED_MFA_TOTP_SECRET` |

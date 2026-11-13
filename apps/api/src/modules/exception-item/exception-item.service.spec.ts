@@ -9,6 +9,9 @@ import { ExceptionItemService } from './exception-item.service';
 
 function memory(rows: ExceptionItemEntity[]) {
   return {
+    find: jest.fn(async ({ where }: { where: { tenantId: string; ownerId: string } }) =>
+      rows.filter((row) => row.tenantId === where.tenantId && row.ownerId === where.ownerId),
+    ),
     findOne: jest.fn(async ({ where }: { where: { id: string; tenantId: string } }) =>
       rows.find((row) => row.id === where.id && row.tenantId === where.tenantId) ?? null,
     ),
@@ -23,6 +26,49 @@ function memory(rows: ExceptionItemEntity[]) {
 }
 
 describe('exception item review', () => {
+  it('lists only the caller rows in the caller tenant', async () => {
+    const due = new Date('2026-12-01T00:00:00.000Z');
+    const rows: ExceptionItemEntity[] = [
+      {
+        id: 'exi_a',
+        tenantId: 'ten_a',
+        ownerId: 'usr_op',
+        severity: 'HIGH',
+        dueAt: due,
+        status: 'OPEN',
+        payload: { kind: 'DISPUTE', secret: 'do-not-list' },
+        createdAt: due,
+      },
+      {
+        id: 'exi_b',
+        tenantId: 'ten_a',
+        ownerId: 'usr_other',
+        severity: 'LOW',
+        dueAt: due,
+        status: 'OPEN',
+        payload: {},
+        createdAt: due,
+      },
+      {
+        id: 'exi_c',
+        tenantId: 'ten_b',
+        ownerId: 'usr_op',
+        severity: 'LOW',
+        dueAt: due,
+        status: 'OPEN',
+        payload: {},
+        createdAt: due,
+      },
+    ];
+    const service = new ExceptionItemService(memory(rows) as never);
+    await expect(service.listMine({ tenantId: 'ten_a', actorId: 'usr_op', actorRole: 'AGENT' })).rejects.toBeInstanceOf(
+      ForbiddenException,
+    );
+    await expect(
+      service.listMine({ tenantId: 'ten_a', actorId: 'usr_op', actorRole: 'OPS_ADMIN' }),
+    ).resolves.toEqual([{ id: 'exi_a', severity: 'HIGH', status: 'OPEN', dueAt: due }]);
+  });
+
   const later = new Date(Date.now() + 60 * 60 * 1000);
 
   it('rejects a sales user and an unknown severity', async () => {

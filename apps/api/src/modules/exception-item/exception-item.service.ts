@@ -20,6 +20,26 @@ export class ExceptionItemService {
     private readonly items: Repository<ExceptionItemEntity>,
   ) {}
 
+  async listMine(input: {
+    tenantId: string;
+    actorId: string;
+    actorRole: string | undefined;
+  }): Promise<Array<Pick<ExceptionItemEntity, 'id' | 'severity' | 'status' | 'dueAt'>>> {
+    if (!input.actorRole || !REVIEWER_ROLES.includes(input.actorRole as (typeof REVIEWER_ROLES)[number])) {
+      throw new ForbiddenException({ detail: 'exception items require an operator' });
+    }
+    const rows = await this.items.find({
+      where: { tenantId: input.tenantId, ownerId: input.actorId },
+      order: { dueAt: 'ASC' },
+    });
+    return rows.map((row) => ({
+      id: row.id,
+      severity: row.severity,
+      status: row.status,
+      dueAt: row.dueAt,
+    }));
+  }
+
   async open(input: {
     tenantId: string;
     actorId: string;

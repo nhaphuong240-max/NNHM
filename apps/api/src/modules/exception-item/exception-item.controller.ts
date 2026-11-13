@@ -1,4 +1,4 @@
-import { Body, Controller, HttpCode, Param, Post, UnprocessableEntityException } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, Post, UnprocessableEntityException } from '@nestjs/common';
 import { CurrentUser } from '../identity/decorators/current-user.decorator';
 import type { AuthUser } from '../identity/identity.types';
 import { ExceptionItemService } from './exception-item.service';
@@ -6,6 +6,15 @@ import { ExceptionItemService } from './exception-item.service';
 @Controller('exception-items')
 export class ExceptionItemController {
   constructor(private readonly items: ExceptionItemService) {}
+
+  @Get()
+  listMine(@CurrentUser() user: AuthUser) {
+    return this.items.listMine({
+      tenantId: user.tenantId,
+      actorId: user.userId,
+      actorRole: user.role,
+    });
+  }
 
   @Post()
   @HttpCode(201)
