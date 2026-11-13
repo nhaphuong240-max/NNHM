@@ -14,7 +14,7 @@ Không production-ready. D01–D12 chưa có chữ ký.
 | T04 | partial | `export-job.service.ts` dùng `exportJobAllowed`. Người yêu cầu không tự duyệt. Không xuất dòng | `maskPhone` chưa gắn. Chưa audit append-only cho job | T03, D02, D03 |
 | T05 | partial | `allocation.service.ts` `grant` / `revoke` / `placement` dùng `allocationAllowsPlacement` | Chỉ tenant đang là `stockOwnerTenantId`. Chưa gán căn sang booking | T03, D01 |
 | T06 | partial | `price-book.service.ts` `openVersion` dùng `priceWindowsOverlap`. Quote `ACCEPTED` bị chặn ở `changeQuoteStatus` | Chưa có biểu thuế, phí, ưu đãi. Vai trò ghi tạm là `DEVELOPER_ADMIN` | T03, D04 |
-| T07 | not-done (rules-only) | `coverage.md:13`. Lead HOT chờ duyệt là bất biến đã merge | Dedup chưa vào service | T03, D05 |
+| T07 | partial | `dedup-review.service.ts` `enqueue` / `markDistinct`. HOT không bị gán trong luồng này | Chưa đổi số ngày bảo vệ. Không gộp dữ liệu khách | T03, D05 |
 | T08 | not-done (rules-only) | `exception-items.entity.ts` | SLA/tranh chấp chưa gắn service mới | T07 |
 | T09 | partial | `1758150000000-ActiveHoldUnique.ts`, `docs/t09/active-hold-unique.md:7` | Giữ unique toàn cục theo `unit_id`. Không thêm unique `(tenant_id, unit_id)` | T02 |
 | T10 | partial | `payment.service.ts` lấy amount/currency từ server | Chỉ sandbox. Không gọi cổng thật | T09, D07 |

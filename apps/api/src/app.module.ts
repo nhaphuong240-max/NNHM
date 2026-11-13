@@ -57,6 +57,7 @@ import { MarketInsightModule } from './modules/market-insight/market-insight.mod
 import { PriceBookModule } from './modules/price-book/price-book.module';
 import { ExportJobModule } from './modules/export-job/export-job.module';
 import { AllocationModule } from './modules/allocation/allocation.module';
+import { DedupReviewModule } from './modules/dedup/dedup-review.module';
 
 /** ADR-001 modular monolith — domain modules only communicate via events/facades. */
 @Module({
@@ -114,6 +115,7 @@ import { AllocationModule } from './modules/allocation/allocation.module';
     PriceBookModule,
     ExportJobModule,
     AllocationModule,
+    DedupReviewModule,
   ],
   controllers: [RootController],
   providers: [

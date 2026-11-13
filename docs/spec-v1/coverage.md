@@ -10,7 +10,7 @@ Không phải production-ready. `not-done (rules-only)` nghĩa là có bảng ho
 | T04 | partial | `export-job.service.ts` tạo `REQUESTED` và chỉ người khác mới `APPROVED`. Không trả dòng khách | `maskPhone` chưa gắn. Chưa có allowlist mục đích |
 | T05 | partial | `allocation.service.ts` chỉ chủ hàng `DEVELOPER_ADMIN` cấp `ACTIVE`. Thu hồi thì placement thành false. Tenant khác không thấy | Chưa thu phí phân bổ. Chưa tự giữ chỗ |
 | T06 | partial | `price-book.service.ts` `openVersion` chặn khoảng chồng trong cùng tenant. Quote `ACCEPTED` không đổi. Chỉ `DEVELOPER_ADMIN` | Chưa có biểu thuế, phí, ưu đãi. Không tự nhận quote |
-| T07 | not-done (rules-only) | `customers.entity.ts`, `dedup-reviews.entity.ts` | HOT lead đã có từ T02; dedup chưa vào service |
+| T07 | partial | `dedup-review.service.ts` xếp hàng `PENDING` khi hash SĐT trùng trong cùng tenant. Không gán HOT, không gộp hồ sơ | `protectionDays` vẫn lấy policy có sẵn. Chưa tự duyệt |
 | T08 | not-done (rules-only) | `exception-items.entity.ts` | SLA và tranh chấp cũ giữ nguyên |
 | T09 | partial | `1758150000000-ActiveHoldUnique.ts`, `docs/t09/active-hold-unique.md` | `scripts/t02-rls-hold-proof.js` ≥50 insert cùng một căn |
 | T10 | partial | `payment.service.ts` | `payment.service.spec.ts`: amount và currency do server |
