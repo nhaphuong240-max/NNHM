@@ -1,6 +1,7 @@
 /**
  * Official host registration. `ten_dev_01` here is the beachhead tenant bound to
  * these hosts (UAT `ngoinhahomnay.vn`), not a fallback used when no tenant is known.
+ * apps/web/src/lib/registered-host-tenant.ts is a copy. scripts/compare-host-tenant-maps.ts checks it.
  * Evidence: scripts/uat-phase-b-beachhead.sh:5-6, database.seed.service.ts:905,
  * scripts/phase-a-enable-notify-prod.sh:27, docs/specs/NNHN-SRS-Implementation-Plan.md:490.
  * A later PR should give the beachhead its own tenant id and migrate the rows.

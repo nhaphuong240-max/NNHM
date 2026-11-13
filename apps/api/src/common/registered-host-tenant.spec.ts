@@ -1,3 +1,5 @@
+import { execFileSync } from 'child_process';
+import * as path from 'path';
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { TenantBrandingController } from '../modules/identity/tenant-branding.controller';
 import { requireHostTenant } from './resolve-tenant-from-host';
@@ -54,5 +56,12 @@ describe('registered beachhead hosts', () => {
 
   it('resolves the beachhead hosts and rejects lookalikes when NODE_ENV=staging and the flag is off', () => {
     expectRegisteredHosts('staging');
+  });
+});
+
+describe('web host map copy', () => {
+  it('keeps the web host map equal to the API host map', () => {
+    const script = path.resolve(__dirname, '../../../../scripts/compare-host-tenant-maps.ts');
+    execFileSync(process.execPath, ['--experimental-strip-types', script], { stdio: 'pipe' });
   });
 });

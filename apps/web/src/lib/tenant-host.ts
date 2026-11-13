@@ -1,7 +1,7 @@
 import {
   normalizeHostHeader,
   tenantIdForOfficialHost,
-} from '../../../api/src/common/registered-host-tenant.ts';
+} from './registered-host-tenant.ts';
 
 /** Browser hostname → tenant. Same official map as the API. No seed fallback. */
 export function resolveTenantFromHost(hostname?: string | null): string | null {
