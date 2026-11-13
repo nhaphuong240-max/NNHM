@@ -279,10 +279,12 @@ jobs:
             sleep 2
           done
           curl -sf http://localhost:3000/api/v1/health/ready
+      - name: Map the registered beachhead host to this runner
+        run: echo '127.0.0.1 ngoinhahomnay.vn' | sudo tee -a /etc/hosts
       - name: Build web for E2E
         working-directory: apps/web
         env:
-          VITE_API_URL: http://localhost:3000/api/v1
+          VITE_API_URL: http://ngoinhahomnay.vn:3000/api/v1
         run: |
           npm ci
           npm run build

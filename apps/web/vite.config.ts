@@ -16,10 +16,20 @@ export default defineConfig({
   },
   server: {
     port: 5174,
+    fs: { allow: ['..'] },
     proxy: {
       '/api': {
-        target: 'http://localhost:3000',
-        changeOrigin: true,
+        target: 'http://127.0.0.1:3000',
+        // Keep the browser Host. changeOrigin would replace it with 127.0.0.1.
+        changeOrigin: false,
+      },
+    },
+  },
+  preview: {
+    proxy: {
+      '/api': {
+        target: 'http://127.0.0.1:3000',
+        changeOrigin: false,
       },
     },
   },

@@ -1,8 +1,6 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { Interval } from '@nestjs/schedule';
-import { ConfigService } from '@nestjs/config';
-import { allowDefaultTenant } from '../../common/default-tenant-flag';
-import { SEED_TENANT_ID } from '../../database/database.seed.service';
+import { BEACHHEAD_TENANT_ID } from '../../common/registered-host-tenant';
 import { SearchIndexService } from './search-index.service';
 
 @Injectable()
@@ -11,17 +9,15 @@ export class SearchIndexWorker implements OnModuleInit {
   private bootstrapped = false;
   private reconcileTicks = 0;
 
-  constructor(
-    private readonly index: SearchIndexService,
-    private readonly config: ConfigService,
-  ) {}
+  constructor(private readonly index: SearchIndexService) {}
+
+  /** Published listings of the host-registered beachhead tenant. Not a missing-tenant fallback. */
+  private beachheadTenantId(): string {
+    return BEACHHEAD_TENANT_ID;
+  }
 
   async onModuleInit() {
-    if (!allowDefaultTenant()) {
-      this.bootstrapped = true;
-      return;
-    }
-    const tenantId = this.config.get<string>('DEFAULT_TENANT_ID', SEED_TENANT_ID);
+    const tenantId = this.beachheadTenantId();
     const status = await this.index.getStatus(tenantId);
     if (status.docCount === 0) {
       const count = await this.index.rebuildPublished(tenantId);
@@ -45,10 +41,10 @@ export class SearchIndexWorker implements OnModuleInit {
   /** P1 — reconcile index when seed adds listings after bootstrap (avoids empty SERP race) */
   @Interval(5000)
   async reconcilePublishedDocs() {
-    if (!allowDefaultTenant() || !this.bootstrapped || this.reconcileTicks >= 24) return;
+    if (!this.bootstrapped || this.reconcileTicks >= 24) return;
     this.reconcileTicks += 1;
 
-    const tenantId = this.config.get<string>('DEFAULT_TENANT_ID', SEED_TENANT_ID);
+    const tenantId = this.beachheadTenantId();
     const [published, status] = await Promise.all([
       this.index.countIndexablePublished(tenantId),
       this.index.getStatus(tenantId),

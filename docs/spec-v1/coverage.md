@@ -53,8 +53,10 @@ Fallback `DEFAULT_TENANT_ID` khi không có user. Đã đóng trên nhánh `tena
 | BuyerEsignPage | done | `BuyerEsignPage.tsx:41` | API `booking-contract.controller.ts:93` trong test checkout/stream |
 | AuthSsoCallbackPage | done | `AuthSsoCallbackPage.tsx:37` | không ghi session khi JWT thiếu tenant |
 | AuthLoginPage | done | `AuthLoginPage.tsx:117`, `:170` | form không còn chọn sẵn `ten_dev_01` |
-| search index worker | done | `search-index.worker.ts:20` bỏ qua seed khi cờ tắt | cùng cờ `allowDefaultTenant` |
-| host seed | done | `resolve-tenant-from-host.ts:20` chỉ map `localhost` / `ngoinhahomnay.vn` khi cờ bật | brand test từ chối `localhost` |
+| search index worker | done | `search-index.worker.ts:15` lấy `BEACHHEAD_TENANT_ID` từ map host chính thức, kể cả khi cờ tắt. Không đọc `DEFAULT_TENANT_ID` | e2e `search page loads listings for the registered beachhead host` |
+| host beachhead | done | `registered-host-tenant.ts` `REGISTERED_HOST_TENANT_MAP`: `ngoinhahomnay.vn` và `www.ngoinhahomnay.vn` → `ten_dev_01`. Đây là tenant beachhead đã đăng ký theo host, không phải fallback. Bằng chứng: `scripts/uat-phase-b-beachhead.sh:5-6`, `database.seed.service.ts:905`, `scripts/phase-a-enable-notify-prod.sh:27`, `docs/specs/NNHN-SRS-Implementation-Plan.md:490` | `resolves the beachhead hosts and rejects lookalikes when NODE_ENV=production and the flag is off` và cùng test với `staging`. Web: `tenant-host.ts` `resolves the registered beachhead hosts after normalization` |
+| host pilot | done | `registered-host-tenant.ts` `PILOT_HOST_TENANT_MAP`: `portal.thanglong-dev.vn` và `thanglong.wereal.vn` → `ten_pilot_cdt_01`, khớp đúng host, không còn suffix `.wereal.vn` | brand test `portal.thanglong-dev.vn` |
+| host dev | done | `resolve-tenant-from-host.ts` `DEV_HOST_TENANT_MAP`: `localhost`, `sunrise.wereal.vn`, `app.wereal.vn` chỉ khi `ALLOW_DEFAULT_TENANT` và `NODE_ENV` là `development` hoặc `test`. `sunrise.wereal.vn` và `app.wereal.vn` không nằm trong map chính thức | cùng test host: production/staging không cờ thì 404 |
 | proof RLS | done | `scripts/t02-rls-app-proof.js` chèn `mem_t02_seed` | tenant B không thấy dòng `ten_dev_01` |
 
 Chuỗi `ten_dev_01` còn lại, không phải fallback của request không có user:
@@ -67,3 +69,9 @@ Chuỗi `ten_dev_01` còn lại, không phải fallback của request không có
 | `anchor-tenant.service.ts:60`, `:165`, `:341`, `:371` | not-done | catalog anchor synthetic và nhãn GMV của đúng tenant seed, không phải nguồn tenant của request ẩn danh |
 | `public-tenant-token.ts:37` | done | comment; catalog token không còn đổ về seed |
 | `modules/identity/README.md:33`, `modules/marketing/README.md:24`, `modules/meta/README.md:36`, `modules/zalo/README.md:85` | not-done | ví dụ curl và bảng seed cho người đã đăng nhập, không phải đường runtime khi không có user |
+| Tách id beachhead khỏi `ten_dev_01` | not-done | host chính thức đang trỏ đúng id seed vì dữ liệu beachhead nằm ở id đó. PR riêng, có migration dữ liệu, mới được đổi id. Không làm trong PR này |
+
+Deploy khi đưa host beachhead ra môi trường thật:
+
+- Proxy đứng trước API phải giữ nguyên header `Host`. Repo chưa có proxy tin cậy và API không đọc `X-Forwarded-Host`.
+- Cần các biến `BNPL_WEBHOOK_SECRET`, `EKYC_WEBHOOK_SECRET`, và `SSO_STATE_SECRET` hoặc `JWT_SECRET` dài từ 16 ký tự. Không ghi giá trị secret vào repo.
