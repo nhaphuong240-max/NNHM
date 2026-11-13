@@ -13,7 +13,7 @@ Không production-ready. D01–D12 chưa có chữ ký.
 | T03 | partial | `coverage.md:9`. RLS còn lại `1758130000000`. Bind trong `tenant-rls.service.ts` | Jest superuser không phải G01. Một số route ẩn danh còn nợ ở bước 1 | T02 |
 | T04 | not-done (rules-only) | `maskPhone`, `exportJobAllowed` trong `spec-target.rules.ts:96-118` | Chưa gắn service export/audit append-only | T03, D02, D03 |
 | T05 | not-done (rules-only) | `allocationAllowsPlacement` `spec-target.rules.ts:120-132` | Chưa có luồng phân bổ/thu hồi gắn service | T03, D01 |
-| T06 | not-done (rules-only) | `priceWindowsOverlap`, `quoteIsImmutable` `spec-target.rules.ts:134-145` | Chưa chặn chồng giá trên service | T03, D04 |
+| T06 | partial | `price-book.service.ts` `openVersion` dùng `priceWindowsOverlap`. Quote `ACCEPTED` bị chặn ở `changeQuoteStatus` | Chưa có biểu thuế, phí, ưu đãi. Vai trò ghi tạm là `DEVELOPER_ADMIN` | T03, D04 |
 | T07 | not-done (rules-only) | `coverage.md:13`. Lead HOT chờ duyệt là bất biến đã merge | Dedup chưa vào service | T03, D05 |
 | T08 | not-done (rules-only) | `exception-items.entity.ts` | SLA/tranh chấp chưa gắn service mới | T07 |
 | T09 | partial | `1758150000000-ActiveHoldUnique.ts`, `docs/t09/active-hold-unique.md:7` | Giữ unique toàn cục theo `unit_id`. Không thêm unique `(tenant_id, unit_id)` | T02 |

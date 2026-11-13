@@ -54,6 +54,7 @@ import { DsrModule } from './modules/dsr/dsr.module';
 import { OpenDayModule } from './modules/open-day/open-day.module';
 import { WalkInModule } from './modules/walk-in/walk-in.module';
 import { MarketInsightModule } from './modules/market-insight/market-insight.module';
+import { PriceBookModule } from './modules/price-book/price-book.module';
 
 /** ADR-001 modular monolith — domain modules only communicate via events/facades. */
 @Module({
@@ -108,6 +109,7 @@ import { MarketInsightModule } from './modules/market-insight/market-insight.mod
     OpenDayModule,
     WalkInModule,
     MarketInsightModule,
+    PriceBookModule,
   ],
   controllers: [RootController],
   providers: [

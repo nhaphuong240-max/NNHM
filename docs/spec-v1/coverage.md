@@ -9,7 +9,7 @@ Không phải production-ready. `not-done (rules-only)` nghĩa là có bảng ho
 | T03 | partial | `1758130000000-EnableRemainingTenantRls.ts`, `public-token-tenant.guard.ts`, `tenant-rls.interceptor.ts` | `scripts/t02-rls-hold-proof.js` trên role `NOSUPERUSER`. Jest superuser không phải bằng chứng G01 |
 | T04 | not-done (rules-only) | `evidence-records.entity.ts`, `export-jobs.entity.ts` | `maskPhone`, `exportJobAllowed` |
 | T05 | not-done (rules-only) | `distribution-agreements.entity.ts`, `unit-allocations.entity.ts` | `allocationAllowsPlacement` |
-| T06 | not-done (rules-only) | `price-book-versions.entity.ts`, `quotes.entity.ts` | overlap và quote bất biến |
+| T06 | partial | `price-book.service.ts` `openVersion` chặn khoảng chồng trong cùng tenant. Quote `ACCEPTED` không đổi. Chỉ `DEVELOPER_ADMIN` | Chưa có biểu thuế, phí, ưu đãi. Không tự nhận quote |
 | T07 | not-done (rules-only) | `customers.entity.ts`, `dedup-reviews.entity.ts` | HOT lead đã có từ T02; dedup chưa vào service |
 | T08 | not-done (rules-only) | `exception-items.entity.ts` | SLA và tranh chấp cũ giữ nguyên |
 | T09 | partial | `1758150000000-ActiveHoldUnique.ts`, `docs/t09/active-hold-unique.md` | `scripts/t02-rls-hold-proof.js` ≥50 insert cùng một căn |
