@@ -14,6 +14,8 @@ import { AuditModule } from '../audit/audit.module';
 import { KycModule } from '../kyc/kyc.module';
 import { TenantConfigModule } from '../tenant-config/tenant-config.module';
 import { CommissionController } from './commission.controller';
+import { CommissionStagesController } from './commission-stages.controller';
+import { CommissionStagesService } from './commission-stages.service';
 import { CommissionExportService } from './commission-export.service';
 import { CommissionPayoutClient } from './commission-payout.client';
 import { CommissionPolicyService } from './commission-policy.service';
@@ -40,7 +42,7 @@ import { CommissionSnapshotService } from './commission-snapshot.service';
     KycModule,
     TenantConfigModule,
   ],
-  controllers: [CommissionController],
+  controllers: [CommissionController, CommissionStagesController],
   providers: [
     CommissionPolicyService,
     CommissionSnapshotService,
@@ -49,6 +51,7 @@ import { CommissionSnapshotService } from './commission-snapshot.service';
     CommissionSettlementJob,
     CommissionExportService,
     CommissionPayoutClient,
+    CommissionStagesService,
   ],
   exports: [
     CommissionPolicyService,
