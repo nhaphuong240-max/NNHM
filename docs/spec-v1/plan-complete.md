@@ -15,7 +15,7 @@ Không production-ready. D01–D12 chưa có chữ ký.
 | T05 | partial | `allocation.service.ts` `grant` / `revoke` / `placement` dùng `allocationAllowsPlacement` | Chỉ tenant đang là `stockOwnerTenantId`. Chưa gán căn sang booking | T03, D01 |
 | T06 | partial | `price-book.service.ts` `openVersion` dùng `priceWindowsOverlap`. Quote `ACCEPTED` bị chặn ở `changeQuoteStatus` | Chưa có biểu thuế, phí, ưu đãi. Vai trò ghi tạm là `DEVELOPER_ADMIN` | T03, D04 |
 | T07 | partial | `dedup-review.service.ts` `enqueue` / `markDistinct`. HOT không bị gán trong luồng này | Chưa đổi số ngày bảo vệ. Không gộp dữ liệu khách | T03, D05 |
-| T08 | not-done (rules-only) | `exception-items.entity.ts` | SLA/tranh chấp chưa gắn service mới | T07 |
+| T08 | partial | `exception-item.service.ts` `open` / `resolve`. Người mở không tự đóng | Không bịa hạn SLA. T17 workspace chưa gắn | T07 |
 | T09 | partial | `1758150000000-ActiveHoldUnique.ts`, `docs/t09/active-hold-unique.md:7` | Giữ unique toàn cục theo `unit_id`. Không thêm unique `(tenant_id, unit_id)` | T02 |
 | T10 | partial | `payment.service.ts` lấy amount/currency từ server | Chỉ sandbox. Không gọi cổng thật | T09, D07 |
 | T11 | not-done | Webhook chữ ký cũ. Notary chưa HMAC | Replay/journal và chữ ký notary thuộc bước 1 | T10, D07 |

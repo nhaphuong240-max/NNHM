@@ -58,6 +58,7 @@ import { PriceBookModule } from './modules/price-book/price-book.module';
 import { ExportJobModule } from './modules/export-job/export-job.module';
 import { AllocationModule } from './modules/allocation/allocation.module';
 import { DedupReviewModule } from './modules/dedup/dedup-review.module';
+import { ExceptionItemModule } from './modules/exception-item/exception-item.module';
 
 /** ADR-001 modular monolith — domain modules only communicate via events/facades. */
 @Module({
@@ -116,6 +117,7 @@ import { DedupReviewModule } from './modules/dedup/dedup-review.module';
     ExportJobModule,
     AllocationModule,
     DedupReviewModule,
+    ExceptionItemModule,
   ],
   controllers: [RootController],
   providers: [
