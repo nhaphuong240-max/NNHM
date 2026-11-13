@@ -17,7 +17,7 @@ Không phải production-ready. `not-done (rules-only)` nghĩa là có bảng ho
 | T11 | partial | Notary HMAC đã có. `notaryJournalId` ghi một dòng `api_webhook_deliveries`. Lần sau `idempotentReplay` và không tăng bộ đếm | Cổng thanh toán vẫn sandbox. Chưa gọi nhà cung cấp thật |
 | T12 | partial | `refund-check.service.ts` đề xuất và người khác mới `CHECKED`. Không ghi `PAID`, không gọi cổng | `RefundService.createRefund` sandbox một người vẫn còn |
 | T13 | partial | `contract-artifact.service.ts` chỉ ghi `PENDING_REVIEW`. Gọi `EXECUTED` thì 422. Token ký đã có từ bước 1 | OTP sandbox vẫn có thể ghi `SIGNED` trên hợp đồng cũ |
-| T14 | not-done (rules-only) | `handover-checklists.entity.ts` | không làm ERP |
+| T14 | partial | `handover-checklist.service.ts` một checklist `OPEN` mỗi booking. Người khác mới `COMPLETE`. `erpPosted` luôn false | Không sổ phải thu, không BNPL |
 | T15 | not-done | — | không có rule earned/payable/paid trong code |
 | T16 | not-done | `settlementLabel` | hàm từ chối `PAID` khi không có chứng từ; chưa gắn settlement service |
 | T17 | not-done (rules-only) | `exception-items.entity.ts` | workspace cũ giữ nguyên |

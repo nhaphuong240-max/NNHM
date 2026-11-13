@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuditEventEntity } from '../../database/entities/audit-event.entity';
 import { BookingEntity } from '../../database/entities/booking.entity';
 import { ContractArtifactEntity } from '../../database/entities/contract-artifacts.entity';
+import { HandoverChecklistEntity } from '../../database/entities/handover-checklists.entity';
 import { LeadEntity } from '../../database/entities/lead.entity';
 import { PaymentIntentEntity } from '../../database/entities/payment-intent.entity';
 import { ProjectEntity } from '../../database/entities/project.entity';
@@ -19,6 +20,8 @@ import { NotifyModule } from '../notify/notify.module';
 import { BookingContractController } from './booking-contract.controller';
 import { ContractArtifactController } from './contract-artifact.controller';
 import { ContractArtifactService } from './contract-artifact.service';
+import { HandoverChecklistController } from './handover-checklist.controller';
+import { HandoverChecklistService } from './handover-checklist.service';
 import { BookingContractEsignProviderService } from './booking-contract-esign-provider.service';
 import { BookingContractEsignSmsService } from './booking-contract-esign-sms.service';
 import { VnptEsignAdapter, EsignAdapterRegistry } from './vnpt-esign.adapter';
@@ -35,6 +38,7 @@ import { BookingService } from './booking.service';
     TypeOrmModule.forFeature([
       BookingEntity,
       ContractArtifactEntity,
+      HandoverChecklistEntity,
       UnitEntity,
       PaymentIntentEntity,
       LeadEntity,
@@ -57,11 +61,13 @@ import { BookingService } from './booking.service';
     BookingContractController,
     BookingWorkflowController,
     ContractArtifactController,
+    HandoverChecklistController,
   ],
   providers: [
     BookingService,
     BookingContractService,
     ContractArtifactService,
+    HandoverChecklistService,
     BookingContractEsignSmsService,
     BookingContractEsignProviderService,
     VnptEsignAdapter,
