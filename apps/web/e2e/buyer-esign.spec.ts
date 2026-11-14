@@ -52,7 +52,7 @@ test('buyer-esign owning buyer gets a token and opens the sign session', async (
       'X-Contract-Sign-Token': signToken ?? '',
     },
   });
-  expect(session.status()).not.toBe(401);
+  expect(session.status).not.toBe(401);
   expect(session.ok).toBe(true);
 
   const sessionResponse = page.waitForResponse(
