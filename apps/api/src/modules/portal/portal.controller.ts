@@ -1,7 +1,8 @@
-import { Body, Controller, Get, Headers, Param, Post, Query } from '@nestjs/common';
+import { Body, Controller, ForbiddenException, Get, Headers, Param, Post, Query, UnprocessableEntityException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DataSource } from 'typeorm';
 import { oneLookedUpTenant } from '../../common/public-tenant-lookup';
+import { contractSignSecret } from '../booking/contract-sign-token';
 import { requireHostTenant } from '../../common/resolve-tenant-from-host';
 import { assertHeaderMatches, resolveTenantId } from '../../common/resolve-tenant-id';
 import { Public } from '../identity/decorators/public.decorator';
@@ -127,6 +128,24 @@ export class PortalController {
     assertHeaderMatches(tenantHeader, tenantId);
     await this.portal.requireOwnedBuyerBooking(tenantId, bookingId, user);
     return this.portal.getBuyerSignSession(tenantId, bookingId);
+  }
+
+  @Post('buyer/contracts/:contractId/sign-token')
+  async issueContractSignToken(
+    @CurrentUser() user: AuthUser | undefined,
+    @Headers('x-tenant-id') tenantHeader: string | undefined,
+    @Param('contractId') contractId: string,
+  ) {
+    const tenantId = await oneLookedUpTenant(this.dataSource, 'contract', contractId, 'not-found');
+    assertHeaderMatches(tenantHeader, tenantId);
+    if (!user?.tenantId || user.tenantId !== tenantId) {
+      throw new ForbiddenException({ detail: 'contract tenant does not match the signed-in buyer' });
+    }
+    const secret = contractSignSecret((key) => this.config.get<string>(key));
+    if (!secret) {
+      throw new UnprocessableEntityException({ detail: 'contract sign secret is not configured' });
+    }
+    return this.portal.issueContractSignToken(tenantId, contractId, user, secret);
   }
 
   /** UC-UX-06 · SCR-PUBLIC-003 */

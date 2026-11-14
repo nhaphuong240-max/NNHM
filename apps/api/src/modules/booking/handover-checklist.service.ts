@@ -63,6 +63,12 @@ export class HandoverChecklistService {
     }
     const row = await this.lists.findOne({ where: { tenantId: input.tenantId, bookingId: input.bookingId } });
     if (!row) throw new NotFoundException({ detail: 'handover checklist not found' });
+    if (row.status === 'COMPLETE') {
+      throw new ConflictException({ detail: 'handover checklist is already complete' });
+    }
+    if (row.status !== 'OPEN') {
+      throw new UnprocessableEntityException({ detail: 'handover checklist cannot be completed from this status' });
+    }
     const openedBy = typeof row.payload.openedBy === 'string' ? row.payload.openedBy : '';
     if (!openedBy || openedBy === input.actorId) {
       throw new ForbiddenException({ detail: 'the opener cannot complete the handover' });

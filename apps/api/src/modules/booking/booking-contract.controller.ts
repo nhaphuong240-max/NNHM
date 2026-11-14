@@ -5,7 +5,7 @@ import { oneLookedUpTenant } from '../../common/public-tenant-lookup';
 import { assertHeaderMatches, resolveTenantId } from '../../common/resolve-tenant-id';
 import { Public } from '../identity/decorators/public.decorator';
 import { AllowContractSignToken } from './allow-contract-sign-token.decorator';
-import { readContractSignToken } from './contract-sign-token';
+import { contractSignSecret, readContractSignToken } from './contract-sign-token';
 import { CurrentUser } from '../identity/decorators/current-user.decorator';
 import type { AuthUser } from '../identity/identity.types';
 import { BookingContractService } from './booking-contract.service';
@@ -20,8 +20,8 @@ export class BookingContractController {
   ) {}
 
   private signSecret(): string {
-    const secret = this.config.get<string>('CONTRACT_SIGN_SECRET') || this.config.get<string>('JWT_SECRET') || '';
-    if (secret.length < 16) {
+    const secret = contractSignSecret((key) => this.config.get<string>(key));
+    if (!secret) {
       throw new UnprocessableEntityException({ detail: 'contract sign secret is not configured' });
     }
     return secret;
@@ -40,7 +40,7 @@ export class BookingContractController {
   ) {
     const tenantId = await this.contractTenant(contractId, header);
     const claims = readContractSignToken(signToken, this.signSecret());
-    if (!claims || claims.contractId !== contractId || claims.tenantId !== tenantId) {
+    if (!claims || claims.contractId !== contractId || claims.tenantId !== tenantId || !claims.buyerId) {
       throw new UnauthorizedException({ detail: 'contract sign token is missing, expired, or for another contract' });
     }
     return tenantId;

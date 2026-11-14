@@ -100,5 +100,8 @@ describe('handover checklist', () => {
     });
     expect(done.status).toBe('COMPLETE');
     expect(done.payload).toMatchObject({ erpPosted: false, completedBy: 'usr_b' });
+    await expect(
+      service.complete({ tenantId: 'ten_a', actorId: 'usr_b', actorRole: 'DEVELOPER_ADMIN', bookingId: 'bk_a' }),
+    ).rejects.toBeInstanceOf(ConflictException);
   });
 });

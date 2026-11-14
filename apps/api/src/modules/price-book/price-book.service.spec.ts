@@ -1,4 +1,4 @@
-import { ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { ConflictException, ForbiddenException, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
 import { PriceBookVersionEntity } from '../../database/entities/price-book-versions.entity';
 import { QuoteEntity } from '../../database/entities/quotes.entity';
 import { PriceBookService } from './price-book.service';
@@ -126,5 +126,37 @@ describe('price book windows', () => {
         nextStatus: 'EXPIRED',
       }),
     ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('accepts a draft to sent transition and rejects an unknown quote status', async () => {
+    const quotes = memoryQuotes([
+      {
+        id: 'qte_a',
+        tenantId: 'ten_a',
+        priceBookId: 'pbv_a',
+        unitId: 'un_a',
+        quoteHash: 'hash',
+        expiresAt: to,
+        status: 'DRAFT',
+        payload: {},
+        createdAt: from,
+      },
+    ]);
+    const service = new PriceBookService(memoryBooks([]) as never, quotes as never);
+    const sent = await service.changeQuoteStatus({
+      tenantId: 'ten_a',
+      actorRole: 'DEVELOPER_ADMIN',
+      quoteId: 'qte_a',
+      nextStatus: 'SENT',
+    });
+    expect(sent.status).toBe('SENT');
+    await expect(
+      service.changeQuoteStatus({
+        tenantId: 'ten_a',
+        actorRole: 'DEVELOPER_ADMIN',
+        quoteId: 'qte_a',
+        nextStatus: 'BOGUS',
+      }),
+    ).rejects.toBeInstanceOf(UnprocessableEntityException);
   });
 });

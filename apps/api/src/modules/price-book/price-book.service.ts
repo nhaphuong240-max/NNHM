@@ -15,6 +15,11 @@ import { priceWindowsOverlap, quoteIsImmutable } from '../spec-target/spec-targe
 /** D04 unsigned: only the developer admin may open a window until the role matrix is signed. */
 export const PRICE_BOOK_WRITER_ROLE = 'DEVELOPER_ADMIN';
 
+const QUOTE_NEXT: Record<string, readonly string[]> = {
+  DRAFT: ['SENT', 'REJECTED', 'EXPIRED'],
+  SENT: ['REJECTED', 'EXPIRED'],
+};
+
 export function assertPriceBookWriter(role: string | undefined): void {
   if (role !== PRICE_BOOK_WRITER_ROLE) {
     throw new ForbiddenException({ detail: 'price book changes require a developer admin' });
@@ -99,6 +104,10 @@ export class PriceBookService {
     }
     if (quoteIsImmutable(quote.status)) {
       throw new ConflictException({ detail: 'accepted quote is immutable' });
+    }
+    const allowed = QUOTE_NEXT[quote.status];
+    if (!allowed || !allowed.includes(nextStatus)) {
+      throw new UnprocessableEntityException({ detail: 'quote status change is not allowed' });
     }
     quote.status = nextStatus;
     return this.quotes.save(quote);

@@ -1,19 +1,49 @@
-const WINDOW_MS = 60_000;
-const MAX_WRITES = 8;
-const hits = new Map<string, number[]>();
+export const UNSCOPED_AUDIT_WINDOW_MS = 60_000;
+export const UNSCOPED_AUDIT_MAX_WRITES = 8;
+export const UNSCOPED_AUDIT_MAX_KEYS = 256;
 
-/** Drop repeated unauthenticated audit inserts for the same entity. */
-export function allowUnscopedAuditWrite(key: string, now = Date.now()): boolean {
-  const recent = (hits.get(key) ?? []).filter((at) => now - at < WINDOW_MS);
-  if (recent.length >= MAX_WRITES) {
-    hits.set(key, recent);
+type Bucket = { hits: number[]; expiresAt: number };
+
+const buckets = new Map<string, Bucket>();
+
+function prune(now: number): void {
+  for (const [key, bucket] of buckets) {
+    if (bucket.expiresAt <= now) buckets.delete(key);
+  }
+}
+
+function remember(key: string, bucket: Bucket): void {
+  buckets.delete(key);
+  buckets.set(key, bucket);
+  while (buckets.size > UNSCOPED_AUDIT_MAX_KEYS) {
+    const oldest = buckets.keys().next().value;
+    if (oldest === undefined) break;
+    buckets.delete(oldest);
+  }
+}
+
+/**
+ * Limit by source and action. The source is an IP or a connector name.
+ * A client-supplied entity id is not part of the key.
+ */
+export function allowUnscopedAuditWrite(source: string, action: string, now = Date.now()): boolean {
+  prune(now);
+  const key = `${source.trim().slice(0, 128) || 'unknown'}:${action.trim().slice(0, 32) || 'unknown'}`;
+  const hits = (buckets.get(key)?.hits ?? []).filter((at) => now - at < UNSCOPED_AUDIT_WINDOW_MS);
+  const expiresAt = now + UNSCOPED_AUDIT_WINDOW_MS;
+  if (hits.length >= UNSCOPED_AUDIT_MAX_WRITES) {
+    remember(key, { hits, expiresAt });
     return false;
   }
-  recent.push(now);
-  hits.set(key, recent);
+  hits.push(now);
+  remember(key, { hits, expiresAt });
   return true;
 }
 
+export function unscopedAuditKeyCount(): number {
+  return buckets.size;
+}
+
 export function resetUnscopedAuditLimit(): void {
-  hits.clear();
+  buckets.clear();
 }

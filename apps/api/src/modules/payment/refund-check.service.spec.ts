@@ -1,4 +1,4 @@
-import { ForbiddenException, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
+import { ConflictException, ForbiddenException, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
 import { AuditEventEntity } from '../../database/entities/audit-event.entity';
 import { PaymentIntentEntity } from '../../database/entities/payment-intent.entity';
 import { RefundEntity } from '../../database/entities/refund.entity';
@@ -128,5 +128,13 @@ describe('refund maker checker', () => {
     });
     expect(checked).toEqual({ status: 'CHECKED', amount: 60, currency: 'VND', paid: false });
     expect(stored.map((row) => row.action)).toEqual(['REFUND_PROPOSED', 'REFUND_CHECKED']);
+    await expect(
+      service.approve({
+        tenantId: 'ten_a',
+        actorId: 'usr_checker',
+        actorRole: 'OPS_ADMIN',
+        paymentIntentId: 'pi_a',
+      }),
+    ).rejects.toBeInstanceOf(ConflictException);
   });
 });

@@ -2,7 +2,7 @@ import { ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/com
 import { ConfigService } from '@nestjs/config';
 import { Reflector } from '@nestjs/core';
 import { AuthGuard } from '@nestjs/passport';
-import { readContractSignToken } from '../../booking/contract-sign-token';
+import { contractSignSecret, readContractSignToken } from '../../booking/contract-sign-token';
 import { ALLOW_CONTRACT_SIGN_TOKEN } from '../../booking/allow-contract-sign-token.decorator';
 import { IS_PUBLIC_KEY } from '../identity.types';
 
@@ -32,8 +32,8 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
   private hasContractSignToken(context: ExecutionContext): boolean {
     const request = context.switchToHttp().getRequest<{ headers?: Record<string, string | undefined> }>();
     const presented = request.headers?.['x-contract-sign-token'];
-    const secret = this.config.get<string>('CONTRACT_SIGN_SECRET') || this.config.get<string>('JWT_SECRET') || '';
-    return readContractSignToken(presented, secret) !== null;
+    const secret = contractSignSecret((key) => this.config.get<string>(key));
+    return secret !== null && readContractSignToken(presented, secret) !== null;
   }
 
   handleRequest<TUser>(err: Error | null, user: TUser | false): TUser {

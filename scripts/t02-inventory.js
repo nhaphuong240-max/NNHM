@@ -110,8 +110,8 @@ function worktreeFiles() {
   return out.sort();
 }
 
-function headFiles() {
-  const listed = execFileSync('git', ['ls-tree', '-r', '--name-only', 'HEAD'], {
+function gitFiles(rev) {
+  const listed = execFileSync('git', ['ls-tree', '-r', '--name-only', rev], {
     cwd: root,
     encoding: 'utf8',
   });
@@ -122,15 +122,50 @@ function headFiles() {
     .sort();
 }
 
+function headFiles() {
+  return gitFiles('HEAD');
+}
+
+let cachedBase = '';
+
+function mergeBase() {
+  if (cachedBase) return cachedBase;
+  const merge = () =>
+    execFileSync('git', ['merge-base', 'HEAD', 'origin/main'], { cwd: root, encoding: 'utf8' }).trim();
+  const hasMain = () => {
+    execFileSync('git', ['rev-parse', '--verify', '--quiet', 'origin/main'], { cwd: root, stdio: 'ignore' });
+  };
+  try {
+    hasMain();
+    cachedBase = merge();
+    return cachedBase;
+  } catch {
+    /* origin/main is missing on a shallow checkout, or the histories do not meet yet. */
+  }
+  execFileSync('git', ['fetch', '--no-tags', 'origin', 'main'], { cwd: root, stdio: 'pipe' });
+  try {
+    cachedBase = merge();
+    return cachedBase;
+  } catch {
+    execFileSync('git', ['fetch', '--no-tags', '--unshallow', 'origin'], { cwd: root, stdio: 'pipe' });
+    cachedBase = merge();
+    return cachedBase;
+  }
+}
+
 function readFile(source, file) {
-  if (source === 'head') {
-    return execFileSync('git', ['show', `HEAD:apps/api/${file}`], { cwd: root, encoding: 'utf8' });
+  if (source === 'head' || source === 'base') {
+    const rev = source === 'head' ? 'HEAD' : mergeBase();
+    return execFileSync('git', ['show', `${rev}:apps/api/${file}`], { cwd: root, encoding: 'utf8' });
   }
   return fs.readFileSync(path.join(root, 'apps/api', file), 'utf8');
 }
 
 function collect(source) {
-  const files = source === 'head' ? headFiles() : worktreeFiles();
+  if (source !== 'head' && source !== 'worktree' && source !== 'base') {
+    throw new Error('source must be worktree, head, or base');
+  }
+  const files = source === 'worktree' ? worktreeFiles() : source === 'head' ? headFiles() : gitFiles(mergeBase());
   const inventory = { source, files: {}, unresolved: [], duplicates: [] };
   for (const file of files) {
     const parsed = parseSpec(file, readFile(source, file));
@@ -168,8 +203,8 @@ function checkJest(inventory, result) {
 
 function main() {
   const source = arg('--source') || 'worktree';
-  if (source !== 'worktree' && source !== 'head') {
-    console.error('source must be worktree or head');
+  if (source !== 'worktree' && source !== 'head' && source !== 'base') {
+    console.error('source must be worktree, head, or base');
     process.exit(1);
   }
   const inventory = collect(source);

@@ -1,4 +1,5 @@
 import {
+  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -76,6 +77,12 @@ export class RefundCheckService {
     }
     if (proposal.actorId === input.actorId) {
       throw new ForbiddenException({ detail: 'the proposer cannot approve the refund' });
+    }
+    const checked = await this.events.findOne({
+      where: { tenantId: input.tenantId, entityType: 'payment_intent', entityId: intent.id, action: 'REFUND_CHECKED' },
+    });
+    if (checked) {
+      throw new ConflictException({ detail: 'refund check is already approved' });
     }
     const amount = Number(proposal.payload?.amount);
     const alreadyRefunded = await this.refundedTotal(input.tenantId, intent.id);

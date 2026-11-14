@@ -1,4 +1,4 @@
-import { NotFoundException, UnprocessableEntityException } from '@nestjs/common';
+import { ForbiddenException, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
 import { ExportJobEntity } from '../../database/entities/export-jobs.entity';
 import { ExportJobService } from './export-job.service';
 
@@ -60,6 +60,7 @@ describe('export job approval', () => {
         tenantId: 'ten_a',
         jobId: 'exp_a',
         approverId: 'usr_maker',
+        actorRole: 'FINANCE_ADMIN',
         now: new Date(),
       }),
     ).rejects.toBeInstanceOf(UnprocessableEntityException);
@@ -68,13 +69,24 @@ describe('export job approval', () => {
         tenantId: 'ten_b',
         jobId: 'exp_a',
         approverId: 'usr_checker',
+        actorRole: 'FINANCE_ADMIN',
         now: new Date(),
       }),
     ).rejects.toBeInstanceOf(NotFoundException);
+    await expect(
+      service.approve({
+        tenantId: 'ten_a',
+        jobId: 'exp_a',
+        approverId: 'usr_checker',
+        actorRole: 'AGENT',
+        now: new Date(),
+      }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
     const approved = await service.approve({
       tenantId: 'ten_a',
       jobId: 'exp_a',
       approverId: 'usr_checker',
+      actorRole: 'FINANCE_ADMIN',
       now: new Date(),
     });
     expect(approved.status).toBe('APPROVED');
@@ -85,6 +97,7 @@ describe('export job approval', () => {
         tenantId: 'ten_a',
         jobId: 'exp_a',
         approverId: 'usr_checker',
+        actorRole: 'FINANCE_ADMIN',
         now: new Date(),
       }),
     ).rejects.toBeInstanceOf(UnprocessableEntityException);

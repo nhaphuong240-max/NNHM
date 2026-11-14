@@ -1,4 +1,4 @@
-import { Body, Controller, Headers, HttpCode, Post, UnauthorizedException } from '@nestjs/common';
+import { Body, Controller, Headers, HttpCode, Post, Req, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DataSource } from 'typeorm';
 import { oneLookedUpTenant, recordUnscopedAudit } from '../../common/public-tenant-lookup';
@@ -29,13 +29,16 @@ export class NotaryConnectorController {
       notarizationStatus: 'PENDING' | 'COMPLETED' | 'REJECTED';
       contractRef?: string;
     },
+    @Req() request?: { ip?: string },
   ) {
+    const source = request?.ip?.trim() ? `ip:${request.ip.trim().slice(0, 64)}` : 'notary-webhook';
     const secret = this.config.get<string>('NOTARY_WEBHOOK_SECRET') ?? '';
     const payload = body as unknown as Record<string, unknown>;
     if (!secret || !verifyWebhookSignature(payload, signature, secret)) {
       await recordUnscopedAudit(this.dataSource, {
         tenantId: null,
         entityType: 'booking',
+        source,
         entityId: body.bookingId || 'missing',
         action: 'WEBHOOK_REJECTED',
         payload: { reason: 'bad-signature', connector: 'NOTARY' },
@@ -49,6 +52,7 @@ export class NotaryConnectorController {
       await recordUnscopedAudit(this.dataSource, {
         tenantId: null,
         entityType: 'booking',
+        source,
         entityId: body.bookingId || 'missing',
         action: 'WEBHOOK_REJECTED',
         payload: { reason: 'no-matching-record', connector: 'NOTARY' },

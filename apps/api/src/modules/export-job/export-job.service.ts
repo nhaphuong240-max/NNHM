@@ -1,4 +1,5 @@
 import {
+  ForbiddenException,
   Injectable,
   NotFoundException,
   UnprocessableEntityException,
@@ -72,8 +73,12 @@ export class ExportJobService {
     tenantId: string;
     jobId: string;
     approverId: string;
+    actorRole: string | undefined;
     now: Date;
   }): Promise<ExportJobEntity> {
+    if (input.actorRole !== 'FINANCE_ADMIN') {
+      throw new ForbiddenException({ detail: 'export approval requires a finance admin' });
+    }
     const job = await this.jobs.findOne({ where: { id: input.jobId, tenantId: input.tenantId } });
     if (!job) throw new NotFoundException({ detail: 'export job not found' });
     if (job.status !== 'REQUESTED') {

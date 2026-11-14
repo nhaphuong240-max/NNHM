@@ -104,7 +104,7 @@ function main() {
   let baselineInventory;
   let workInventory;
   try {
-    baselineInventory = loadInventory(arg('--baseline-inventory'), 'head');
+    baselineInventory = loadInventory(arg('--baseline-inventory'), 'base');
     workInventory = loadInventory(arg('--work-inventory'), 'worktree');
   } catch (error) {
     report.failClosed = `inventory could not be read: ${error.message}`;

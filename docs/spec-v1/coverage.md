@@ -7,17 +7,17 @@ Không phải production-ready. `not-done (rules-only)` nghĩa là có bảng ho
 | Gói | Trạng thái | File chính | Test |
 | --- | --- | --- | --- |
 | T03 | partial | `1758130000000-EnableRemainingTenantRls.ts`, `public-token-tenant.guard.ts`, `tenant-rls.interceptor.ts` | `scripts/t02-rls-hold-proof.js` trên role `NOSUPERUSER`. Jest superuser không phải bằng chứng G01 |
-| T04 | partial | `export-job.service.ts` tạo `REQUESTED` và chỉ người khác mới `APPROVED`. Không trả dòng khách | `maskPhone` chưa gắn. Chưa có allowlist mục đích |
-| T05 | partial | `allocation.service.ts` chỉ chủ hàng `DEVELOPER_ADMIN` cấp `ACTIVE`. Thu hồi thì placement thành false. Tenant khác không thấy | Chưa thu phí phân bổ. Chưa tự giữ chỗ |
-| T06 | partial | `price-book.service.ts` `openVersion` chặn khoảng chồng trong cùng tenant. Quote `ACCEPTED` không đổi. Chỉ `DEVELOPER_ADMIN` | Chưa có biểu thuế, phí, ưu đãi. Không tự nhận quote |
-| T07 | partial | `dedup-review.service.ts` xếp hàng `PENDING` khi hash SĐT trùng trong cùng tenant. Không gán HOT, không gộp hồ sơ | `protectionDays` vẫn lấy policy có sẵn. Chưa tự duyệt |
+| T04 | partial | `export-job.service.ts` tạo `REQUESTED`. `APPROVED` chỉ khi người duyệt là `FINANCE_ADMIN` và khác người yêu cầu. Không trả dòng khách | `maskPhone` chưa gắn. Chưa có allowlist mục đích. `refuses the requester as approver and hides another tenant job` |
+| T05 | partial | `allocation.service.ts` chỉ chủ hàng `DEVELOPER_ADMIN` cấp `ACTIVE`. Thu hồi thì placement thành false. Tenant khác không thấy | Chưa thu phí phân bổ. Chưa tự giữ chỗ. Chưa gắn vào luồng booking/listing |
+| T06 | partial | `price-book.service.ts` `openVersion` chặn khoảng chồng trong cùng tenant. Quote chỉ đi `DRAFT` sang `SENT`, `REJECTED`, `EXPIRED` hoặc `SENT` sang `REJECTED`, `EXPIRED`. `ACCEPTED` không đổi. Chỉ `DEVELOPER_ADMIN` | Chưa có biểu thuế, phí, ưu đãi. Không tự nhận quote. Chưa có ràng buộc DB chống chồng khoảng khi hai request đồng thời |
+| T07 | partial | `dedup-review.service.ts` xếp hàng `PENDING` khi hash SĐT trùng trong cùng tenant. Không gán HOT, không gộp hồ sơ | `protectionDays` vẫn lấy policy có sẵn. Chưa tự duyệt. Chưa gắn vào lead intake |
 | T08 | partial | `exception-item.service.ts` mở `DISPUTE` trạng thái `OPEN`. Người mở không tự resolve. Tenant khác 404 | Không bịa số giờ SLA. Workspace cũ không đổi |
 | T09 | partial | `1758150000000-ActiveHoldUnique.ts`, `docs/t09/active-hold-unique.md` | `scripts/t02-rls-hold-proof.js` ≥50 insert cùng một căn |
 | T10 | partial | `payment.service.ts` | `payment.service.spec.ts`: amount và currency do server |
 | T11 | partial | Notary HMAC đã có. `notaryJournalId` ghi một dòng `api_webhook_deliveries`. Lần sau `idempotentReplay` và không tăng bộ đếm | Cổng thanh toán vẫn sandbox. Chưa gọi nhà cung cấp thật |
-| T12 | partial | `refund-check.service.ts` đề xuất và người khác mới `CHECKED`. Không ghi `PAID`, không gọi cổng | `RefundService.createRefund` sandbox một người vẫn còn |
-| T13 | partial | `contract-artifact.service.ts` chỉ ghi `PENDING_REVIEW`. Gọi `EXECUTED` thì 422. Token ký đã có từ bước 1 | OTP sandbox vẫn có thể ghi `SIGNED` trên hợp đồng cũ |
-| T14 | partial | `handover-checklist.service.ts` một checklist `OPEN` mỗi booking. Người khác mới `COMPLETE`. `erpPosted` luôn false | Không sổ phải thu, không BNPL |
+| T12 | partial | `refund-check.service.ts` đề xuất và người khác mới `CHECKED`. Approve lần hai trả 409. Không ghi `PAID`, không gọi cổng | `RefundService.createRefund` sandbox một người vẫn còn. `lets a different operator check the proposal and does not mark it paid` |
+| T13 | partial | `contract-artifact.service.ts` chỉ ghi `PENDING_REVIEW`. Gọi `EXECUTED` thì 422. Portal cấp token ký cho đúng người mua, đúng contract và tenant | OTP sandbox vẫn có thể ghi `SIGNED` trên hợp đồng cũ. `mints a sign token for the owning buyer and rejects another person or tenant` |
+| T14 | partial | `handover-checklist.service.ts` một checklist `OPEN` mỗi booking. Người khác mới `COMPLETE`. Gọi complete lần hai trả 409. `erpPosted` luôn false | Không sổ phải thu, không BNPL |
 | T15 | partial | `commission-stages.service.ts` tách earned / payable / paid. `paid` luôn `0`. Không đổi số tiền đã lưu | Chưa có chứng từ ngân hàng để ghi `PAID` |
 | T16 | partial | `settlement-label.service.ts` đọc run và trả `NOT_PAID` khi không có chứng từ ngân hàng | Không đổi trạng thái run. Không gọi ngân hàng |
 | T17 | partial | `exception-item.service.ts` `listMine` chỉ trả id, severity, status, dueAt của đúng owner và tenant | Workspace cũ không đổi. Không trả payload |
@@ -42,7 +42,7 @@ Gate có định nghĩa trong repo thì job CI hiện có đã chạy bằng ch�
 | G06 | partial, chờ ký | Job `api` chạy `refund-check.service.spec.ts`. Người đề xuất không tự duyệt | `RefundService.createRefund` sandbox một người vẫn còn |
 | G07 | undefined | Không có định nghĩa G07 trong repo | Không bịa check |
 | G08 | undefined | Không có định nghĩa G08 trong repo | Không bịa check |
-| G09 | partial, chờ ký | Job `api` chạy `export-job.service.spec.ts`. `exportJobAllowed` chặn người yêu cầu tự duyệt | `maskPhone` chưa gắn. Chưa có allowlist mục đích |
+| G09 | partial, chờ ký | Job `api` chạy `export-job.service.spec.ts`. Người duyệt phải là `FINANCE_ADMIN` và khác người yêu cầu | `maskPhone` chưa gắn. Chưa có allowlist mục đích |
 | G10 | undefined | Không có định nghĩa G10 trong repo | Không bịa check |
 | G11 | undefined | Không có định nghĩa G11 trong repo | Không bịa check |
 | G12 | undefined | Không có định nghĩa G12 trong repo | Không bịa check |
@@ -69,7 +69,7 @@ Fallback `DEFAULT_TENANT_ID` khi không có user. Đã đóng trên nhánh `tena
 | simulate rail | done | `simulate-rail.guard.ts:27` | `simulate rail requires a user tenant or one stored externalRef` |
 | PublicBrandContext | done | `PublicBrandContext.tsx:15` hiện lỗi khi host không đăng ký | không còn `DEFAULT_TENANT_ID` trên web |
 | useUnitStatusStream | done | `useUnitStatusStream.ts:36` chỉ mở khi có `unitId` và tenant từ API | `stream.controller.ts:32` trong test checkout/stream |
-| BuyerEsignPage | done | `BuyerEsignPage.tsx:41` | API `booking-contract.controller.ts:93` trong test checkout/stream |
+| BuyerEsignPage | done | `BuyerEsignPage.tsx` lấy token ở portal rồi gửi `X-Contract-Sign-Token` cho sign-session và sign. Portal chỉ cấp token sau `assertBookingOwnedBySeeker` | `mints a sign token for the owning buyer and rejects another person or tenant`. e2e `owning buyer opens the sign session without a 401` |
 | AuthSsoCallbackPage | done | `AuthSsoCallbackPage.tsx:37` | không ghi session khi JWT thiếu tenant |
 | AuthLoginPage | done | `AuthLoginPage.tsx:117`, `:170` | form không còn chọn sẵn `ten_dev_01` |
 | search index worker | done | `search-index.worker.ts:15` luôn index `ten_dev_01` từ map host chính thức, kể cả khi cờ tắt. Không đọc `DEFAULT_TENANT_ID`. Môi trường không có tenant này thì index rỗng | e2e `search page loads listings for the registered beachhead host` |
@@ -90,14 +90,21 @@ Chuỗi `ten_dev_01` còn lại, không phải fallback của request không có
 | `modules/identity/README.md:33`, `modules/marketing/README.md:24`, `modules/meta/README.md:36`, `modules/zalo/README.md:85` | not-done | ví dụ curl và bảng seed cho người đã đăng nhập, không phải đường runtime khi không có user |
 | Tách id beachhead khỏi `ten_dev_01` | not-done | host chính thức đang trỏ đúng id seed vì dữ liệu beachhead nằm ở id đó. PR riêng, có migration dữ liệu, mới được đổi id. Không làm trong PR này |
 | Buyer ownership | done | `portal.controller.ts` gọi `requireOwnedBuyerBooking` trước notify stub, BNPL và sign-session | `requires the seeker phone on the booking lead before BNPL, notify, or sign-session` |
-| Contract sign token | done | `booking-contract.controller.ts` `signedContractTenant`. Không còn `@Public` trên detail, sign-session, sign | `rejects a contract sign token for another contract or after it expires` |
+| Contract sign token | done | `booking-contract.controller.ts` `signedContractTenant`. Token gắn `buyerId`, không dùng `JWT_SECRET` khi thiếu `CONTRACT_SIGN_SECRET` | `rejects a contract sign token for another contract or after it expires`. `skips JWT for a valid contract sign token and does not reuse JWT_SECRET` |
 | Notary HMAC | done | `notary-connector.controller.ts` `NOTARY_WEBHOOK_SECRET` | webhook test từ chối chữ ký sai bằng `UnauthorizedException` |
-| Stream theo căn | done | `stream-events.service.ts` `streamEventMatchesUnit` | `forwards only the requested unit on the status stream` |
-| Audit chưa xác thực | done | `unscoped-audit-limit.ts` tối đa 8 lần mỗi phút cho cùng entity | `stops unauthenticated audit inserts after the rate limit` |
+| Stream theo căn | done | `stream.controller.ts` trả 422 khi user đã đăng nhập mà thiếu `unitId`, rồi mới gọi `subscribeUnits` | `returns 422 when a signed-in user omits unitId and subscribes when unitId is present` |
+| Audit chưa xác thực | done | `unscoped-audit-limit.ts` tối đa 8 lần mỗi phút theo IP hoặc nguồn và theo action. Map có TTL và tối đa 256 key. Vượt ngưỡng thì bỏ qua, không ghi thêm dòng | `stops unauthenticated audit inserts when the booking id changes`. `caps the unauthenticated audit map and drops expired keys` |
 | SSO provider | done | `public-tenant-lookup.ts` `TENANT_LOOKUP_SQL.sso_provider` chỉ `tenant_config_versions` | `reads an SSO provider from tenant config and not from audit events` |
 | Anchor seed | done | `anchor-tenant.service.ts` `ANCHOR_TENANT_SEEDS` chỉ là catalog seed. Dashboard không còn coi `ten_dev_01` là GMV sống | không còn nhánh runtime `tenantId === 'ten_dev_01'` |
 
 Deploy khi đưa host beachhead ra môi trường thật:
 
 - Proxy đứng trước API phải giữ nguyên header `Host`. Repo chưa có proxy tin cậy và API không đọc `X-Forwarded-Host`.
-- Cần các biến `BNPL_WEBHOOK_SECRET`, `EKYC_WEBHOOK_SECRET`, và `SSO_STATE_SECRET` hoặc `JWT_SECRET` dài từ 16 ký tự. Không ghi giá trị secret vào repo.
+- Cần các biến `BNPL_WEBHOOK_SECRET`, `EKYC_WEBHOOK_SECRET`, `CONTRACT_SIGN_SECRET`, `NOTARY_WEBHOOK_SECRET`, và `SSO_STATE_SECRET` hoặc `JWT_SECRET` dài từ 16 ký tự. Không ghi giá trị secret vào repo.
+
+Còn mở, không làm trong lượt này:
+
+- Ràng buộc DB chống hai khoảng giá chồng nhau khi request đồng thời. Cần migration riêng.
+- Gắn T05 allocation vào luồng booking và listing.
+- Gắn T07 dedup vào lead intake.
+- Tách id beachhead khỏi `ten_dev_01`.

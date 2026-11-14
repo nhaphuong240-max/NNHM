@@ -109,6 +109,9 @@ function expectCase(problems, actual, expected) {
   if (actual.wrapper && actual.wrapper.summaryExit !== expected.summaryExit) {
     errors.push(`summary ${actual.wrapper.summaryExit} != ${expected.summaryExit}`);
   }
+  if (expected.deletedTests != null && (!actual.summary || actual.summary.deletedTests.length !== expected.deletedTests)) {
+    errors.push(`deletedTests ${(actual.summary && actual.summary.deletedTests.length) || 0} != ${expected.deletedTests}`);
+  }
   if (expected.summaryResult && actual.summary && actual.summary.result !== expected.summaryResult) {
     errors.push(`summary result ${actual.summary.result} != ${expected.summaryResult}`);
   }
@@ -405,6 +408,44 @@ rows.push(expectCase(problems, runWrapper('focused-only', {
   T02_WORK_INVENTORY: path.join(fixtureRoot, 'focus-work.json'),
   T02_BASELINE_INVENTORY: path.join(fixtureRoot, 'focus-baseline.json'),
 }), { processExit: 3, jestExit: 0, summaryExit: 3, summaryResult: 'FAIL' }));
+
+const kept = {
+  file: 'src/common/ratchet-delete.spec.ts',
+  fullName: 'ratchet delete fixture keeps one',
+  title: 'keeps one',
+  ancestors: ['ratchet delete fixture'],
+  mode: 'run',
+  line: 1,
+};
+const removed = {
+  file: 'src/common/ratchet-delete.spec.ts',
+  fullName: 'ratchet delete fixture removes one',
+  title: 'removes one',
+  ancestors: ['ratchet delete fixture'],
+  mode: 'run',
+  line: 2,
+};
+const deleteBaseline = {
+  source: 'fixture',
+  files: { 'src/common/ratchet-delete.spec.ts': { tests: [kept, removed], focused: false } },
+  unresolved: [],
+  duplicates: [],
+};
+const deleteWork = {
+  source: 'fixture',
+  files: { 'src/common/ratchet-delete.spec.ts': { tests: [kept], focused: false } },
+  unresolved: [],
+  duplicates: [],
+};
+writeJson(path.join(fixtureRoot, 'delete-baseline.json'), deleteBaseline);
+writeJson(path.join(fixtureRoot, 'delete-work.json'), deleteWork);
+writeJson(path.join(fixtureRoot, 'delete-jest.json'), buildResult(deleteWork, () => 'passed'));
+rows.push(expectCase(problems, runWrapper('deleted-test', {
+  T02_FAKE_JEST_EXIT: '0',
+  T02_FIXTURE_JSON: path.join(fixtureRoot, 'delete-jest.json'),
+  T02_WORK_INVENTORY: path.join(fixtureRoot, 'delete-work.json'),
+  T02_BASELINE_INVENTORY: path.join(fixtureRoot, 'delete-baseline.json'),
+}), { processExit: 3, jestExit: 0, summaryExit: 3, summaryResult: 'FAIL', deletedTests: 1 }));
 
 const staleDir = path.join(casesRoot, 'stale');
 fs.mkdirSync(staleDir, { recursive: true });

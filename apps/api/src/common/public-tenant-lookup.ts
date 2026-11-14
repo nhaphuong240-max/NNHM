@@ -147,11 +147,13 @@ export async function recordUnscopedAudit(
     entityId: string;
     action: string;
     payload: Record<string, unknown>;
+    source?: string;
   },
 ): Promise<void> {
   const tenantId = (input.tenantId ?? 'unbound').slice(0, 32);
   const entityId = input.entityId.slice(0, 64);
-  if (!allowUnscopedAuditWrite(`${input.entityType}:${entityId}:${input.action}`)) return;
+  const source = (input.source ?? 'ip:unknown').trim().slice(0, 128) || 'ip:unknown';
+  if (!allowUnscopedAuditWrite(source, input.action)) return;
   await withLookupConnection(dataSource, (runner) =>
     runner.query(
       `INSERT INTO audit_events (tenant_id, entity_type, entity_id, action, payload)

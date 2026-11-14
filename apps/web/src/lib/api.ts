@@ -4172,10 +4172,28 @@ export type ContractSignSession = {
   providerMode?: string;
 };
 
-export async function fetchContractSignSession(contractId: string, tenantId: string) {
+export async function issueContractSignToken(contractId: string, tenantId: string) {
+  const res = await fetch(
+    `${API_BASE}/portal/buyer/contracts/${encodeURIComponent(contractId)}/sign-token`,
+    {
+      method: 'POST',
+      headers: {
+        ...buyerPortalHeaders(),
+        'X-Tenant-Id': tenantId,
+      },
+    },
+  );
+  if (!res.ok) {
+    const body = (await res.json().catch(() => null)) as { detail?: string } | null;
+    throw new Error(body?.detail ?? `Sign token failed (${res.status})`);
+  }
+  return res.json() as Promise<{ data: { token: string; contractId: string; expiresInSeconds: number } }>;
+}
+
+export async function fetchContractSignSession(contractId: string, tenantId: string, signToken: string) {
   const res = await fetch(
     `${API_BASE}/contracts/${encodeURIComponent(contractId)}/sign-session`,
-    { headers: { 'X-Tenant-Id': tenantId } },
+    { headers: { 'X-Tenant-Id': tenantId, 'X-Contract-Sign-Token': signToken } },
   );
   if (!res.ok) {
     const body = (await res.json().catch(() => null)) as { detail?: string } | null;
@@ -4188,12 +4206,14 @@ export async function signContract(
   contractId: string,
   input: { signerName: string; otp: string; consent: boolean; envelopeId?: string },
   tenantId: string,
+  signToken: string,
 ) {
   const res = await fetch(`${API_BASE}/contracts/${encodeURIComponent(contractId)}/sign`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'X-Tenant-Id': tenantId,
+      'X-Contract-Sign-Token': signToken,
     },
     body: JSON.stringify(input),
   });

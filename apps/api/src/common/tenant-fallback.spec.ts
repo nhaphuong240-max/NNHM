@@ -215,7 +215,7 @@ describe('tenant fallback is closed', () => {
     const contracts = { getSignSession: jest.fn(async (tenantId: string) => ({ meta: { tenantId } })) };
     const signSecret = 'contract-sign-test-secret';
     const signConfig = {
-      get: (key: string, fallback?: string) => (key === 'JWT_SECRET' ? signSecret : fallback),
+      get: (key: string, fallback?: string) => (key === 'CONTRACT_SIGN_SECRET' ? signSecret : fallback),
     } as ConfigService;
     const contractMissing = new BookingContractController(contracts as never, signConfig, dataSourceReturning([]));
     await expect(contractMissing.signSession(undefined, undefined, 'ctr_missing')).rejects.toBeInstanceOf(NotFoundException);
@@ -224,7 +224,18 @@ describe('tenant fallback is closed', () => {
       signConfig,
       dataSourceReturning([{ tenant_id: TENANT_B }]),
     );
-    const signToken = mintContractSignToken({ tenantId: TENANT_B, contractId: 'ctr_b', secret: signSecret });
+    const signToken = mintContractSignToken({
+      tenantId: TENANT_B,
+      contractId: 'ctr_b',
+      buyerId: 'usr_buyer',
+      secret: signSecret,
+    });
+    const jwtOnly = new BookingContractController(
+      contracts as never,
+      { get: (key: string) => (key === 'JWT_SECRET' ? signSecret : undefined) } as ConfigService,
+      dataSourceReturning([{ tenant_id: TENANT_B }]),
+    );
+    await expect(jwtOnly.signSession(TENANT_B, signToken, 'ctr_b')).rejects.toBeInstanceOf(UnprocessableEntityException);
     await expect(contractFound.signSession(SEED, signToken, 'ctr_b')).rejects.toBeInstanceOf(ForbiddenException);
     await expect(contractFound.signSession(TENANT_B, signToken, 'ctr_b')).resolves.toEqual({ meta: { tenantId: TENANT_B } });
 

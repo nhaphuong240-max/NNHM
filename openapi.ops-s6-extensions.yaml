@@ -568,3 +568,372 @@ paths:
             application/json:
               schema:
                 $ref: 'openapi.yaml#/components/schemas/ApiResponse'
+  /allocations:
+    post:
+      tags: [Allocation]
+      operationId: post_allocations
+      summary: 'POST /allocations'
+      parameters:
+      - $ref: 'openapi.yaml#/components/parameters/XTenantId'
+      responses:
+        '201':
+          description: Allocation created
+          content:
+            application/json:
+              schema:
+                $ref: 'openapi.yaml#/components/schemas/ApiResponse'
+      security:
+      - BearerAuth: []
+  /allocations/placement:
+    post:
+      tags: [Allocation]
+      operationId: post_allocations_placement
+      summary: 'POST /allocations/placement'
+      parameters:
+      - $ref: 'openapi.yaml#/components/parameters/XTenantId'
+      responses:
+        '200':
+          description: Placement result
+          content:
+            application/json:
+              schema:
+                $ref: 'openapi.yaml#/components/schemas/ApiResponse'
+      security:
+      - BearerAuth: []
+  /allocations/{allocationId}/revoke:
+    post:
+      tags: [Allocation]
+      operationId: post_allocations_revoke
+      summary: 'POST /allocations/{allocationId}/revoke'
+      parameters:
+      - $ref: 'openapi.yaml#/components/parameters/XTenantId'
+      - name: allocationId
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Allocation revoked
+          content:
+            application/json:
+              schema:
+                $ref: 'openapi.yaml#/components/schemas/ApiResponse'
+      security:
+      - BearerAuth: []
+  /price-books/versions:
+    post:
+      tags: [PriceBook]
+      operationId: post_price_book_versions
+      summary: 'POST /price-books/versions'
+      parameters:
+      - $ref: 'openapi.yaml#/components/parameters/XTenantId'
+      responses:
+        '201':
+          description: Price book version opened
+          content:
+            application/json:
+              schema:
+                $ref: 'openapi.yaml#/components/schemas/ApiResponse'
+      security:
+      - BearerAuth: []
+  /price-books/quotes/{quoteId}/status:
+    post:
+      tags: [PriceBook]
+      operationId: post_price_book_quote_status
+      summary: 'POST /price-books/quotes/{quoteId}/status'
+      parameters:
+      - $ref: 'openapi.yaml#/components/parameters/XTenantId'
+      - name: quoteId
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Quote status changed
+          content:
+            application/json:
+              schema:
+                $ref: 'openapi.yaml#/components/schemas/ApiResponse'
+      security:
+      - BearerAuth: []
+  /exports:
+    post:
+      tags: [Export]
+      operationId: post_exports
+      summary: 'POST /exports'
+      parameters:
+      - $ref: 'openapi.yaml#/components/parameters/XTenantId'
+      responses:
+        '201':
+          description: Export job requested
+          content:
+            application/json:
+              schema:
+                $ref: 'openapi.yaml#/components/schemas/ApiResponse'
+      security:
+      - BearerAuth: []
+  /exports/{jobId}/approve:
+    post:
+      tags: [Export]
+      operationId: post_exports_approve
+      summary: 'POST /exports/{jobId}/approve'
+      parameters:
+      - $ref: 'openapi.yaml#/components/parameters/XTenantId'
+      - name: jobId
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Export job approved by a finance admin who is not the requester
+          content:
+            application/json:
+              schema:
+                $ref: 'openapi.yaml#/components/schemas/ApiResponse'
+      security:
+      - BearerAuth: []
+  /dedup-reviews:
+    post:
+      tags: [Dedup]
+      operationId: post_dedup_reviews
+      summary: 'POST /dedup-reviews'
+      parameters:
+      - $ref: 'openapi.yaml#/components/parameters/XTenantId'
+      responses:
+        '201':
+          description: Dedup review queued
+          content:
+            application/json:
+              schema:
+                $ref: 'openapi.yaml#/components/schemas/ApiResponse'
+      security:
+      - BearerAuth: []
+  /dedup-reviews/{reviewId}/distinct:
+    post:
+      tags: [Dedup]
+      operationId: post_dedup_reviews_distinct
+      summary: 'POST /dedup-reviews/{reviewId}/distinct'
+      parameters:
+      - $ref: 'openapi.yaml#/components/parameters/XTenantId'
+      - name: reviewId
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Dedup review marked distinct
+          content:
+            application/json:
+              schema:
+                $ref: 'openapi.yaml#/components/schemas/ApiResponse'
+      security:
+      - BearerAuth: []
+  /exception-items:
+    get:
+      tags: [Exception]
+      operationId: get_exception_items
+      summary: 'GET /exception-items'
+      parameters:
+      - $ref: 'openapi.yaml#/components/parameters/XTenantId'
+      responses:
+        '200':
+          description: Exception items
+          content:
+            application/json:
+              schema:
+                $ref: 'openapi.yaml#/components/schemas/ApiResponse'
+      security:
+      - BearerAuth: []
+    post:
+      tags: [Exception]
+      operationId: post_exception_items
+      summary: 'POST /exception-items'
+      parameters:
+      - $ref: 'openapi.yaml#/components/parameters/XTenantId'
+      responses:
+        '201':
+          description: Exception item opened
+          content:
+            application/json:
+              schema:
+                $ref: 'openapi.yaml#/components/schemas/ApiResponse'
+      security:
+      - BearerAuth: []
+  /exception-items/{itemId}/resolve:
+    post:
+      tags: [Exception]
+      operationId: post_exception_items_resolve
+      summary: 'POST /exception-items/{itemId}/resolve'
+      parameters:
+      - $ref: 'openapi.yaml#/components/parameters/XTenantId'
+      - name: itemId
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Exception item resolved
+          content:
+            application/json:
+              schema:
+                $ref: 'openapi.yaml#/components/schemas/ApiResponse'
+      security:
+      - BearerAuth: []
+  /refund-checks:
+    post:
+      tags: [Refund]
+      operationId: post_refund_checks
+      summary: 'POST /refund-checks'
+      parameters:
+      - $ref: 'openapi.yaml#/components/parameters/XTenantId'
+      responses:
+        '201':
+          description: Refund check proposed
+          content:
+            application/json:
+              schema:
+                $ref: 'openapi.yaml#/components/schemas/ApiResponse'
+      security:
+      - BearerAuth: []
+  /refund-checks/{paymentIntentId}/approve:
+    post:
+      tags: [Refund]
+      operationId: post_refund_checks_approve
+      summary: 'POST /refund-checks/{paymentIntentId}/approve'
+      parameters:
+      - $ref: 'openapi.yaml#/components/parameters/XTenantId'
+      - name: paymentIntentId
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Refund check approved once
+          content:
+            application/json:
+              schema:
+                $ref: 'openapi.yaml#/components/schemas/ApiResponse'
+      security:
+      - BearerAuth: []
+  /contract-artifacts:
+    post:
+      tags: [Contract]
+      operationId: post_contract_artifacts
+      summary: 'POST /contract-artifacts'
+      parameters:
+      - $ref: 'openapi.yaml#/components/parameters/XTenantId'
+      responses:
+        '201':
+          description: Contract artifact stored for review
+          content:
+            application/json:
+              schema:
+                $ref: 'openapi.yaml#/components/schemas/ApiResponse'
+      security:
+      - BearerAuth: []
+  /handover-checklists:
+    post:
+      tags: [Handover]
+      operationId: post_handover_checklists
+      summary: 'POST /handover-checklists'
+      parameters:
+      - $ref: 'openapi.yaml#/components/parameters/XTenantId'
+      responses:
+        '201':
+          description: Handover checklist opened
+          content:
+            application/json:
+              schema:
+                $ref: 'openapi.yaml#/components/schemas/ApiResponse'
+      security:
+      - BearerAuth: []
+  /handover-checklists/{bookingId}/complete:
+    post:
+      tags: [Handover]
+      operationId: post_handover_checklists_complete
+      summary: 'POST /handover-checklists/{bookingId}/complete'
+      parameters:
+      - $ref: 'openapi.yaml#/components/parameters/XTenantId'
+      - name: bookingId
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Handover checklist completed once
+          content:
+            application/json:
+              schema:
+                $ref: 'openapi.yaml#/components/schemas/ApiResponse'
+      security:
+      - BearerAuth: []
+  /commission-stages/{entryId}:
+    get:
+      tags: [Commission]
+      operationId: get_commission_stages
+      summary: 'GET /commission-stages/{entryId}'
+      parameters:
+      - $ref: 'openapi.yaml#/components/parameters/XTenantId'
+      - name: entryId
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Commission stage buckets
+          content:
+            application/json:
+              schema:
+                $ref: 'openapi.yaml#/components/schemas/ApiResponse'
+      security:
+      - BearerAuth: []
+  /settlement-labels/{runId}:
+    get:
+      tags: [Commission]
+      operationId: get_settlement_label
+      summary: 'GET /settlement-labels/{runId}'
+      parameters:
+      - $ref: 'openapi.yaml#/components/parameters/XTenantId'
+      - name: runId
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Settlement payment label
+          content:
+            application/json:
+              schema:
+                $ref: 'openapi.yaml#/components/schemas/ApiResponse'
+      security:
+      - BearerAuth: []
+  /portal/buyer/contracts/{contractId}/sign-token:
+    post:
+      tags: [Contract]
+      operationId: post_buyer_contract_sign_token
+      summary: 'POST /portal/buyer/contracts/{contractId}/sign-token'
+      parameters:
+      - $ref: 'openapi.yaml#/components/parameters/XTenantId'
+      - name: contractId
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '201':
+          description: Short-lived buyer sign token for one contract
+          content:
+            application/json:
+              schema:
+                $ref: 'openapi.yaml#/components/schemas/ApiResponse'
+      security:
+      - BearerAuth: []

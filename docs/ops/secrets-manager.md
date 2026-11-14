@@ -7,6 +7,8 @@
 | Secret | Min | Store | Maps to |
 |--------|-----|-------|---------|
 | `JWT_SECRET` | 32 chars random | Vault / AWS SM / K8s Secret | JWT signing |
+| `CONTRACT_SIGN_SECRET` | 16 chars | Vault / AWS SM / K8s Secret | Buyer contract sign token |
+| `NOTARY_WEBHOOK_SECRET` | 16 chars | Vault / AWS SM / K8s Secret | Notary webhook HMAC |
 | `JWT_REFRESH_SECRET` | 32 chars | Same | Refresh token HMAC (if used) |
 | `WEBHOOK_HMAC_SECRET` | 32 chars | Same | Payment webhooks |
 | `VNPAY_HASH_SECRET` | provider | Same | VNPay |

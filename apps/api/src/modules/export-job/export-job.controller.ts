@@ -35,6 +35,7 @@ export class ExportJobController {
       tenantId: user.tenantId,
       jobId,
       approverId: user.userId,
+      actorRole: user.role,
       now: new Date(),
     });
   }
