@@ -1,4 +1,5 @@
 import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
+import { BookingContractController } from '../modules/booking/booking-contract.controller';
 import { PortalController } from '../modules/portal/portal.controller';
 import { PortalService } from '../modules/portal/portal.service';
 import { mintContractSignToken, readContractSignToken } from '../modules/booking/contract-sign-token';
@@ -159,19 +160,24 @@ describe('step 1 access checks', () => {
     expect(TENANT_LOOKUP_SQL.sso_provider).not.toContain('audit_events');
   });
 
-  it('does not accept a sign token that names a different contract', () => {
+  it('does not accept a sign token that names a different contract', async () => {
+    const contracts = { getSignSession: jest.fn() };
+    const config = { get: (key: string) => (key === 'CONTRACT_SIGN_SECRET' ? SECRET : undefined) };
+    const dataSource = {
+      createQueryRunner: () => ({
+        connect: async () => undefined,
+        release: async () => undefined,
+        query: async () => [{ tenant_id: 'ten_b' }],
+      }),
+    };
+    const controller = new BookingContractController(contracts as never, config as never, dataSource as never);
     const token = mintContractSignToken({
       tenantId: 'ten_b',
-      contractId: 'ctr_other',
+      contractId: 'ctr_a',
       buyerId: 'usr_buyer',
       secret: SECRET,
     });
-    const claims = readContractSignToken(token, SECRET);
-    expect(claims?.contractId).not.toBe('ctr_b');
-    expect(() => {
-      if (!claims || claims.contractId !== 'ctr_b' || claims.tenantId !== 'ten_b') {
-        throw new UnauthorizedException({ detail: 'contract sign token is missing, expired, or for another contract' });
-      }
-    }).toThrow(UnauthorizedException);
+    await expect(controller.signSession('ten_b', token, 'ctr_b')).rejects.toBeInstanceOf(UnauthorizedException);
+    expect(contracts.getSignSession).not.toHaveBeenCalled();
   });
 });

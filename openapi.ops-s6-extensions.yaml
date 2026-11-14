@@ -252,6 +252,11 @@ paths:
       summary: 'OPS-S5-03: GET /contracts/{contractId}/sign-session'
       parameters:
       - $ref: 'openapi.yaml#/components/parameters/XTenantId'
+      - name: x-contract-sign-token
+        in: header
+        required: true
+        schema:
+          type: string
       - name: contractId
         in: path
         required: true
@@ -271,6 +276,11 @@ paths:
       summary: 'OPS-S5-03: POST /contracts/{contractId}/sign'
       parameters:
       - $ref: 'openapi.yaml#/components/parameters/XTenantId'
+      - name: x-contract-sign-token
+        in: header
+        required: true
+        schema:
+          type: string
       - name: contractId
         in: path
         required: true
