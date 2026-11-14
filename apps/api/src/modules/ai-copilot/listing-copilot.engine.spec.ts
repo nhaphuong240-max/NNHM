@@ -19,11 +19,19 @@ describe('generateListingCopilotCopy', () => {
     expect(result.content).toContain('A-12-05');
     expect(result.content).toContain('Sunrise Tower A');
     expect(result.content).toContain('68');
+    expect(result.content).not.toContain('VND');
+    expect(result.content.toLowerCase()).not.toContain('giá');
   });
 
   it('varies tone for investment', () => {
     const result = generateListingCopilotCopy(ctx, 'investment');
     expect(result.title.toLowerCase()).toContain('đầu tư');
     expect(result.content.toLowerCase()).toContain('cho thuê');
+  });
+
+  it('keeps the investment template free of an unsourced price phrase', () => {
+    const result = generateListingCopilotCopy(ctx, 'investment');
+    expect(result.content.toLowerCase()).not.toContain('giá');
+    expect(result.title.toLowerCase()).not.toContain('giá');
   });
 });

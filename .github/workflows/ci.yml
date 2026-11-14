@@ -262,6 +262,8 @@ jobs:
       REDIS_URL: redis://localhost:6379
       WEBHOOK_HMAC_SECRET: wereal-ci-webhook-secret
       JWT_SECRET: wereal-ci-jwt-secret-min-32-chars-long
+      CONTRACT_SIGN_SECRET: wereal-ci-contract-sign-secret
+      NOTARY_WEBHOOK_SECRET: wereal-ci-notary-webhook-secret
       AUTH_LOGIN_RATE_LIMIT_PER_MIN: '1000'
       NODE_ENV: development
       MFA_SEED_SANDBOX: 'true'
@@ -307,7 +309,7 @@ jobs:
           E2E_BASE_URL: http://127.0.0.1:4173
           CI: 'true'
           E2E_WEBHOOK_SECRET: wereal-ci-webhook-secret
-        run: npm run test:e2e -- e2e/book.spec.ts e2e/search.spec.ts e2e/developer.spec.ts e2e/vnpay-ledger.spec.ts e2e/mfa.spec.ts e2e/ops.spec.ts e2e/s4-inbox.spec.ts e2e/s5-settlement.spec.ts e2e/s6-ops.spec.ts
+        run: npm run test:e2e -- e2e/book.spec.ts e2e/search.spec.ts e2e/developer.spec.ts e2e/vnpay-ledger.spec.ts e2e/mfa.spec.ts e2e/ops.spec.ts e2e/s4-inbox.spec.ts e2e/s5-settlement.spec.ts e2e/s6-ops.spec.ts e2e/buyer-esign.spec.ts
 
   enterprise-artifacts:
     runs-on: ubuntu-latest

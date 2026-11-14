@@ -82,14 +82,31 @@ export class CopilotService {
       where: { id: unit.projectId, tenantId },
     });
 
+    const sourcedProjectName = project?.name?.trim() ?? '';
+    if (!sourcedProjectName || !unit.code?.trim()) {
+      return {
+        data: {
+          id: `ai_${randomUUID().replace(/-/g, '').slice(0, 10)}`,
+          attributes: {
+            task: input.task,
+            title: 'không đủ dữ liệu',
+            content: 'không đủ dữ liệu',
+            disclaimer: COPILOT_DISCLAIMER,
+            requiresApproval: true,
+            modelVersion: COPILOT_MODEL_VERSION,
+            tone,
+            language,
+            latencyMs: Date.now() - started,
+          },
+        },
+      };
+    }
+
     const ctx: ListingCopilotContext = {
       unitId: input.unitId.trim(),
       unitCode: unit.code,
       projectId: unit.projectId,
-      projectName:
-        (input.context?.projectName as string | undefined) ??
-        project?.name ??
-        'Dự án WEREAL Pilot',
+      projectName: sourcedProjectName,
       bedrooms: unit.bedrooms,
       area: unit.area,
       floor: unit.floor,
@@ -116,6 +133,7 @@ export class CopilotService {
         tone,
         language,
         latencyMs,
+        citations: [`unit:${ctx.unitId}`, `project:${ctx.projectId}`],
       },
     };
 
@@ -200,6 +218,7 @@ export class CopilotService {
         language: input.language ?? 'vi',
         latencyMs,
         draftStatus: 'PENDING',
+        citations: [`lead:${leadId}`],
       },
     };
 

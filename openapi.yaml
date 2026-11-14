@@ -1,4 +1,5 @@
 # WEREAL REOS OpenAPI 3.1 Specification
+# Contract smoke runs from the repository root.
 # Document: WEREAL-OPENAPI-2026-v1.0
 # Source: Thiet-ke-API.md (WEREAL-API-2026-v1.0)
 # Baseline: WEREAL-BL-2026-002
@@ -83,6 +84,7 @@ paths:
               example:
                 data:
                 - id: act_01
+                  type: activity
                   attributes:
                     type: CALL
                     summary: Gọi tư vấn lần 1
@@ -371,6 +373,7 @@ paths:
               example:
                 data:
                 - id: aud_01
+                  type: audit-log
                   attributes:
                     action: UNIT_PRICE_CHANGED
                     actorId: usr_dev
@@ -549,6 +552,7 @@ paths:
               example:
                 data:
                 - id: bk_01
+                  type: booking
                   attributes:
                     status: RESERVED
                     unitId: un_01
@@ -748,8 +752,9 @@ paths:
                 $ref: '#/components/schemas/ApiResponse'
               example:
                 data:
-                - eventId: evt_01
-                  type: InventoryLocked
+                - id: evt_01
+                  type: booking-event
+                  eventId: evt_01
                   payload: {}
                   occurredAt: '2026-07-28T15:00:01+07:00'
       x-wereal-api-id: API-060
@@ -783,7 +788,9 @@ paths:
                 $ref: '#/components/schemas/ApiResponse'
               example:
                 data:
-                - timestamp: '2026-07-28T15:00:00+07:00'
+                - id: btl_01
+                  type: booking-timeline
+                  timestamp: '2026-07-28T15:00:00+07:00'
                   event: BookingCreated
                   actor: usr_agent
                   description: Giữ chỗ căn A-12-05
@@ -859,6 +866,7 @@ paths:
               example:
                 data:
                 - id: bld_A
+                  type: building
                   attributes:
                     name: Block A
                     floors: 35
@@ -1094,6 +1102,7 @@ paths:
               example:
                 data:
                 - id: ld_01
+                  type: lead
                   attributes:
                     fullName: Thu Trang
                     phone: +849***
@@ -1319,6 +1328,7 @@ paths:
               example:
                 data:
                 - id: le_01
+                  type: ledger-entry
                   attributes:
                     debitAccount: CASH_VNPAY
                     creditAccount: DEPOSIT_LIABILITY
@@ -1381,6 +1391,7 @@ paths:
               example:
                 data:
                 - id: ls_01
+                  type: listing
                   attributes:
                     title: Căn 3PN view sông
                     status: PUBLISHED
@@ -1766,6 +1777,7 @@ paths:
               example:
                 data:
                 - id: pay_01
+                  type: payment
                   attributes:
                     amount: 50000000
                     status: SUCCEEDED
@@ -1831,6 +1843,7 @@ paths:
               example:
                 data:
                 - id: prj_01
+                  type: project
                   attributes:
                     name: Vinhomes Q9
                     city: HCM
@@ -2005,6 +2018,7 @@ paths:
               example:
                 data:
                 - id: role_agent
+                  type: role
                   attributes:
                     code: AGENT
                     permissions:
@@ -2098,6 +2112,7 @@ paths:
               example:
                 data:
                 - id: un_01
+                  type: unit
                   attributes:
                     code: A-12-05
                     projectName: Vinhomes Q9
@@ -2129,9 +2144,11 @@ paths:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
               example:
-                description: 'event: unit.status.changed
-
-                  data: {"unitId":"un_01","status":"RESERVED","timestamp":"2026-07-28T15:00:00+07:00"}'
+                data:
+                  event: unit.status.changed
+                  unitId: un_01
+                  status: RESERVED
+                  timestamp: '2026-07-28T15:00:00+07:00'
       x-wereal-api-id: API-071
       x-wereal-fr-link: FR-GR-08, NFR-P04, UC-GR-07
   /tenants:
@@ -2316,6 +2333,7 @@ paths:
               example:
                 data:
                 - id: un_01
+                  type: unit
                   attributes:
                     code: A-12-05
                     status: AVAILABLE
@@ -2555,7 +2573,9 @@ paths:
                 $ref: '#/components/schemas/ApiResponse'
               example:
                 data:
-                - version: 4
+                - id: uv_4
+                  type: unit-version
+                  version: 4
                   attributes:
                     basePrice: 3600000000
                     changedAt: '2026-07-28T10:00:00+07:00'
@@ -2586,6 +2606,7 @@ paths:
               example:
                 data:
                 - id: usr_01
+                  type: user
                   attributes:
                     email: nam@agency.vn
                     fullName: Hoàng Nam
@@ -2744,9 +2765,10 @@ paths:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
               example:
-                received: true
-                processed: true
-                ledgerEntryId: le_01
+                data:
+                  received: true
+                  processed: true
+                  ledgerEntryId: le_01
         '401':
           $ref: '#/components/responses/ProblemDetails'
         '409':
@@ -2841,6 +2863,10 @@ components:
             items:
               $ref: '#/components/schemas/Resource'
           - type: object
+            not:
+              required:
+              - id
+              - type
         meta:
           $ref: '#/components/schemas/ResponseMeta'
     Resource:

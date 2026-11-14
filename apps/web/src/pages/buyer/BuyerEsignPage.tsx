@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { BuyerShell } from '../../components/BuyerShell';
 import {
   fetchContractSignSession,
+  issueContractSignToken,
   signContract,
   type ContractSignSession,
 } from '../../lib/api';
@@ -21,6 +22,7 @@ export function BuyerEsignPage() {
     (contractId === PILOT_CONTRACT_ID ? PILOT_TENANT_ID : '');
 
   const [session, setSession] = useState<ContractSignSession | null>(null);
+  const [signToken, setSignToken] = useState<string | null>(null);
   const [signerName, setSignerName] = useState('');
   const [otp, setOtp] = useState('');
   const [consent, setConsent] = useState(false);
@@ -44,7 +46,9 @@ export function BuyerEsignPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetchContractSignSession(contractId, tenantId);
+      const issued = await issueContractSignToken(contractId, tenantId);
+      setSignToken(issued.data.token);
+      const res = await fetchContractSignSession(contractId, tenantId, issued.data.token);
       setSession(res.data);
       setSignerName(res.data.buyerName);
     } catch (e) {
@@ -64,7 +68,7 @@ export function BuyerEsignPage() {
       setError('Vui lòng đồng ý điều khoản trước khi ký');
       return;
     }
-    if (!session) return;
+    if (!session || !signToken) return;
     setSubmitting(true);
     setError(null);
     try {
@@ -77,6 +81,7 @@ export function BuyerEsignPage() {
           envelopeId: session.envelopeId,
         },
         tenantId,
+        signToken,
       );
       setSuccess({
         documentId: res.data.attributes.documentId,

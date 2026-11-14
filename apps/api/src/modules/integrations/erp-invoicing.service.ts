@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, UnprocessableEntityException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createHmac, randomUUID } from 'crypto';
 import { DataIntelligenceService } from '../analytics/data-intelligence.service';
@@ -53,12 +53,17 @@ export class ErpInvoicingService {
     const summary = await this.billing.getBillingSummary(tenantId);
     const lineItems = summary.data.lineItems
       .filter((l) => l.enabled)
-      .map((l) => ({
-        productCode: l.productCode,
-        quantity: 1,
-        unitPriceVnd: l.unitPriceVnd,
-        amountVnd: l.unitPriceVnd,
-      }));
+      .map((l) => {
+        if (l.unitPriceVnd == null) {
+          throw new UnprocessableEntityException({ detail: 'data product price is not measured' });
+        }
+        return {
+          productCode: l.productCode,
+          quantity: 1,
+          unitPriceVnd: l.unitPriceVnd,
+          amountVnd: l.unitPriceVnd,
+        };
+      });
     const totalVnd = lineItems.reduce((s, l) => s + l.amountVnd, 0);
 
     return {
