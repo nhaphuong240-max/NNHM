@@ -10,23 +10,23 @@ Không production-ready. D01–D12 chưa có chữ ký.
 | --- | --- | --- | --- | --- |
 | T01 | not-done trong tree này | Không có artifact T01 trong repo. Báo cáo delta cũ không nằm ở SHA này | Không làm lại báo cáo baseline trong PR này | Không |
 | T02 | done (schema đã merge) | `1738339100000-BaselineCoreSchema.ts`, `1738339201000-EnableTenantRls.ts`, `scripts/t02-harness.sh` | Không sửa migration đã có trên main | T01 |
-| T03 | partial | `coverage.md:9`. RLS còn lại `1758130000000`. Bind trong `tenant-rls.service.ts` | Jest superuser không phải G01. Một số route ẩn danh còn nợ ở bước 1 | T02 |
-| T04 | partial | `export-job.service.ts` dùng `exportJobAllowed` và `maskPhone` trên field `phone` | Chưa có allowlist mục đích. Chưa audit append-only cho job | T03, D02, D03 |
-| T05 | partial | `assertHoldOrPublish` chạy trước giữ chỗ và trước khi listing sang `PUBLISHED` | Chưa thu phí. Ranh giới sàn và F1 giữ nguyên | T03, D01 |
-| T06 | partial | `openVersion` và `1758170000000-PriceWindowExclusion.ts` chặn khoảng chồng. Quote `ACCEPTED` bị chặn ở `changeQuoteStatus` | Chưa có biểu thuế, phí, ưu đãi. Vai trò ghi tạm là `DEVELOPER_ADMIN` | T03, D04 |
-| T07 | partial | `CrmService.createLead` gọi `enqueue`. HOT không bị gán và hồ sơ khách không bị gộp | Chưa đổi số ngày bảo vệ | T03, D05 |
+| T03 | partial | `coverage.md:9`. RLS còn lại `1758130000000`. Bind trong `tenant-rls.service.ts`. `access-review.service.ts` giữ vai trò legacy ở `PENDING` | Jest superuser không phải G01. Ma trận vai trò, MFA step-up, và break-glass chưa ký | T02, D02 |
+| T04 | partial | `export-job.service.ts` chỉ nhận purpose có trong allowlist. Allowlist mặc định rỗng. `maskPhone` trên field `phone` | Danh sách mục đích thật chưa ký. Chưa audit append-only cho job | T03, D02, D03 |
+| T05 | partial | `assertHoldOrPublish` chạy trước giữ chỗ và trước khi listing sang `PUBLISHED`. `fieldsForPartner` chỉ trả `unitId` khi grant cho phép | Chưa thu phí. Ranh giới sàn và F1 giữ nguyên | T03, D01 |
+| T06 | partial | `openVersion` chặn khoảng chồng và trả 422 cho `tax`, `fee`, `promo`, `discount`. Constraint ở `1758170000000-PriceWindowExclusion.ts` | Không có biểu thuế, phí, ưu đãi. Vai trò ghi tạm là `DEVELOPER_ADMIN` | T03, D04 |
+| T07 | partial | `CrmService.createLead` gọi `enqueue`. `protectionDays` chỉ lấy từ dòng policy đã lưu. HOT không bị gán và hồ sơ khách không bị gộp | Không tự duyệt. Không gộp hồ sơ | T03, D05 |
 | T08 | partial | `exception-item.service.ts` `open` / `resolve`. Người mở không tự đóng | Không bịa hạn SLA. T17 workspace chưa gắn | T07 |
 | T09 | partial | `1758150000000-ActiveHoldUnique.ts`, `docs/t09/active-hold-unique.md:7` | Giữ unique toàn cục theo `unit_id`. Không thêm unique `(tenant_id, unit_id)` | T02 |
-| T10 | partial | `payment.service.ts` lấy amount/currency từ server | Chỉ sandbox. Không gọi cổng thật | T09, D07 |
-| T11 | partial | `notary-connector.controller.ts` HMAC và `recordDeliveryOnce` | Replay thanh toán đã có từ trước. Không gọi cổng thật | T10, D07 |
-| T12 | partial | `createRefund` yêu cầu `REFUND_CHECKED` của người khác. Không ghi `PAID` | Cổng sandbox vẫn `SUCCEEDED` sau duyệt. Không bịa phí. Hoàn một phần nhiều lần còn mở | T10, D06 |
-| T13 | partial | `contract-artifact.service.ts` giữ `PENDING_REVIEW`. Token ký ở `contract-sign-token.ts` | OTP sandbox vẫn có thể ghi `SIGNED`. Không ghi `EXECUTED` | T10, D08 |
-| T14 | partial | `handover-checklist.service.ts` không ghi ERP | Không sổ phải thu. Không đổi BNPL | T13, D09 |
-| T15 | partial | `commission-stages.service.ts` `stageCommissionAmount`. Không đổi rate | `paid` luôn 0 cho tới khi có chứng từ | T10, D10 |
+| T10 | partial | `payment.service.ts` lấy amount/currency từ server. Adapter từ chối merchant live khi sandbox tắt | Không gọi cổng thật | T09, D07 |
+| T11 | partial | `notary-connector.controller.ts` HMAC, `recordDeliveryOnce`, và từ chối `NOTARY_LIVE_URL` | Replay thanh toán đã có từ trước. Không gọi cổng thật | T10, D07 |
+| T12 | partial | Duyệt lại cùng đề xuất trả 409. Đề xuất sau trong phần chưa hoàn thì người khác được `CHECKED`. Phí giữ chỗ trả 422. `createRefund` cần `REFUND_CHECKED` của người khác | Cổng sandbox vẫn một lần `SUCCEEDED` mỗi intent | T10, D06 |
+| T13 | partial | `markProviderSigned` từ chối cả khi thiếu artifact và khi đã có id. Token ký ở `contract-sign-token.ts` | OTP sandbox vẫn có thể ghi `SIGNED`. Không ghi `EXECUTED` | T10, D08 |
+| T14 | partial | `handover-checklist.service.ts` để `receivablePosted` false. `postReceivable` luôn 422 | Không sổ phải thu. Không đổi BNPL | T13, D09 |
+| T15 | partial | `commission-stages.service.ts` `stageCommissionAmount`. `recordPaid` trả 422 khi thiếu chứng từ và khi tỷ lệ chưa ký | `paid` luôn 0. Không đổi rate đã lưu | T10, D10 |
 | T16 | partial | `settlement-label.service.ts` dùng `settlementLabel` với chứng từ null | Run `COMPLETED` vẫn `NOT_PAID` | T15, D10 |
 | T17 | partial | `exception-item.service.ts` `listMine` | Workspace cũ không bị thay. Không trả payload | T08 |
-| T18 | partial | `data-intelligence.service.ts` `unmeasuredDataBilling`. `listingIsPubliclyIndexable` chỉ `PUBLISHED`. `DeveloperShell` noindex | Không có số KPI pilot. Không bịa đơn giá data product | T03, D11 |
-| T19–T20 | partial | `copilot.service.ts` citation `unit:` và `project:` từ dòng đã lưu. Abstain không citation. Mẫu investment không còn “giá trị” | Không có chỉ mục retrieval | D12 |
+| T18 | partial | `data-intelligence.service.ts` `unmeasuredDataBilling`. `signedDataProductPrice` trả null. `listingIsPubliclyIndexable` chỉ `PUBLISHED`. `DeveloperShell` noindex | Không có số KPI pilot. Không có đơn giá data product | T03, D11 |
+| T19–T20 | partial | `copilot.service.ts` citation `unit:` và `project:` từ dòng đã lưu. `retrievalCitations` trả mảng rỗng. Abstain không citation | Không có chỉ mục retrieval | D12 |
 | T21 | partial | `mfa-sandbox-seed.ts` chỉ `development` hoặc `test` và cờ đúng `true` | Secret không được log. e2e vẫn cần biến sandbox | T03 |
 | T22 | docs-only | `docs/spec-v1/t22-t24-runbooks.md:5-12` | Không có runtime. Không deploy, không restore DB thật | D01–D12 chưa ký |
 | T23 | docs-only | cùng file `:14-21` | Checklist. Không bật pilot | T22 |
@@ -41,10 +41,10 @@ Không production-ready. D01–D12 chưa có chữ ký.
 | G03 | undefined | Không có định nghĩa trong repo | Không bịa check |
 | G04 | undefined | Không có định nghĩa trong repo | Không bịa check |
 | G05 | chờ ký | Job `api` chạy `settlement-label.service.spec.ts`. Service trả `NOT_PAID` khi evidence null | Chữ ký đối soát |
-| G06 | partial, chờ ký | Job `api` chạy `refund-check.service.spec.ts` và `refund.service.spec.ts`. Người đề xuất không tự gọi `createRefund` | Cổng sandbox vẫn `SUCCEEDED` sau khi người khác duyệt |
+| G06 | partial, chờ ký | Job `api` chạy `refund-check.service.spec.ts` và `refund.service.spec.ts`. Người đề xuất không tự duyệt. Đề xuất sau trong phần chưa hoàn thì người khác được kiểm. Phí giữ chỗ bị từ chối | Cổng sandbox vẫn một lần `SUCCEEDED` mỗi intent |
 | G07 | undefined | Không có định nghĩa trong repo | Không bịa check |
 | G08 | undefined | Không có định nghĩa trong repo | Không bịa check |
-| G09 | partial, chờ ký | Job `api` chạy `export-job.service.spec.ts`. `maskPhone` gắn trên field `phone` | Chưa có allowlist mục đích |
+| G09 | partial, chờ ký | Job `api` chạy `export-job.service.spec.ts`. Allowlist rỗng thì purpose bị từ chối. `maskPhone` gắn trên field `phone` | Danh sách mục đích thật chưa ký |
 | G10 | undefined | Không có định nghĩa trong repo | Không bịa check |
 | G11 | undefined | Không có định nghĩa trong repo | Không bịa check |
 | G12 | undefined | Không có định nghĩa trong repo | Không bịa check |
