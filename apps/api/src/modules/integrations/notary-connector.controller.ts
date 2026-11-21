@@ -4,7 +4,7 @@ import { DataSource } from 'typeorm';
 import { oneLookedUpTenant, recordUnscopedAudit } from '../../common/public-tenant-lookup';
 import { assertHeaderMatches } from '../../common/resolve-tenant-id';
 import { verifyWebhookSignature } from '../payment/webhook/webhook-signature.util';
-import { notaryJournalId } from './notary-webhook-journal';
+import { assertNotaryStaysSandbox, notaryJournalId } from './notary-webhook-journal';
 import { Public } from '../identity/decorators/public.decorator';
 import { ApiMarketplaceService } from '../api-marketplace/api-marketplace.service';
 
@@ -31,6 +31,7 @@ export class NotaryConnectorController {
     },
     @Req() request?: { ip?: string },
   ) {
+    assertNotaryStaysSandbox(this.config.get<string>('NOTARY_LIVE_URL'));
     const source = request?.ip?.trim() ? `ip:${request.ip.trim().slice(0, 64)}` : 'notary-webhook';
     const secret = this.config.get<string>('NOTARY_WEBHOOK_SECRET') ?? '';
     const payload = body as unknown as Record<string, unknown>;

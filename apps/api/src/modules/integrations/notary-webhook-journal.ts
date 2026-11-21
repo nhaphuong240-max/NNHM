@@ -1,4 +1,11 @@
+import { UnprocessableEntityException } from '@nestjs/common';
 import { createHash } from 'crypto';
+
+export function assertNotaryStaysSandbox(liveUrl: string | undefined): void {
+  if (liveUrl?.trim()) {
+    throw new UnprocessableEntityException({ detail: 'live notary merchant is not signed' });
+  }
+}
 
 /** Stable id for one sandbox notary notice. Fits api_webhook_deliveries.id varchar(32). */
 export function notaryJournalId(input: {

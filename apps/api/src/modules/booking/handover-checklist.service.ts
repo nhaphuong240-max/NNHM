@@ -74,7 +74,11 @@ export class HandoverChecklistService {
       throw new ForbiddenException({ detail: 'the opener cannot complete the handover' });
     }
     row.status = 'COMPLETE';
-    row.payload = { ...row.payload, completedBy: input.actorId, erpPosted: false };
+    row.payload = { ...row.payload, completedBy: input.actorId, erpPosted: false, receivablePosted: false };
     return this.lists.save(row);
+  }
+
+  postReceivable(): never {
+    throw new UnprocessableEntityException({ detail: 'debt contract is not signed' });
   }
 }

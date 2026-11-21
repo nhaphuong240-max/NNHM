@@ -23,6 +23,11 @@ import {
 } from './lead-copilot.engine';
 import { COPILOT_MODEL_VERSION, generateListingCopilotCopy } from './listing-copilot.engine';
 
+/** No retrieval index is signed, so this adds no citations of its own. */
+export function retrievalCitations(): readonly string[] {
+  return [];
+}
+
 const LEAD_COPILOT_DISCLAIMER =
   'Copilot gợi ý — mọi tin nhắn outbound cần agent duyệt trước gửi (FR-AI-002).';
 
@@ -133,7 +138,7 @@ export class CopilotService {
         tone,
         language,
         latencyMs,
-        citations: [`unit:${ctx.unitId}`, `project:${ctx.projectId}`],
+        citations: [`unit:${ctx.unitId}`, `project:${ctx.projectId}`, ...retrievalCitations()],
       },
     };
 

@@ -91,6 +91,7 @@ describe('dedup review queue', () => {
     expect(leadRepo.save).not.toHaveBeenCalled();
     expect(reviewRows[0].status).toBe('PENDING');
     expect(reviewRows[0].payload).toEqual({ needsHumanApproval: true });
+    expect(reviewRows[0].payload).not.toHaveProperty('protectionDays');
     expect(JSON.stringify(reviewRows[0].payload)).not.toContain('0900000001');
     const second = await service.enqueue({ tenantId: 'ten_a', leadId: 'ld_hot' });
     expect(second.reviewIds).toEqual(first.reviewIds);
@@ -138,5 +139,34 @@ describe('dedup review queue', () => {
     await expect(
       service.markDistinct({ tenantId: 'ten_a', reviewId: 'ddr_a', actorRole: 'DEVELOPER_ADMIN' }),
     ).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  it('copies protection days from a stored policy and does not merge the customer', async () => {
+    const hash = phoneHash('84900000001');
+    const reviewRows: DedupReviewEntity[] = [];
+    const customerRows = [{
+      id: 'cus_a',
+      tenantId: 'ten_a',
+      phoneHash: hash as string,
+      displayName: 'Hidden',
+      status: 'ACTIVE',
+      payload: {},
+      createdAt: new Date(),
+    }];
+    const policies = {
+      findOne: jest.fn(async () => ({
+        payload: { dealProtection: { protectionDays: 14 } },
+      })),
+    };
+    const service = new DedupReviewService(
+      leads([hotLead]) as never,
+      customers(customerRows as never) as never,
+      reviews(reviewRows) as never,
+      policies as never,
+    );
+    await service.enqueue({ tenantId: 'ten_a', leadId: 'ld_hot' });
+    expect(reviewRows[0].payload).toMatchObject({ needsHumanApproval: true, protectionDays: 14 });
+    expect(customerRows[0].displayName).toBe('Hidden');
+    expect(reviewRows[0].payload).not.toHaveProperty('phone');
   });
 });

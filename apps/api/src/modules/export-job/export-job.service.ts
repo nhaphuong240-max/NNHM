@@ -2,6 +2,7 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  Optional,
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -30,12 +31,26 @@ function readPayload(payload: Record<string, unknown>): ExportPayload | null {
   return { requesterId, rowCount, rowLimit };
 }
 
+/** Empty until a signed purpose list is stored for the tenant. */
+@Injectable()
+export class ExportPurposeAllowlist {
+  async list(tenantId: string): Promise<readonly string[]> {
+    void tenantId;
+    return [];
+  }
+}
+
 @Injectable()
 export class ExportJobService {
+  private readonly purposes: { list(tenantId: string): Promise<readonly string[]> };
+
   constructor(
     @InjectRepository(ExportJobEntity)
     private readonly jobs: Repository<ExportJobEntity>,
-  ) {}
+    @Optional() purposes?: ExportPurposeAllowlist,
+  ) {
+    this.purposes = purposes ?? new ExportPurposeAllowlist();
+  }
 
   async request(input: {
     tenantId: string;
@@ -48,6 +63,10 @@ export class ExportJobService {
     const purpose = input.purpose.trim();
     if (!purpose || purpose.length > 64) {
       throw new UnprocessableEntityException({ detail: 'purpose is required' });
+    }
+    const allowlist = await this.purposes.list(input.tenantId);
+    if (!allowlist.includes(purpose)) {
+      throw new UnprocessableEntityException({ detail: 'export purpose is not on the signed allowlist' });
     }
     if (Number.isNaN(input.expiresAt.getTime()) || input.expiresAt.getTime() <= Date.now()) {
       throw new UnprocessableEntityException({ detail: 'export expiry must be in the future' });
@@ -93,6 +112,10 @@ export class ExportJobService {
     const payload = readPayload(job.payload);
     if (!payload) {
       throw new UnprocessableEntityException({ detail: 'export job payload is incomplete' });
+    }
+    const allowlist = await this.purposes.list(input.tenantId);
+    if (!allowlist.includes(job.purpose)) {
+      throw new UnprocessableEntityException({ detail: 'export purpose is not on the signed allowlist' });
     }
     const decision = exportJobAllowed({
       purpose: job.purpose,

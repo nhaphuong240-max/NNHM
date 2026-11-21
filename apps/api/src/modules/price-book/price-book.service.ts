@@ -49,6 +49,10 @@ export class PriceBookService {
     payload: Record<string, unknown>;
   }): Promise<PriceBookVersionEntity> {
     assertPriceBookWriter(input.actorRole);
+    const blockedPriceKey = ['tax', 'fee', 'promo', 'discount'].find((key) => key in (input.payload ?? {}));
+    if (blockedPriceKey) {
+      throw new UnprocessableEntityException({ detail: 'tax, fee, and promotion amounts are not signed' });
+    }
     const projectId = input.projectId.trim();
     if (!projectId) {
       throw new UnprocessableEntityException({ detail: 'project is required' });

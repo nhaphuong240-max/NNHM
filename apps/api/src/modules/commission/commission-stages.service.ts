@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CommissionEntryEntity } from '../../database/entities/commission-entry.entity';
@@ -47,5 +47,12 @@ export class CommissionStagesService {
       currency: 'UNCHANGED',
       ...stageCommissionAmount(entry.payoutStatus, entry.amount),
     };
+  }
+
+  recordPaid(bankEvidence: string | null | undefined): never {
+    if (!bankEvidence?.trim()) {
+      throw new UnprocessableEntityException({ detail: 'bank evidence is required before paid can be recorded' });
+    }
+    throw new UnprocessableEntityException({ detail: 'commission rate is not signed' });
   }
 }

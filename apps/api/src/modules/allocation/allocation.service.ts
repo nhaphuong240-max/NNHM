@@ -10,7 +10,7 @@ import { randomBytes } from 'crypto';
 import { Repository } from 'typeorm';
 import { DistributionAgreementEntity } from '../../database/entities/distribution-agreements.entity';
 import { UnitAllocationEntity } from '../../database/entities/unit-allocations.entity';
-import { allocationAllowsPlacement } from '../spec-target/spec-target.rules';
+import { allocationAllowsPlacement, decideAccess, type Grant } from '../spec-target/spec-target.rules';
 
 /** D01 unsigned: only the developer admin of the stock-owning tenant may grant or revoke. */
 export const ALLOCATION_WRITER_ROLE = 'DEVELOPER_ADMIN';
@@ -112,6 +112,37 @@ export class AllocationService {
     if (!allowed) {
       throw new ForbiddenException({ detail: 'unit placement requires an active allocation' });
     }
+  }
+
+  /**
+   * The stock owner sees the unit. A partner org sees only the unit id, and only with an active grant.
+   * Price, phone, and customer fields are not returned.
+   */
+  fieldsForPartner(input: {
+    stockOwnerTenantId: string;
+    actorTenantId: string;
+    actorOrgId: string;
+    projectId: string;
+    unitId: string;
+    now: Date;
+    grants: Grant[];
+  }): { unitId: string } {
+    if (input.actorTenantId === input.stockOwnerTenantId) {
+      return { unitId: input.unitId };
+    }
+    const decision = decideAccess({
+      actorTenantId: input.actorTenantId,
+      actorOrgId: input.actorOrgId,
+      action: 'read',
+      resource: 'unit',
+      projectId: input.projectId,
+      now: input.now,
+      grants: input.grants,
+    });
+    if (!decision.allow) {
+      throw new ForbiddenException({ detail: 'partner cannot read this unit' });
+    }
+    return { unitId: input.unitId };
   }
 
   async placement(input: {

@@ -17,7 +17,7 @@ describe('export job approval', () => {
 
   it('stores a requested job for the caller tenant and rejects a blank purpose', async () => {
     const jobs = memory([]);
-    const service = new ExportJobService(jobs as never);
+    const service = new ExportJobService(jobs as never, { list: async () => ['support-review'] } as never);
     await expect(
       service.request({
         tenantId: 'ten_a',
@@ -54,7 +54,7 @@ describe('export job approval', () => {
       createdAt: new Date(),
     };
     const jobs = memory([job]);
-    const service = new ExportJobService(jobs as never);
+    const service = new ExportJobService(jobs as never, { list: async () => ['support-review'] } as never);
     await expect(
       service.approve({
         tenantId: 'ten_a',
@@ -101,6 +101,20 @@ describe('export job approval', () => {
         approverId: 'usr_checker',
         actorRole: 'FINANCE_ADMIN',
         now: new Date(),
+      }),
+    ).rejects.toBeInstanceOf(UnprocessableEntityException);
+  });
+
+  it('rejects an export purpose that is not on the signed allowlist', async () => {
+    const service = new ExportJobService(memory([]) as never);
+    await expect(
+      service.request({
+        tenantId: 'ten_a',
+        requesterId: 'usr_maker',
+        purpose: 'support-review',
+        expiresAt: later,
+        rowCount: 0,
+        rowLimit: 10,
       }),
     ).rejects.toBeInstanceOf(UnprocessableEntityException);
   });

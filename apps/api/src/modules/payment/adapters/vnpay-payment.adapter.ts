@@ -35,6 +35,9 @@ export class VnpayPaymentAdapter implements PaymentGatewayAdapter {
         detail: 'VNPAY_SANDBOX=false but VNPAY_PAYMENT_URL points to sandbox',
       });
     }
+    if (!sandbox) {
+      throw new UnprocessableEntityException({ detail: 'live payment merchant is not signed' });
+    }
 
     const gatewayRef = params.intentId.replace(/^pi_/, '');
     const query = new URLSearchParams({

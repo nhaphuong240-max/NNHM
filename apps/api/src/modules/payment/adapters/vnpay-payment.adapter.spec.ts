@@ -45,4 +45,22 @@ describe('VnpayPaymentAdapter', () => {
       UnprocessableEntityException,
     );
   });
+
+  it('rejects a live payment URL until a merchant is signed', async () => {
+    const adapter = new VnpayPaymentAdapter(
+      {
+        get: jest.fn((key: string, fallback?: unknown) => {
+          if (key === 'VNPAY_PAYMENT_URL') return 'https://vnpayment.vn/paymentv2/vpcpay.html';
+          return fallback;
+        }),
+      } as unknown as ConfigService,
+      {
+        resolve: jest.fn().mockResolvedValue({ vnpaySandbox: false }),
+      } as unknown as RailResolverService,
+    );
+
+    await expect(adapter.createPaymentIntent(params)).rejects.toMatchObject({
+      response: { detail: 'live payment merchant is not signed' },
+    });
+  });
 });

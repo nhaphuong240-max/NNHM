@@ -12,6 +12,7 @@ import { Repository } from 'typeorm';
 import { CustomerEntity } from '../../database/entities/customers.entity';
 import { DedupReviewEntity } from '../../database/entities/dedup-reviews.entity';
 import { LeadEntity } from '../../database/entities/lead.entity';
+import { TenantDemandPolicyEntity } from '../../database/entities/tenant-demand-policy.entity';
 import { normalizePhone } from '../crm/phone.util';
 
 /** D05 unsigned: a person must mark the pair distinct. This path never merges or assigns. */
@@ -32,6 +33,8 @@ export class DedupReviewService {
     private readonly customers: Repository<CustomerEntity>,
     @InjectRepository(DedupReviewEntity)
     private readonly reviews: Repository<DedupReviewEntity>,
+    @InjectRepository(TenantDemandPolicyEntity)
+    private readonly policies?: Repository<TenantDemandPolicyEntity>,
   ) {}
 
   async enqueue(input: { tenantId: string; leadId: string }): Promise<{
@@ -62,7 +65,7 @@ export class DedupReviewService {
           customerId: customer.id,
           leadId: lead.id,
           status: 'PENDING',
-          payload: { needsHumanApproval: true },
+          payload: await this.reviewPayload(input.tenantId),
         }),
       );
       reviewIds.push(created.id);
@@ -95,5 +98,15 @@ export class DedupReviewService {
       throw new UnprocessableEntityException({ detail: 'dedup review must not carry customer data' });
     }
     return saved;
+  }
+
+  private async reviewPayload(tenantId: string): Promise<Record<string, unknown>> {
+    const payload: Record<string, unknown> = { needsHumanApproval: true };
+    const policy = await this.policies?.findOne({ where: { tenantId } });
+    const days = policy?.payload?.dealProtection?.protectionDays;
+    if (typeof days === 'number' && Number.isInteger(days) && days > 0) {
+      payload.protectionDays = days;
+    }
+    return payload;
   }
 }

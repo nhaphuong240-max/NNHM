@@ -28,14 +28,14 @@ function refunds(rows: Array<Pick<RefundEntity, 'tenantId' | 'paymentIntentId' |
 
 function events(rows: AuditEventEntity[]) {
   return {
-    findOne: jest.fn(
+    find: jest.fn(
       async ({ where }: { where: { tenantId: string; entityId: string; action: string } }) =>
-        rows.find(
+        rows.filter(
           (row) =>
             row.tenantId === where.tenantId &&
             row.entityId === where.entityId &&
             row.action === where.action,
-        ) ?? null,
+        ),
     ),
   };
 }
@@ -136,5 +136,60 @@ describe('refund maker checker', () => {
         paymentIntentId: 'pi_a',
       }),
     ).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  it('checks a later partial proposal within the remaining net and rejects a hold fee', async () => {
+    const stored: AuditEventEntity[] = [];
+    const audit = {
+      append: jest.fn(async (input: Omit<AuditEventEntity, 'id' | 'createdAt'>) => {
+        const row = { ...input, id: String(stored.length + 1), createdAt: new Date(stored.length + 1) } as AuditEventEntity;
+        stored.push(row);
+        return row;
+      }),
+    };
+    const service = new RefundCheckService(
+      intents([{ id: 'pi_a', tenantId: 'ten_a', amount: '100', currency: 'VND' }]) as never,
+      refunds([{ tenantId: 'ten_a', paymentIntentId: 'pi_a', status: 'SUCCEEDED', amount: '40' }]) as never,
+      events(stored) as never,
+      audit as never,
+    );
+    await service.propose({
+      tenantId: 'ten_a',
+      actorId: 'usr_maker',
+      actorRole: 'FINANCE_ADMIN',
+      paymentIntentId: 'pi_a',
+      amount: 20,
+    });
+    await service.approve({
+      tenantId: 'ten_a',
+      actorId: 'usr_checker',
+      actorRole: 'OPS_ADMIN',
+      paymentIntentId: 'pi_a',
+    });
+    await expect(
+      service.propose({
+        tenantId: 'ten_a',
+        actorId: 'usr_maker',
+        actorRole: 'FINANCE_ADMIN',
+        paymentIntentId: 'pi_a',
+        amount: 10,
+        fee: 1,
+      }),
+    ).rejects.toBeInstanceOf(UnprocessableEntityException);
+    const second = await service.propose({
+      tenantId: 'ten_a',
+      actorId: 'usr_maker',
+      actorRole: 'FINANCE_ADMIN',
+      paymentIntentId: 'pi_a',
+      amount: 10,
+    });
+    const checked = await service.approve({
+      tenantId: 'ten_a',
+      actorId: 'usr_checker_2',
+      actorRole: 'OPS_ADMIN',
+      paymentIntentId: 'pi_a',
+    });
+    expect(second.paid).toBe(false);
+    expect(checked).toEqual({ status: 'CHECKED', amount: 10, currency: 'VND', paid: false });
   });
 });

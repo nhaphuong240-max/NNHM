@@ -184,4 +184,44 @@ describe('unit allocation placement', () => {
       blocked.assertHoldOrPublish({ tenantId: 'ten_a', unitId: 'un_a', now: new Date() }),
     ).rejects.toBeInstanceOf(ForbiddenException);
   });
+
+  it('shows a partner only the unit id when a grant allows it', () => {
+    const service = new AllocationService(agreements([]) as never, allocations([]) as never);
+    const now = new Date('2026-06-01T00:00:00.000Z');
+    expect(service.fieldsForPartner({
+      stockOwnerTenantId: 'ten_owner',
+      actorTenantId: 'ten_owner',
+      actorOrgId: 'org_owner',
+      projectId: 'prj_a',
+      unitId: 'un_a',
+      now,
+      grants: [],
+    })).toEqual({ unitId: 'un_a' });
+    expect(() => service.fieldsForPartner({
+      stockOwnerTenantId: 'ten_owner',
+      actorTenantId: 'ten_partner',
+      actorOrgId: 'org_partner',
+      projectId: 'prj_a',
+      unitId: 'un_a',
+      now,
+      grants: [],
+    })).toThrow(ForbiddenException);
+    expect(service.fieldsForPartner({
+      stockOwnerTenantId: 'ten_owner',
+      actorTenantId: 'ten_partner',
+      actorOrgId: 'org_partner',
+      projectId: 'prj_a',
+      unitId: 'un_a',
+      now,
+      grants: [{
+        tenantId: 'ten_partner',
+        granteeOrgId: 'org_partner',
+        projectId: 'prj_a',
+        action: 'read',
+        resource: 'unit',
+        expiresAt: null,
+        status: 'ACTIVE',
+      }],
+    })).toEqual({ unitId: 'un_a' });
+  });
 });

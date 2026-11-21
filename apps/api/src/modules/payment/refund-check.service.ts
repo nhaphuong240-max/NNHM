@@ -40,8 +40,12 @@ export class RefundCheckService {
     paymentIntentId: string;
     amount: number;
     currency?: string;
+    fee?: number;
   }): Promise<{ status: 'PROPOSED'; amount: number; currency: string; paid: false }> {
     assertRefundChecker(input.actorRole);
+    if (input.fee != null) {
+      throw new UnprocessableEntityException({ detail: 'hold fee is not signed' });
+    }
     const intent = await this.loadIntent(input.tenantId, input.paymentIntentId);
     this.assertCurrency(intent.currency, input.currency);
     const alreadyRefunded = await this.refundedTotal(input.tenantId, intent.id);
@@ -68,20 +72,15 @@ export class RefundCheckService {
   }): Promise<{ status: 'CHECKED'; amount: number; currency: string; paid: false }> {
     assertRefundChecker(input.actorRole);
     const intent = await this.loadIntent(input.tenantId, input.paymentIntentId);
-    const proposal = await this.events.findOne({
-      where: { tenantId: input.tenantId, entityType: 'payment_intent', entityId: intent.id, action: 'REFUND_PROPOSED' },
-      order: { createdAt: 'DESC' },
-    });
+    const proposal = await this.latestEvent(input.tenantId, intent.id, 'REFUND_PROPOSED');
     if (!proposal || proposal.actorId == null) {
       throw new NotFoundException({ detail: 'refund proposal not found' });
     }
     if (proposal.actorId === input.actorId) {
       throw new ForbiddenException({ detail: 'the proposer cannot approve the refund' });
     }
-    const checked = await this.events.findOne({
-      where: { tenantId: input.tenantId, entityType: 'payment_intent', entityId: intent.id, action: 'REFUND_CHECKED' },
-    });
-    if (checked) {
+    const checked = await this.latestEvent(input.tenantId, intent.id, 'REFUND_CHECKED');
+    if (checked && checked.createdAt.getTime() >= proposal.createdAt.getTime()) {
       throw new ConflictException({ detail: 'refund check is already approved' });
     }
     const amount = Number(proposal.payload?.amount);
@@ -98,6 +97,17 @@ export class RefundCheckService {
       payload: { amount, currency: intent.currency, proposedBy: proposal.actorId, paid: false },
     });
     return { status: 'CHECKED', amount, currency: intent.currency, paid: false };
+  }
+
+  private async latestEvent(
+    tenantId: string,
+    paymentIntentId: string,
+    action: string,
+  ): Promise<AuditEventEntity | null> {
+    const rows = await this.events.find({
+      where: { tenantId, entityType: 'payment_intent', entityId: paymentIntentId, action },
+    });
+    return rows.sort((left, right) => right.createdAt.getTime() - left.createdAt.getTime())[0] ?? null;
   }
 
   private async loadIntent(tenantId: string, paymentIntentId: string): Promise<PaymentIntentEntity> {

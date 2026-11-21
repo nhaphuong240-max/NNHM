@@ -55,6 +55,17 @@ export class ContractArtifactService {
     );
   }
 
+  markProviderSigned(providerArtifactId: string | undefined): never {
+    if (!providerArtifactId?.trim()) {
+      throw new UnprocessableEntityException({
+        detail: 'contract artifact cannot be marked signed without a provider artifact',
+      });
+    }
+    throw new UnprocessableEntityException({
+      detail: 'contract artifact cannot be marked executed without a provider artifact',
+    });
+  }
+
   refuseExecuted(): never {
     throw new UnprocessableEntityException({
       detail: 'contract artifact cannot be marked executed without a provider artifact',

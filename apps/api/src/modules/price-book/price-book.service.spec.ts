@@ -159,4 +159,19 @@ describe('price book windows', () => {
       }),
     ).rejects.toBeInstanceOf(UnprocessableEntityException);
   });
+
+  it('rejects a price window that carries an unsigned tax, fee, or promotion', async () => {
+    const service = new PriceBookService(memoryBooks([]) as never, memoryQuotes([]) as never);
+    await expect(
+      service.openVersion({
+        tenantId: 'ten_a',
+        actorRole: 'DEVELOPER_ADMIN',
+        projectId: 'prj_a',
+        versionNo: 1,
+        effectiveFrom: from,
+        effectiveTo: to,
+        payload: { tax: 10 },
+      }),
+    ).rejects.toBeInstanceOf(UnprocessableEntityException);
+  });
 });

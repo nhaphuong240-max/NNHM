@@ -26,6 +26,11 @@ export type ErpSyncResult = {
   payload: ErpInvoicePayload;
 };
 
+/** No signed data-product price exists. Callers must not substitute a number. */
+export function signedDataProductPrice(): null {
+  return null;
+}
+
 /** T7-S8 — data product billing → external ERP (MISA connector profile). */
 @Injectable()
 export class ErpInvoicingService {
@@ -54,14 +59,15 @@ export class ErpInvoicingService {
     const lineItems = summary.data.lineItems
       .filter((l) => l.enabled)
       .map((l) => {
-        if (l.unitPriceVnd == null) {
+        const unitPriceVnd = l.unitPriceVnd ?? signedDataProductPrice();
+        if (unitPriceVnd == null) {
           throw new UnprocessableEntityException({ detail: 'data product price is not measured' });
         }
         return {
           productCode: l.productCode,
           quantity: 1,
-          unitPriceVnd: l.unitPriceVnd,
-          amountVnd: l.unitPriceVnd,
+          unitPriceVnd,
+          amountVnd: unitPriceVnd,
         };
       });
     const totalVnd = lineItems.reduce((s, l) => s + l.amountVnd, 0);
