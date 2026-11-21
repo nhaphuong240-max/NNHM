@@ -114,8 +114,9 @@ export class SearchIndexService {
     const published = await this.listings.find({
       where: { tenantId, status: 'PUBLISHED' },
     });
+    const indexable = published.filter((listing) => listingIsPubliclyIndexable(listing.status));
 
-    for (const listing of published) {
+    for (const listing of indexable) {
       await this.enqueue({
         tenantId,
         entityType: 'listing',
@@ -124,7 +125,7 @@ export class SearchIndexService {
       });
     }
 
-    return published.length;
+    return indexable.length;
   }
 
   async countIndexablePublished(tenantId: string) {
@@ -294,4 +295,9 @@ export class SearchIndexService {
     }
     return `/api/v1/listings/${listing.id}/media/${coverId}/file`;
   }
+}
+
+/** D11 unsigned: only an approved listing may enter the public index. */
+export function listingIsPubliclyIndexable(status: string): boolean {
+  return status === 'PUBLISHED';
 }

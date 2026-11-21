@@ -1,3 +1,4 @@
+import { useOpsNoIndex } from '../hooks/useOpsNoIndex';
 import { AppChrome } from './AppChrome';
 import { brand, portalThemes } from '../theme/tokens';
 
@@ -35,6 +36,7 @@ export function DeveloperShell({
   screenTag?: string;
   children: React.ReactNode;
 }) {
+  useOpsNoIndex(`${title} · Developer`);
   return (
     <AppChrome
       portalLabel={portalThemes.developer.label}

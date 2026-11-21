@@ -1,4 +1,5 @@
 import {
+  ForbiddenException,
   Injectable,
   NotFoundException,
   UnprocessableEntityException,
@@ -6,6 +7,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { randomUUID } from 'crypto';
 import { Repository } from 'typeorm';
+import { AuditEventEntity } from '../../database/entities/audit-event.entity';
 import { BookingEntity } from '../../database/entities/booking.entity';
 import { PaymentIntentEntity } from '../../database/entities/payment-intent.entity';
 import { RefundEntity } from '../../database/entities/refund.entity';
@@ -30,6 +32,8 @@ export class RefundService {
     private readonly bookings: Repository<BookingEntity>,
     @InjectRepository(UnitEntity)
     private readonly units: Repository<UnitEntity>,
+    @InjectRepository(AuditEventEntity)
+    private readonly events: Repository<AuditEventEntity>,
     private readonly orchestrator: PaymentOrchestratorService,
     private readonly ledgerWrite: LedgerWriteService,
     private readonly inventoryLock: InventoryLockService,
@@ -93,6 +97,8 @@ export class RefundService {
       return { data: mapRefundEntity(existingRefund), meta: { idempotentReplay: true } };
     }
 
+    await this.requireCheckedRefund(tenantId, intent.id, actorId);
+
     const refundId = `rf_${randomUUID().replace(/-/g, '').slice(0, 8)}`;
     const adapter = this.orchestrator.route(intent.method);
     const gateway = await adapter.refund({
@@ -121,6 +127,28 @@ export class RefundService {
     }
 
     return { data: mapRefundEntity(refund) };
+  }
+
+  private async requireCheckedRefund(
+    tenantId: string,
+    paymentIntentId: string,
+    actorId?: string,
+  ): Promise<void> {
+    const checked = await this.events.findOne({
+      where: {
+        tenantId,
+        entityType: 'payment_intent',
+        entityId: paymentIntentId,
+        action: 'REFUND_CHECKED',
+      },
+      order: { createdAt: 'DESC' },
+    });
+    const proposedBy = typeof checked?.payload?.proposedBy === 'string' ? checked.payload.proposedBy : '';
+    if (!checked || !actorId || actorId === proposedBy) {
+      throw new ForbiddenException({
+        detail: 'refund requires a checked proposal from another operator',
+      });
+    }
   }
 
   /** Complete refund after gateway confirmation (sync MOCK or webhook payment.refunded) */

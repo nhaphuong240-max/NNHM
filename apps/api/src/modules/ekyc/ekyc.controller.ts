@@ -7,6 +7,7 @@ import {
   NotFoundException,
   Param,
   Post,
+  Req,
   UnauthorizedException,
   UnprocessableEntityException,
   UseGuards,
@@ -62,7 +63,9 @@ export class EkycController {
     @Headers('x-tenant-id') tenantHeader: string | undefined,
     @Headers('x-webhook-signature') signature: string | undefined,
     @Body() body: Record<string, unknown>,
+    @Req() request?: { ip?: string },
   ) {
+    const source = request?.ip?.trim() ? `ip:${request.ip.trim().slice(0, 64)}` : 'ekyc-webhook';
     const secret = this.config.get<string>('EKYC_WEBHOOK_SECRET', '');
     const signed =
       Boolean(secret) &&
@@ -74,6 +77,7 @@ export class EkycController {
       await recordUnscopedAudit(this.dataSource, {
         tenantId: matched,
         entityType: 'kyc_profile',
+        source,
         entityId: externalRef || 'missing',
         action: 'WEBHOOK_REJECTED',
         payload: { reason: 'bad-signature' },
@@ -84,6 +88,7 @@ export class EkycController {
       await recordUnscopedAudit(this.dataSource, {
         tenantId: null,
         entityType: 'kyc_profile',
+        source,
         entityId: externalRef || 'missing',
         action: 'WEBHOOK_REJECTED',
         payload: { reason: rows.length > 1 ? 'ambiguous-record' : 'no-matching-record' },

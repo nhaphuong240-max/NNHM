@@ -1,4 +1,4 @@
-import { Controller, Headers, Query, Sse } from '@nestjs/common';
+import { Controller, Headers, Query, Sse, UnprocessableEntityException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { MessageEvent } from '@nestjs/common';
 import { Observable } from 'rxjs';
@@ -27,10 +27,17 @@ export class StreamController {
     @Query('unitId') unitId?: string,
     @Query('tenantId') tenantIdQuery?: string,
   ): Promise<Observable<MessageEvent>> {
-    const tenantId = user?.tenantId?.trim()
-      ? resolveTenantId(this.config, user, tenantHeader)
-      : await oneLookedUpTenant(this.dataSource, 'unit', unitId, 'not-found');
+    if (user?.tenantId?.trim()) {
+      const requestedUnit = unitId?.trim() ?? '';
+      if (!requestedUnit) {
+        throw new UnprocessableEntityException({ detail: 'unitId is required' });
+      }
+      const tenantId = resolveTenantId(this.config, user, tenantHeader);
+      assertHeaderMatches(tenantHeader ?? tenantIdQuery, tenantId);
+      return this.streamEvents.subscribeUnits(tenantId, requestedUnit);
+    }
+    const tenantId = await oneLookedUpTenant(this.dataSource, 'unit', unitId, 'not-found');
     assertHeaderMatches(tenantHeader ?? tenantIdQuery, tenantId);
-    return this.streamEvents.subscribeUnits(tenantId);
+    return this.streamEvents.subscribeUnits(tenantId, unitId!.trim());
   }
 }

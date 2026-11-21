@@ -4,6 +4,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { AccessReviewItemEntity } from '../../database/entities/access-review-items.entity';
 import { TenantEntity } from '../../database/entities/tenant.entity';
 import { UserEntity } from '../../database/entities/user.entity';
 import { SeekerOtpChallengeEntity } from '../../database/entities/seeker-otp-challenge.entity';
@@ -14,6 +15,7 @@ import { AuditEventEntity } from '../../database/entities/audit-event.entity';
 import { AuditModule } from '../audit/audit.module';
 import { TenantConfigModule } from '../tenant-config/tenant-config.module';
 import { SmsModule } from '../sms/sms.module';
+import { AccessReviewService } from './access-review.service';
 import { AuthService } from './auth.service';
 import { IdentityController } from './identity.controller';
 import { IdentityService } from './identity.service';
@@ -35,6 +37,7 @@ import { UserService } from './user.service';
   imports: [
     TypeOrmModule.forFeature([
       UserEntity,
+      AccessReviewItemEntity,
       TenantEntity,
       AuditEventEntity,
       SeekerOtpChallengeEntity,
@@ -66,6 +69,7 @@ import { UserService } from './user.service';
   ],
   providers: [
     IdentityService,
+    AccessReviewService,
     AuthService,
     SeekerAuthService,
     TenantService,

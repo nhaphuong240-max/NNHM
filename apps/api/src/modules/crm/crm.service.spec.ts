@@ -10,6 +10,7 @@ import { LeadConversionService } from '../ai-scoring/lead-conversion.service';
 import { StreamEventsService } from '../stream/stream-events.service';
 import { MobileAgentService } from '../mobile-agent/mobile-agent.service';
 import { AttributionGraphService } from '../attribution/attribution-graph.service';
+import { DedupReviewService } from '../dedup/dedup-review.service';
 import { CrmService } from './crm.service';
 import { QualificationService } from './qualification.service';
 
@@ -104,6 +105,10 @@ describe('CrmService', () => {
           provide: AttributionGraphService,
           useValue: { recordTouchpoint: jest.fn().mockResolvedValue(undefined) },
         },
+        {
+          provide: DedupReviewService,
+          useValue: { enqueue: jest.fn().mockResolvedValue({ queued: false, reviewIds: [], assignedTo: null }) },
+        },
       ],
     }).compile();
 
@@ -112,6 +117,7 @@ describe('CrmService', () => {
 
   it('creates lead with provisional score and enqueues async scoring', async () => {
     const enqueue = jest.fn().mockResolvedValue(undefined);
+    const dedupEnqueue = jest.fn().mockResolvedValue({ queued: false, reviewIds: [], assignedTo: null });
     const module = await Test.createTestingModule({
       providers: [
         CrmService,
@@ -163,6 +169,10 @@ describe('CrmService', () => {
         { provide: StreamEventsService, useValue: { publish: jest.fn().mockResolvedValue(undefined) } },
         { provide: LeadScoringService, useValue: { enqueue } },
         {
+          provide: DedupReviewService,
+          useValue: { enqueue: dedupEnqueue },
+        },
+        {
           provide: ConsentLedgerService,
           useValue: { record: jest.fn().mockResolvedValue({ data: { id: 'cns_test' } }) },
         },
@@ -207,6 +217,7 @@ describe('CrmService', () => {
       result.data.id,
       expect.objectContaining({ source: 'META_LEAD', unitId: 'un_01' }),
     );
+    expect(dedupEnqueue).toHaveBeenCalledWith({ tenantId: TENANT, leadId: result.data.id });
   });
 
   it('persists utmCampaign and campaignId from UTM input (UC-AN-04)', async () => {

@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { createHash, randomUUID } from 'crypto';
-import { Repository } from 'typeorm';
+import { QueryFailedError, Repository } from 'typeorm';
 import { ApiPartnerEntity } from '../../database/entities/api-partner.entity';
 import { ApiPartnerKeyEntity } from '../../database/entities/api-partner-key.entity';
 import { ApiWebhookDeliveryEntity } from '../../database/entities/api-webhook-delivery.entity';
@@ -177,8 +177,9 @@ export class ApiMarketplaceService {
     status: ApiWebhookDelivery['status'];
     responseCode?: number;
     payload?: Record<string, unknown>;
+    journalId?: string;
   }) {
-    const id = `wh_${randomUUID().replace(/-/g, '').slice(0, 8)}`;
+    const id = input.journalId ?? `wh_${randomUUID().replace(/-/g, '').slice(0, 8)}`;
     const saved = await this.deliveries.save({
       id,
       tenantId: input.tenantId,
@@ -191,6 +192,34 @@ export class ApiMarketplaceService {
     });
     await this.partners.increment({ id: input.partnerId }, 'eventsConsumed', 1);
     return saved;
+  }
+
+  /** One journal row per id. A repeat does not increment the partner counter. */
+  async recordDeliveryOnce(input: {
+    tenantId: string;
+    partnerId: string;
+    event: string;
+    status: ApiWebhookDelivery['status'];
+    responseCode?: number;
+    payload?: Record<string, unknown>;
+    journalId: string;
+  }): Promise<{ delivery: ApiWebhookDeliveryEntity; replay: boolean }> {
+    const existing = await this.deliveries.findOne({
+      where: { id: input.journalId, tenantId: input.tenantId },
+    });
+    if (existing) return { delivery: existing, replay: true };
+    try {
+      const delivery = await this.recordDelivery(input);
+      return { delivery, replay: false };
+    } catch (error) {
+      if (error instanceof QueryFailedError && (error as { driverError?: { code?: string } }).driverError?.code === '23505') {
+        const replay = await this.deliveries.findOne({
+          where: { id: input.journalId, tenantId: input.tenantId },
+        });
+        if (replay) return { delivery: replay, replay: true };
+      }
+      throw error;
+    }
   }
 
   async validateApiKey(tenantId: string, apiKey: string) {

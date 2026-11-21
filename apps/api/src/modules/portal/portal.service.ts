@@ -9,6 +9,7 @@ import { randomUUID } from 'crypto';
 import { In, Repository } from 'typeorm';
 import { AnalyticsService } from '../analytics/analytics.service';
 import { BookingContractService } from '../booking/booking-contract.service';
+import { CONTRACT_SIGN_TOKEN_TTL_MS, mintContractSignToken } from '../booking/contract-sign-token';
 import { PaymentBnplService } from '../payment/payment-bnpl.service';
 import { AuditEventEntity } from '../../database/entities/audit-event.entity';
 import { BookingEntity } from '../../database/entities/booking.entity';
@@ -34,6 +35,8 @@ import type {
   OmnichannelDashboardAttributes,
 } from './portal.types';
 import { phonesMatch } from '../crm/phone.util';
+import type { AuthUser } from '../identity/identity.types';
+import { resolveSeekerPhone } from './seeker-phone.util';
 import { BuyerDealNotifyService } from './buyer-deal-notify.service';
 import {
   groupBuildingsFromPins,
@@ -429,6 +432,39 @@ export class PortalService {
     if (!lead || !phonesMatch(lead.phone, seekerPhone)) {
       throw new ForbiddenException({ detail: 'Deal not available for this phone' });
     }
+  }
+
+  async issueContractSignToken(tenantId: string, contractId: string, user: AuthUser | undefined, secret: string) {
+    const loaded = await this.contracts.getContract(tenantId, contractId);
+    const bookingId = loaded.data.attributes.bookingId?.trim() ?? '';
+    if (!bookingId) {
+      throw new NotFoundException({ detail: 'contract is not linked to a booking' });
+    }
+    await this.requireOwnedBuyerBooking(tenantId, bookingId, user);
+    if (!user?.userId?.trim()) {
+      throw new ForbiddenException({ detail: 'Seeker OTP verification required' });
+    }
+    const token = mintContractSignToken({
+      tenantId,
+      contractId: loaded.data.id,
+      buyerId: user.userId,
+      secret,
+    });
+    return {
+      data: {
+        token,
+        contractId: loaded.data.id,
+        expiresInSeconds: CONTRACT_SIGN_TOKEN_TTL_MS / 1000,
+      },
+    };
+  }
+
+  /** Buyer routes that change or open a deal must match the seeker phone on the lead. */
+  async requireOwnedBuyerBooking(tenantId: string, bookingId: string, user?: AuthUser) {
+    const row = await this.bookings.findOne({ where: { id: bookingId.trim(), tenantId } });
+    if (!row) throw new NotFoundException({ detail: `Booking ${bookingId} not found` });
+    await this.assertBookingOwnedBySeeker(tenantId, row, resolveSeekerPhone(user));
+    return row;
   }
 
   /** UC-BK-02 · SCR-BUYER-002 — buyer deal list (seeker-scoped) */

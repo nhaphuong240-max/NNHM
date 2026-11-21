@@ -2,10 +2,13 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuditEventEntity } from '../../database/entities/audit-event.entity';
 import { BookingEntity } from '../../database/entities/booking.entity';
+import { ContractArtifactEntity } from '../../database/entities/contract-artifacts.entity';
+import { HandoverChecklistEntity } from '../../database/entities/handover-checklists.entity';
 import { LeadEntity } from '../../database/entities/lead.entity';
 import { PaymentIntentEntity } from '../../database/entities/payment-intent.entity';
 import { ProjectEntity } from '../../database/entities/project.entity';
 import { UnitEntity } from '../../database/entities/unit.entity';
+import { AllocationModule } from '../allocation/allocation.module';
 import { AuditModule } from '../audit/audit.module';
 import { DocumentsModule } from '../documents/documents.module';
 import { PaymentModule } from '../payment/payment.module';
@@ -16,6 +19,10 @@ import { TenantWebhooksModule } from '../tenant-webhooks/tenant-webhooks.module'
 import { CrmModule } from '../crm/crm.module';
 import { NotifyModule } from '../notify/notify.module';
 import { BookingContractController } from './booking-contract.controller';
+import { ContractArtifactController } from './contract-artifact.controller';
+import { ContractArtifactService } from './contract-artifact.service';
+import { HandoverChecklistController } from './handover-checklist.controller';
+import { HandoverChecklistService } from './handover-checklist.service';
 import { BookingContractEsignProviderService } from './booking-contract-esign-provider.service';
 import { BookingContractEsignSmsService } from './booking-contract-esign-sms.service';
 import { VnptEsignAdapter, EsignAdapterRegistry } from './vnpt-esign.adapter';
@@ -31,12 +38,15 @@ import { BookingService } from './booking.service';
   imports: [
     TypeOrmModule.forFeature([
       BookingEntity,
+      ContractArtifactEntity,
+      HandoverChecklistEntity,
       UnitEntity,
       PaymentIntentEntity,
       LeadEntity,
       ProjectEntity,
       AuditEventEntity,
     ]),
+    AllocationModule,
     AuditModule,
     DocumentsModule,
     PaymentModule,
@@ -48,10 +58,18 @@ import { BookingService } from './booking.service';
     CrmModule,
     NotifyModule,
   ],
-  controllers: [BookingController, BookingContractController, BookingWorkflowController],
+  controllers: [
+    BookingController,
+    BookingContractController,
+    BookingWorkflowController,
+    ContractArtifactController,
+    HandoverChecklistController,
+  ],
   providers: [
     BookingService,
     BookingContractService,
+    ContractArtifactService,
+    HandoverChecklistService,
     BookingContractEsignSmsService,
     BookingContractEsignProviderService,
     VnptEsignAdapter,

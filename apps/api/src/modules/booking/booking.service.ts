@@ -30,6 +30,7 @@ import { RefundService } from '../payment/refund.service';
 import { BookingEventsService } from './booking-events.service';
 import { TenantWebhookService } from '../tenant-webhooks/tenant-webhook.service';
 import { LeadEntity } from '../../database/entities/lead.entity';
+import { AllocationService } from '../allocation/allocation.service';
 import { AuditService } from '../audit/audit.service';
 import { CrmService } from '../crm/crm.service';
 import { QualificationService } from '../crm/qualification.service';
@@ -64,6 +65,7 @@ export class BookingService {
     private readonly crm: CrmService,
     private readonly qualification: QualificationService,
     private readonly audit: AuditService,
+    private readonly allocations: AllocationService,
   ) {}
 
   status() {
@@ -149,6 +151,12 @@ export class BookingService {
       }
       await this.qualification.assertLeadQualifiedForBooking(tenantId, lead);
     }
+
+    await this.allocations.assertHoldOrPublish({
+      tenantId,
+      unitId: input.unitId,
+      now: new Date(),
+    });
 
     if (unit.version !== input.expectedUnitVersion) {
       throw new ConflictException({

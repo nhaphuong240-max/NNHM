@@ -9,6 +9,7 @@ import { MetaLeadEventEntity } from '../../database/entities/meta-lead-event.ent
 import { UserEntity } from '../../database/entities/user.entity';
 import { ZaloLeadEventEntity } from '../../database/entities/zalo-lead-event.entity';
 import { AuditModule } from '../audit/audit.module';
+import { DedupReviewModule } from '../dedup/dedup-review.module';
 import { ComplianceModule } from '../compliance/compliance.module';
 import { AiScoringModule } from '../ai-scoring/ai-scoring.module';
 import { SmsModule } from '../sms/sms.module';
@@ -81,6 +82,7 @@ import { RoutingSuggestionService } from './routing-suggestion.service';
       CrmRoutingSuggestionEntity,
     ]),
     AuditModule,
+    DedupReviewModule,
     ComplianceModule,
     StreamModule,
     AiScoringModule,

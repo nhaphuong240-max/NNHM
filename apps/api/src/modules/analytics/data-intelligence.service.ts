@@ -121,7 +121,14 @@ export class DataIntelligenceService {
     const row = await this.buildDailyMart(tenantId, projectId);
     return {
       data: row.heatmap,
-      meta: { tenantId, projectId: projectId ?? null, uc: ['T5-S5'], screen: 'SCR-DEV-005' },
+      meta: {
+        tenantId,
+        projectId: projectId ?? null,
+        uc: ['T5-S5'],
+        screen: 'SCR-DEV-005',
+        measured: false as const,
+        pilotKpi: false as const,
+      },
     };
   }
 
@@ -173,24 +180,36 @@ export class DataIntelligenceService {
   async getBillingSummary(tenantId: string) {
     await this.ensureEntitlements(tenantId);
     const rows = await this.entitlements.find({ where: { tenantId } });
-    const lineItems = rows.map((r) => ({
-      productCode: r.productCode,
-      enabled: r.enabled,
-      quotaPerMonth: r.quotaPerMonth,
-      unitPriceVnd: r.productCode === 'MARKET_BRIEF' ? 5_000_000 : 2_000_000,
-    }));
-    const mrr = lineItems.filter((l) => l.enabled).reduce((s, l) => s + l.unitPriceVnd, 0);
-    return {
-      data: {
-        tenantId,
-        currency: 'VND',
-        lineItems,
-        estimatedMrrVnd: mrr,
-        billingTier: mrr >= 10_000_000 ? 'ENTERPRISE_DATA' : 'STANDARD_DATA',
-      },
-      meta: { uc: ['T6-S2'], product: 'DATA_BILLING' },
-    };
+    return unmeasuredDataBilling(
+      tenantId,
+      rows.map((r) => ({
+        productCode: r.productCode,
+        enabled: r.enabled,
+        quotaPerMonth: r.quotaPerMonth,
+      })),
+    );
   }
+}
+
+export function unmeasuredDataBilling(
+  tenantId: string,
+  rows: Array<{ productCode: string; enabled: boolean; quotaPerMonth: number }>,
+) {
+  return {
+    data: {
+      tenantId,
+      currency: 'VND' as const,
+      lineItems: rows.map((row) => ({
+        productCode: row.productCode,
+        enabled: row.enabled,
+        quotaPerMonth: row.quotaPerMonth,
+        unitPriceVnd: null,
+      })),
+      estimatedMrrVnd: null,
+      billingTier: 'UNMEASURED' as const,
+    },
+    meta: { uc: ['T6-S2'], product: 'DATA_BILLING', measured: false as const, pilotKpi: false as const },
+  };
 }
 
 /** Only the entitlement unique (tenant_id, product_code). A primary-key 23505 still throws. */

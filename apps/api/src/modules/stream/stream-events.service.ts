@@ -5,6 +5,10 @@ import { Observable } from 'rxjs';
 import { REDIS_CLIENT } from '../../infrastructure/redis/redis.constants';
 import type { StreamEnvelope, UnitStatusEvent } from './stream.types';
 
+export function streamEventMatchesUnit(data: { unitId?: string }, unitId: string): boolean {
+  return data.unitId === unitId;
+}
+
 @Injectable()
 export class StreamEventsService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(StreamEventsService.name);
@@ -41,7 +45,7 @@ export class StreamEventsService implements OnModuleInit, OnModuleDestroy {
     await this.publish(tenantId, { event: 'unit.status.changed', data });
   }
 
-  subscribeUnits(tenantId: string): Observable<MessageEvent> {
+  subscribeUnits(tenantId: string, unitId: string): Observable<MessageEvent> {
     const channel = this.channel(tenantId);
 
     return new Observable<MessageEvent>((observer) => {
@@ -54,6 +58,7 @@ export class StreamEventsService implements OnModuleInit, OnModuleDestroy {
         if (ch !== channel) return;
         try {
           const envelope = JSON.parse(message) as StreamEnvelope;
+          if (!streamEventMatchesUnit(envelope.data, unitId)) return;
           observer.next({
             type: envelope.event,
             data: envelope.data,
@@ -67,7 +72,7 @@ export class StreamEventsService implements OnModuleInit, OnModuleDestroy {
         this.subscriber!.on('message', onMessage);
         observer.next({
           type: 'connected',
-          data: { tenantId, channel, timestamp: new Date().toISOString() },
+          data: { tenantId, unitId, channel, timestamp: new Date().toISOString() },
         });
       });
 

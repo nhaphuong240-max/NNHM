@@ -45,6 +45,7 @@ import {
 } from './crm-sla.util';
 import { MobileAgentService } from '../mobile-agent/mobile-agent.service';
 import { AttributionGraphService } from '../attribution/attribution-graph.service';
+import { DedupReviewService } from '../dedup/dedup-review.service';
 import { QualificationService } from './qualification.service';
 
 export const PRIVACY_POLICY_VERSION = '2026-07-01';
@@ -65,6 +66,7 @@ export class CrmService {
     private readonly mobileAgent: MobileAgentService,
     private readonly qualification: QualificationService,
     private readonly attribution: AttributionGraphService,
+    private readonly dedup: DedupReviewService,
   ) {}
 
   status() {
@@ -221,6 +223,7 @@ export class CrmService {
       message: input.message,
       utm: input.utm,
     });
+    await this.dedup.enqueue({ tenantId, leadId: id });
 
     if (row.unitId) {
       await this.streamEvents.publish(tenantId, {
@@ -808,6 +811,7 @@ export class CrmService {
       actorId: actorId ?? null,
     });
 
+    await this.dedup.enqueue({ tenantId, leadId: existing.id });
     const refreshed = await this.leads.findOne({ where: { id: existing.id, tenantId } });
     return {
       data: mapLeadEntity(refreshed ?? existing),

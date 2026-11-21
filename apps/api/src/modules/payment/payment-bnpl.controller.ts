@@ -6,6 +6,7 @@ import {
   HttpCode,
   NotFoundException,
   Post,
+  Req,
   UnauthorizedException,
   UnprocessableEntityException,
 } from '@nestjs/common';
@@ -62,7 +63,9 @@ export class PaymentBnplController {
     @Headers('x-tenant-id') tenantHeader: string | undefined,
     @Headers('x-webhook-signature') signature: string | undefined,
     @Body() body: { externalId: string; status: 'APPROVED' | 'REJECTED'; reason?: string; signature?: string },
+    @Req() request?: { ip?: string },
   ) {
+    const source = request?.ip?.trim() ? `ip:${request.ip.trim().slice(0, 64)}` : 'bnpl-webhook';
     const secret = this.config.get<string>('BNPL_WEBHOOK_SECRET', '');
     const signed = Boolean(secret) && verifyWebhookSignature(body, signature ?? body.signature, secret);
     const rows = body.externalId
@@ -73,6 +76,7 @@ export class PaymentBnplController {
       await recordUnscopedAudit(this.dataSource, {
         tenantId: matched,
         entityType: 'bnpl_application',
+        source,
         entityId: body.externalId || 'missing',
         action: 'WEBHOOK_REJECTED',
         payload: { reason: 'bad-signature' },
@@ -83,6 +87,7 @@ export class PaymentBnplController {
       await recordUnscopedAudit(this.dataSource, {
         tenantId: null,
         entityType: 'bnpl_application',
+        source,
         entityId: body.externalId || 'missing',
         action: 'WEBHOOK_REJECTED',
         payload: { reason: rows.length > 1 ? 'ambiguous-record' : 'no-matching-record' },

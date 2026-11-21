@@ -55,6 +55,7 @@ export const LIVE_PILOT_ANCHORS: Array<{
   },
 ];
 
+/** Synthetic catalog for ensureSeedAnchors. Not a tenant source for anonymous requests. */
 export const ANCHOR_TENANT_SEEDS = [
   {
     tenantId: 'ten_dev_01',
@@ -162,9 +163,6 @@ export class AnchorTenantService {
         const patch: Partial<AnchorTenantProfileEntity> = {};
         if (!existing.pilotClass) patch.pilotClass = seed.pilotClass;
         if (!existing.onboardingStatus) patch.onboardingStatus = 'ACTIVE';
-        if (seed.tenantId === 'ten_dev_01' && existing.projectIds.includes('prj_sunrise_01')) {
-          patch.projectIds = seed.projectIds;
-        }
         if (Object.keys(patch).length > 0) {
           await this.profiles.update({ id: existing.id }, patch);
         }
@@ -336,10 +334,7 @@ export class AnchorTenantService {
       onboardingChecklist: checklist,
       opWinChecklist: {
         grTrustScore: trustScores.every((t) => t.score >= profile.trustScoreMin),
-        gmvLive:
-          deposited > 0 ||
-          tenantId === 'ten_dev_01' ||
-          (profile.pilotClass === 'LIVE' && checklist?.ready === true),
+        gmvLive: deposited > 0 || (profile.pilotClass === 'LIVE' && checklist?.ready === true),
       },
     };
   }
@@ -368,7 +363,6 @@ export class AnchorTenantService {
     const liveTenantIds = liveAnchors.map((a) => a.tenantId);
     let crossAnchorDeposited = 0;
     for (const tenantId of liveTenantIds) {
-      if (tenantId === 'ten_dev_01') continue;
       const count = await this.bookings.count({
         where: { tenantId, status: 'DEPOSITED' },
       });

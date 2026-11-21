@@ -31,6 +31,8 @@ import { PaymentEscrowController } from './payment-escrow.controller';
 import { PaymentEscrowService } from './payment-escrow.service';
 import { PaymentController } from './payment.controller';
 import { PaymentService } from './payment.service';
+import { RefundCheckController } from './refund-check.controller';
+import { RefundCheckService } from './refund-check.service';
 import { RefundController } from './refund.controller';
 import { RefundService } from './refund.service';
 import { PaymentWebhookService } from './webhook/payment-webhook.service';
@@ -65,6 +67,7 @@ import { WebhookController } from './webhook/webhook.controller';
     WebhookController,
     MockPaymentCompleteController,
     RefundController,
+    RefundCheckController,
     PaymentGatewayAdminController,
     PaymentEscrowController,
     PaymentBnplController,
@@ -72,6 +75,7 @@ import { WebhookController } from './webhook/webhook.controller';
   providers: [
     PaymentService,
     RefundService,
+    RefundCheckService,
     PaymentWebhookService,
     WebhookIdempotencyService,
     PaymentOrchestratorService,

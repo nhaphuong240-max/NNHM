@@ -246,7 +246,7 @@ async function main() {
      WHERE table_schema = 'public' AND table_name <> 'migrations'`,
   );
   const indexes = await client.query(
-    `SELECT t.relname AS table_name, idx.indisunique, idx.indisprimary,
+    `SELECT t.relname AS table_name, idx.indisunique, idx.indisprimary, idx.indisexclusion,
             pg_get_expr(idx.indpred, idx.indrelid) AS pred,
             (
               SELECT array_agg(a.attname ORDER BY k.ord)
@@ -310,6 +310,7 @@ async function main() {
 
   const indexByTable = new Map();
   for (const row of indexes.rows) {
+    if (row.indisexclusion) continue;
     const list = indexByTable.get(row.table_name) ?? [];
     list.push(row);
     indexByTable.set(row.table_name, list);

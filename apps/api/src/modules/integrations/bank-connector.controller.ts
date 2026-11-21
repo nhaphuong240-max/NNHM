@@ -5,6 +5,7 @@ import {
   HttpCode,
   NotFoundException,
   Post,
+  Req,
   UnauthorizedException,
   UnprocessableEntityException,
 } from '@nestjs/common';
@@ -72,7 +73,9 @@ export class BankConnectorController {
       amount: number;
       status: 'SUCCESS' | 'FAILED' | 'SUBMITTED';
     },
+    @Req() request?: { ip?: string },
   ) {
+    const source = request?.ip?.trim() ? `ip:${request.ip.trim().slice(0, 64)}` : 'bank-webhook';
     const bookingTenants = body.bookingId
       ? await lookupTenants(this.dataSource, 'booking', body.bookingId)
       : [];
@@ -84,6 +87,7 @@ export class BankConnectorController {
       await recordUnscopedAudit(this.dataSource, {
         tenantId: null,
         entityType: 'bank_webhook',
+        source,
         entityId: body.transactionId || 'missing',
         action: 'WEBHOOK_REJECTED',
         payload: { reason: candidates.length > 1 ? 'ambiguous-record' : 'no-matching-record' },
@@ -104,6 +108,7 @@ export class BankConnectorController {
       await recordUnscopedAudit(this.dataSource, {
         tenantId,
         entityType: 'bank_webhook',
+        source,
         entityId: body.transactionId || 'missing',
         action: 'WEBHOOK_REJECTED',
         payload: { reason: 'bad-signature' },

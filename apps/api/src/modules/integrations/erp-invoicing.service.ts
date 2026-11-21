@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, UnprocessableEntityException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createHmac, randomUUID } from 'crypto';
 import { DataIntelligenceService } from '../analytics/data-intelligence.service';
@@ -25,6 +25,11 @@ export type ErpSyncResult = {
   externalRef?: string;
   payload: ErpInvoicePayload;
 };
+
+/** No signed data-product price exists. Callers must not substitute a number. */
+export function signedDataProductPrice(): null {
+  return null;
+}
 
 /** T7-S8 — data product billing → external ERP (MISA connector profile). */
 @Injectable()
@@ -53,12 +58,18 @@ export class ErpInvoicingService {
     const summary = await this.billing.getBillingSummary(tenantId);
     const lineItems = summary.data.lineItems
       .filter((l) => l.enabled)
-      .map((l) => ({
-        productCode: l.productCode,
-        quantity: 1,
-        unitPriceVnd: l.unitPriceVnd,
-        amountVnd: l.unitPriceVnd,
-      }));
+      .map((l) => {
+        const unitPriceVnd = l.unitPriceVnd ?? signedDataProductPrice();
+        if (unitPriceVnd == null) {
+          throw new UnprocessableEntityException({ detail: 'data product price is not measured' });
+        }
+        return {
+          productCode: l.productCode,
+          quantity: 1,
+          unitPriceVnd,
+          amountVnd: unitPriceVnd,
+        };
+      });
     const totalVnd = lineItems.reduce((s, l) => s + l.amountVnd, 0);
 
     return {

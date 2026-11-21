@@ -23,9 +23,10 @@ describe('assertCopilotGuardrails', () => {
 
 describe('CopilotService', () => {
   let service: CopilotService;
+  let module: TestingModule;
 
   beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
+    module = await Test.createTestingModule({
       providers: [
         CopilotService,
         {
@@ -84,5 +85,20 @@ describe('CopilotService', () => {
     expect(res.data.attributes.title).toBeTruthy();
     expect(res.data.attributes.content.length).toBeGreaterThan(20);
     expect(res.data.attributes.latencyMs).toBeGreaterThanOrEqual(0);
+    expect(res.data.attributes.content.toLowerCase()).not.toContain('giá');
+    expect(res.data.attributes.citations).toEqual(['unit:un_01', 'project:prj_sunrise']);
+  });
+
+  it('answers không đủ dữ liệu when the project row has no name', async () => {
+    const projects = module.get(getRepositoryToken(ProjectEntity));
+    (projects.findOne as jest.Mock).mockResolvedValueOnce(null);
+    const res = await service.generate('ten_dev_01', {
+      unitId: 'un_01',
+      task: 'LISTING_DESCRIPTION',
+      context: { projectName: 'Tên do client gửi' },
+    });
+    expect(res.data.attributes.content).toBe('không đủ dữ liệu');
+    expect(res.data.attributes.title).toBe('không đủ dữ liệu');
+    expect(res.data.attributes.citations).toBeUndefined();
   });
 });
