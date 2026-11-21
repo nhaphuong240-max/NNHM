@@ -32,6 +32,9 @@ function allocations(rows: UnitAllocationEntity[]) {
           return true;
         }) ?? null,
     ),
+    find: jest.fn(async ({ where }: { where: { tenantId: string; unitId?: string } }) =>
+      rows.filter((row) => row.tenantId === where.tenantId && (!where.unitId || row.unitId === where.unitId)),
+    ),
     create: jest.fn((row: UnitAllocationEntity) => row),
     save: jest.fn(async (row: UnitAllocationEntity) => {
       const index = rows.findIndex((item) => item.id === row.id);
@@ -159,5 +162,26 @@ describe('unit allocation placement', () => {
     await expect(
       service.placement({ tenantId: 'ten_a', agreementId: 'agr_a', unitId: 'un_a', now: new Date() }),
     ).resolves.toEqual({ allowed: false });
+  });
+
+  it('allows a hold when the unit has no allocation and rejects a revoked allocation', async () => {
+    const open = new AllocationService(agreements([]) as never, allocations([]) as never);
+    await expect(
+      open.assertHoldOrPublish({ tenantId: 'ten_a', unitId: 'un_a', now: new Date() }),
+    ).resolves.toBeUndefined();
+    const revoked: UnitAllocationEntity = {
+      id: 'ual_revoked',
+      tenantId: 'ten_a',
+      agreementId: 'agr_a',
+      unitId: 'un_a',
+      expiresAt: later,
+      status: 'REVOKED',
+      payload: {},
+      createdAt: new Date(),
+    };
+    const blocked = new AllocationService(agreements([agreement]) as never, allocations([revoked]) as never);
+    await expect(
+      blocked.assertHoldOrPublish({ tenantId: 'ten_a', unitId: 'un_a', now: new Date() }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
   });
 });

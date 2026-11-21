@@ -104,6 +104,13 @@ echo "=== schema compare ==="
 )
 echo "PASS schema compare"
 
+echo "=== price window exclusion ==="
+(
+  cd "$ROOT"
+  node "$ROOT/scripts/t02-price-window-proof.js"
+)
+echo "PASS price window exclusion"
+
 echo "=== nosuperuser RLS and concurrent hold ==="
 (
   cd "$ROOT"

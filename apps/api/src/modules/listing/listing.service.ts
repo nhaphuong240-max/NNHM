@@ -8,6 +8,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ListingEntity } from '../../database/entities/listing.entity';
 import { UnitEntity } from '../../database/entities/unit.entity';
+import { AllocationService } from '../allocation/allocation.service';
 import { AuditService } from '../audit/audit.service';
 import { SearchIndexService } from '../search/search-index.service';
 import { AntiDriftService } from './anti-drift.service';
@@ -30,6 +31,7 @@ export class ListingService {
     private readonly antiDrift: AntiDriftService,
     private readonly audit: AuditService,
     private readonly searchIndex: SearchIndexService,
+    private readonly allocations: AllocationService,
   ) {}
 
   async create(tenantId: string, input: CreateListingInput, actorId?: string) {
@@ -182,6 +184,12 @@ export class ListingService {
         currentVersion: unit.version,
       });
     }
+
+    await this.allocations.assertHoldOrPublish({
+      tenantId,
+      unitId: listing.unitId,
+      now: new Date(),
+    });
 
     listing.status = 'PUBLISHED';
     listing.verified = true;

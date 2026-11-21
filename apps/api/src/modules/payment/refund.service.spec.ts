@@ -1,6 +1,7 @@
-import { UnprocessableEntityException } from '@nestjs/common';
+import { ForbiddenException, UnprocessableEntityException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
+import { AuditEventEntity } from '../../database/entities/audit-event.entity';
 import { BookingEntity } from '../../database/entities/booking.entity';
 import { PaymentIntentEntity } from '../../database/entities/payment-intent.entity';
 import { RefundEntity } from '../../database/entities/refund.entity';
@@ -24,9 +25,11 @@ describe('RefundService', () => {
   let booking: BookingEntity;
   let unit: UnitEntity;
   let refunds: RefundEntity[];
+  let checked: AuditEventEntity[];
 
   beforeEach(async () => {
     refunds = [];
+    checked = [];
 
     intent = {
       id: 'pi_ref01',
@@ -202,6 +205,19 @@ describe('RefundService', () => {
           },
         },
         {
+          provide: getRepositoryToken(AuditEventEntity),
+          useValue: {
+            findOne: jest.fn(async ({ where }: { where: { action?: string; entityId?: string; tenantId?: string } }) =>
+              checked.find(
+                (row) =>
+                  row.tenantId === where.tenantId &&
+                  row.entityId === where.entityId &&
+                  row.action === where.action,
+              ) ?? null,
+            ),
+          },
+        },
+        {
           provide: getRepositoryToken(UnitEntity),
           useValue: {
             findOne: jest.fn(async () => unit),
@@ -217,11 +233,30 @@ describe('RefundService', () => {
     service = module.get(RefundService);
   });
 
+  function allowCheckedRefund(): void {
+    checked.push({
+      id: 'ae_checked',
+      tenantId: TENANT,
+      entityType: 'payment_intent',
+      entityId: 'pi_ref01',
+      action: 'REFUND_CHECKED',
+      actorId: 'usr_checker',
+      payload: { proposedBy: 'usr_maker', amount: 50000000, paid: false },
+      createdAt: new Date(),
+    } as AuditEventEntity);
+  }
+
   it('creates refund with ledger reversal and releases unit (UC-PAY-03)', async () => {
-    const result = await service.createRefund(TENANT, {
-      paymentIntentId: 'pi_ref01',
-      reason: 'Customer cancelled',
-    });
+    allowCheckedRefund();
+    const result = await service.createRefund(
+      TENANT,
+      {
+        paymentIntentId: 'pi_ref01',
+        reason: 'Customer cancelled',
+      },
+      undefined,
+      'usr_checker',
+    );
 
     expect(result.data.attributes.status).toBe('SUCCEEDED');
     expect(result.data.attributes.ledgerEntryId).toBe('le_ref01');
@@ -229,6 +264,23 @@ describe('RefundService', () => {
     expect(booking.status).toBe('REFUNDED');
     expect(unit.status).toBe('AVAILABLE');
     expect(refunds).toHaveLength(1);
+    expect(result.data.attributes.status).not.toBe('PAID');
+  });
+
+  it('refuses a refund when nobody else has checked the proposal', async () => {
+    await expect(
+      service.createRefund(TENANT, { paymentIntentId: 'pi_ref01' }, undefined, 'usr_maker'),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(refunds).toHaveLength(0);
+    expect(intent.status).toBe('SUCCEEDED');
+  });
+
+  it('refuses the proposer after another operator has checked the proposal', async () => {
+    allowCheckedRefund();
+    await expect(
+      service.createRefund(TENANT, { paymentIntentId: 'pi_ref01' }, undefined, 'usr_maker'),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(refunds).toHaveLength(0);
   });
 
   it('rejects refund when payment intent is not SUCCEEDED', async () => {
@@ -240,16 +292,19 @@ describe('RefundService', () => {
   });
 
   it('returns same refund for duplicate idempotency key', async () => {
+    allowCheckedRefund();
     const key = 'refund-idem-01';
     const first = await service.createRefund(
       TENANT,
       { paymentIntentId: 'pi_ref01' },
       key,
+      'usr_checker',
     );
     const second = await service.createRefund(
       TENANT,
       { paymentIntentId: 'pi_ref01' },
       key,
+      'usr_checker',
     );
 
     expect(second.data.id).toBe(first.data.id);
@@ -257,7 +312,8 @@ describe('RefundService', () => {
   });
 
   it('lists refunds for tenant', async () => {
-    await service.createRefund(TENANT, { paymentIntentId: 'pi_ref01' });
+    allowCheckedRefund();
+    await service.createRefund(TENANT, { paymentIntentId: 'pi_ref01' }, undefined, 'usr_checker');
     const list = await service.list(TENANT);
     expect(list.data.length).toBeGreaterThanOrEqual(1);
     expect(list.meta.count).toBeGreaterThanOrEqual(1);

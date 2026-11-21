@@ -7,15 +7,15 @@ Không phải production-ready. `not-done (rules-only)` nghĩa là có bảng ho
 | Gói | Trạng thái | File chính | Test |
 | --- | --- | --- | --- |
 | T03 | partial | `1758130000000-EnableRemainingTenantRls.ts`, `public-token-tenant.guard.ts`, `tenant-rls.interceptor.ts` | `scripts/t02-rls-hold-proof.js` trên role `NOSUPERUSER`. Jest superuser không phải bằng chứng G01 |
-| T04 | partial | `export-job.service.ts` tạo `REQUESTED`. `APPROVED` chỉ khi người duyệt là `FINANCE_ADMIN` và khác người yêu cầu. Không trả dòng khách | `maskPhone` chưa gắn. Chưa có allowlist mục đích. `refuses the requester as approver and hides another tenant job` |
-| T05 | partial | `allocation.service.ts` chỉ chủ hàng `DEVELOPER_ADMIN` cấp `ACTIVE`. Thu hồi thì placement thành false. Tenant khác không thấy | Chưa thu phí phân bổ. Chưa tự giữ chỗ. Chưa gắn vào luồng booking/listing |
-| T06 | partial | `price-book.service.ts` `openVersion` chặn khoảng chồng trong cùng tenant. Quote chỉ đi `DRAFT` sang `SENT`, `REJECTED`, `EXPIRED` hoặc `SENT` sang `REJECTED`, `EXPIRED`. `ACCEPTED` không đổi. Chỉ `DEVELOPER_ADMIN` | Chưa có biểu thuế, phí, ưu đãi. Không tự nhận quote. Chưa có ràng buộc DB chống chồng khoảng khi hai request đồng thời |
-| T07 | partial | `dedup-review.service.ts` xếp hàng `PENDING` khi hash SĐT trùng trong cùng tenant. Không gán HOT, không gộp hồ sơ | `protectionDays` vẫn lấy policy có sẵn. Chưa tự duyệt. Chưa gắn vào lead intake |
+| T04 | partial | `export-job.service.ts` tạo `REQUESTED`. `APPROVED` chỉ khi người duyệt là `FINANCE_ADMIN` và khác người yêu cầu. Payload có `phone` thì phản hồi dùng `maskPhone`. Không trả dòng khách | Chưa có allowlist mục đích. `refuses the requester as approver and hides another tenant job` |
+| T05 | partial | `allocation.service.ts` `assertHoldOrPublish` gọi `allocationAllowsPlacement`. `BookingService.create` và `ListingService.approve` gọi hàm này. Không có dòng phân bổ thì tenant giữ căn của mình. Dòng thu hồi hoặc hết hạn thì từ chối | Chưa thu phí phân bổ. Chưa tự giữ chỗ. Ranh giới sàn và F1 giữ nguyên |
+| T06 | partial | `price-book.service.ts` `openVersion` chặn khoảng chồng trong cùng tenant. `1758170000000-PriceWindowExclusion.ts` thêm exclusion constraint cùng tenant và project. Quote chỉ đi `DRAFT` sang `SENT`, `REJECTED`, `EXPIRED` hoặc `SENT` sang `REJECTED`, `EXPIRED`. `ACCEPTED` không đổi. Chỉ `DEVELOPER_ADMIN` | Chưa có biểu thuế, phí, ưu đãi. Không tự nhận quote. Proof up/down nằm ở `scripts/t02-price-window-proof.js` |
+| T07 | partial | `dedup-review.service.ts` xếp hàng `PENDING` khi hash SĐT trùng trong cùng tenant. `CrmService.createLead` gọi `enqueue` sau khi lưu lead và sau khi gặp lead trùng số. Không gán HOT, không gộp hồ sơ khách | `protectionDays` vẫn lấy policy có sẵn. Chưa tự duyệt |
 | T08 | partial | `exception-item.service.ts` mở `DISPUTE` trạng thái `OPEN`. Người mở không tự resolve. Tenant khác 404 | Không bịa số giờ SLA. Workspace cũ không đổi |
 | T09 | partial | `1758150000000-ActiveHoldUnique.ts`, `docs/t09/active-hold-unique.md` | `scripts/t02-rls-hold-proof.js` ≥50 insert cùng một căn |
 | T10 | partial | `payment.service.ts` | `payment.service.spec.ts`: amount và currency do server |
 | T11 | partial | Notary HMAC đã có. `notaryJournalId` ghi một dòng `api_webhook_deliveries`. Lần sau `idempotentReplay` và không tăng bộ đếm | Cổng thanh toán vẫn sandbox. Chưa gọi nhà cung cấp thật |
-| T12 | partial | `refund-check.service.ts` đề xuất và người khác mới `CHECKED`. Approve lần hai trả 409. Không ghi `PAID`, không gọi cổng | `RefundService.createRefund` sandbox một người vẫn còn. `lets a different operator check the proposal and does not mark it paid` |
+| T12 | partial | `refund-check.service.ts` đề xuất và người khác mới `CHECKED`. Approve lần hai trả 409. `RefundService.createRefund` từ chối khi chưa có `REFUND_CHECKED` hoặc khi người gọi là người đề xuất. Không ghi `PAID` | Cổng sandbox vẫn ghi `SUCCEEDED` sau khi người khác đã duyệt. Hoàn một phần nhiều lần vẫn mở. `refuses a refund when nobody else has checked the proposal` |
 | T13 | partial | `contract-artifact.service.ts` chỉ ghi `PENDING_REVIEW`. Gọi `EXECUTED` thì 422. Portal cấp token ký cho đúng người mua, đúng contract và tenant | OTP sandbox vẫn có thể ghi `SIGNED` trên hợp đồng cũ. `mints a sign token for the owning buyer and rejects another person or tenant` |
 | T14 | partial | `handover-checklist.service.ts` một checklist `OPEN` mỗi booking. Người khác mới `COMPLETE`. Gọi complete lần hai trả 409. `erpPosted` luôn false | Không sổ phải thu, không BNPL |
 | T15 | partial | `commission-stages.service.ts` tách earned / payable / paid. `paid` luôn `0`. Không đổi số tiền đã lưu | Chưa có chứng từ ngân hàng để ghi `PAID` |
@@ -39,10 +39,10 @@ Gate có định nghĩa trong repo thì job CI hiện có đã chạy bằng ch�
 | G03 | undefined | Không có định nghĩa G03 trong repo | Không bịa check |
 | G04 | undefined | Không có định nghĩa G04 trong repo | Không bịa check |
 | G05 | chờ ký | Job `api` chạy Jest `settlement-label.service.spec.ts`. `settlement-label.service.ts` trả `NOT_PAID` khi không có chứng từ | Chữ ký đối soát. Không tự đánh pass |
-| G06 | partial, chờ ký | Job `api` chạy `refund-check.service.spec.ts`. Người đề xuất không tự duyệt | `RefundService.createRefund` sandbox một người vẫn còn |
+| G06 | partial, chờ ký | Job `api` chạy `refund-check.service.spec.ts` và `refund.service.spec.ts`. Người đề xuất không tự duyệt và không tự gọi `createRefund` | Cổng sandbox vẫn ghi `SUCCEEDED` sau khi người khác đã duyệt. Chưa có chữ ký phí hoàn |
 | G07 | undefined | Không có định nghĩa G07 trong repo | Không bịa check |
 | G08 | undefined | Không có định nghĩa G08 trong repo | Không bịa check |
-| G09 | partial, chờ ký | Job `api` chạy `export-job.service.spec.ts`. Người duyệt phải là `FINANCE_ADMIN` và khác người yêu cầu | `maskPhone` chưa gắn. Chưa có allowlist mục đích |
+| G09 | partial, chờ ký | Job `api` chạy `export-job.service.spec.ts`. Người duyệt phải là `FINANCE_ADMIN` và khác người yêu cầu. Field `phone` đi qua `maskPhone` | Chưa có allowlist mục đích |
 | G10 | undefined | Không có định nghĩa G10 trong repo | Không bịa check |
 | G11 | undefined | Không có định nghĩa G11 trong repo | Không bịa check |
 | G12 | undefined | Không có định nghĩa G12 trong repo | Không bịa check |
@@ -104,7 +104,4 @@ Deploy khi đưa host beachhead ra môi trường thật:
 
 Còn mở, không làm trong lượt này:
 
-- Ràng buộc DB chống hai khoảng giá chồng nhau khi request đồng thời. Cần migration riêng.
-- Gắn T05 allocation vào luồng booking và listing.
-- Gắn T07 dedup vào lead intake.
 - Tách id beachhead khỏi `ten_dev_01`.

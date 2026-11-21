@@ -92,6 +92,28 @@ export class AllocationService {
     return this.allocations.save(row);
   }
 
+  /**
+   * A unit with no allocation row is the tenant's own stock.
+   * A revoked or expired allocation cannot be held or published.
+   */
+  async assertHoldOrPublish(input: { tenantId: string; unitId: string; now: Date }): Promise<void> {
+    const unitId = input.unitId.trim();
+    const rows = await this.allocations.find({ where: { tenantId: input.tenantId, unitId } });
+    if (rows.length === 0) return;
+    const allowed = rows.some((row) =>
+      allocationAllowsPlacement({
+        status: row.status,
+        expiresAt: row.expiresAt,
+        now: input.now,
+        unitId: row.unitId,
+        requestedUnitId: unitId,
+      }),
+    );
+    if (!allowed) {
+      throw new ForbiddenException({ detail: 'unit placement requires an active allocation' });
+    }
+  }
+
   async placement(input: {
     tenantId: string;
     agreementId: string;

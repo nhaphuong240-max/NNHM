@@ -50,7 +50,7 @@ describe('export job approval', () => {
       approvedBy: null,
       expiresAt: later,
       status: 'REQUESTED',
-      payload: { requesterId: 'usr_maker', rowCount: 1, rowLimit: 10 },
+      payload: { requesterId: 'usr_maker', rowCount: 1, rowLimit: 10, phone: '0901234567' },
       createdAt: new Date(),
     };
     const jobs = memory([job]);
@@ -92,6 +92,8 @@ describe('export job approval', () => {
     expect(approved.status).toBe('APPROVED');
     expect(approved.approvedBy).toBe('usr_checker');
     expect(approved.payload).not.toHaveProperty('rows');
+    expect(approved.payload).toMatchObject({ phone: '090****67' });
+    expect(JSON.stringify(approved)).not.toContain('0901234567');
     await expect(
       service.approve({
         tenantId: 'ten_a',

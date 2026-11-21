@@ -8,6 +8,7 @@ import { LeadEntity } from '../../database/entities/lead.entity';
 import { PaymentIntentEntity } from '../../database/entities/payment-intent.entity';
 import { ProjectEntity } from '../../database/entities/project.entity';
 import { UnitEntity } from '../../database/entities/unit.entity';
+import { AllocationModule } from '../allocation/allocation.module';
 import { AuditModule } from '../audit/audit.module';
 import { DocumentsModule } from '../documents/documents.module';
 import { PaymentModule } from '../payment/payment.module';
@@ -45,6 +46,7 @@ import { BookingService } from './booking.service';
       ProjectEntity,
       AuditEventEntity,
     ]),
+    AllocationModule,
     AuditModule,
     DocumentsModule,
     PaymentModule,

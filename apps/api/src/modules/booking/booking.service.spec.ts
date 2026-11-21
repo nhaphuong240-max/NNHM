@@ -1,4 +1,4 @@
-import { ConflictException, Logger, UnprocessableEntityException } from '@nestjs/common';
+import { ConflictException, ForbiddenException, Logger, UnprocessableEntityException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { BookingEntity } from '../../database/entities/booking.entity';
@@ -6,6 +6,7 @@ import { LeadEntity } from '../../database/entities/lead.entity';
 import { UnitEntity } from '../../database/entities/unit.entity';
 import { PaymentIntentEntity } from '../../database/entities/payment-intent.entity';
 import { InventoryLockService } from '../../infrastructure/redis/inventory-lock.service';
+import { AllocationService } from '../allocation/allocation.service';
 import { RefundService } from '../payment/refund.service';
 import { StreamEventsService } from '../stream/stream-events.service';
 import { TenantWebhookService } from '../tenant-webhooks/tenant-webhook.service';
@@ -46,6 +47,7 @@ describe('BookingService', () => {
   let auditAppend: jest.Mock;
   let lockStore: Map<string, string>;
   let refundServiceMock: { createRefund: jest.Mock };
+  let assertHoldOrPublish: jest.Mock;
   let bookingSave: jest.Mock;
   let lockService: Pick<
     InventoryLockService,
@@ -63,6 +65,7 @@ describe('BookingService', () => {
     };
     syncLeadFromBooking = jest.fn().mockResolvedValue(undefined);
     auditAppend = jest.fn().mockResolvedValue({});
+    assertHoldOrPublish = jest.fn().mockResolvedValue(undefined);
     lockStore = new Map();
 
     refundServiceMock = {
@@ -135,6 +138,7 @@ describe('BookingService', () => {
           useValue: { syncLeadFromBooking },
         },
         { provide: AuditService, useValue: { append: auditAppend } },
+        { provide: AllocationService, useValue: { assertHoldOrPublish } },
         { provide: QualificationService, useValue: qualification },
         {
           provide: getRepositoryToken(LeadEntity),
@@ -431,5 +435,16 @@ describe('BookingService', () => {
       }),
     );
     warn.mockRestore();
+  });
+
+  it('rejects a hold when the unit allocation is not active', async () => {
+    assertHoldOrPublish.mockRejectedValueOnce(
+      new ForbiddenException({ detail: 'unit placement requires an active allocation' }),
+    );
+
+    await expect(service.create(TENANT, bookingInput('un_01', { leadId: 'ld_01' }))).rejects.toBeInstanceOf(
+      ForbiddenException,
+    );
+    expect(bookings).toHaveLength(0);
   });
 });

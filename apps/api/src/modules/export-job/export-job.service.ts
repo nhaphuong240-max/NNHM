@@ -8,13 +8,19 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { randomBytes } from 'crypto';
 import { Repository } from 'typeorm';
 import { ExportJobEntity } from '../../database/entities/export-jobs.entity';
-import { exportJobAllowed } from '../spec-target/spec-target.rules';
+import { exportJobAllowed, maskPhone } from '../spec-target/spec-target.rules';
 
 type ExportPayload = {
   requesterId: string;
   rowCount: number;
   rowLimit: number;
 };
+
+function maskExportPayload(payload: Record<string, unknown>): Record<string, unknown> {
+  const next = { ...payload };
+  if (typeof next.phone === 'string') next.phone = maskPhone(next.phone);
+  return next;
+}
 
 function readPayload(payload: Record<string, unknown>): ExportPayload | null {
   const requesterId = typeof payload.requesterId === 'string' ? payload.requesterId : '';
@@ -60,11 +66,11 @@ export class ExportJobService {
         approvedBy: null,
         expiresAt: input.expiresAt,
         status: 'REQUESTED',
-        payload: {
+        payload: maskExportPayload({
           requesterId: input.requesterId,
           rowCount: input.rowCount,
           rowLimit: input.rowLimit,
-        },
+        }),
       }),
     );
   }
@@ -102,6 +108,7 @@ export class ExportJobService {
     }
     job.approvedBy = input.approverId;
     job.status = 'APPROVED';
+    job.payload = maskExportPayload(job.payload);
     const saved = await this.jobs.save(job);
     return saved;
   }

@@ -1,8 +1,9 @@
-import { NotFoundException, UnprocessableEntityException } from '@nestjs/common';
+import { ForbiddenException, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { ListingEntity } from '../../database/entities/listing.entity';
 import { UnitEntity } from '../../database/entities/unit.entity';
+import { AllocationService } from '../allocation/allocation.service';
 import { AuditService } from '../audit/audit.service';
 import { SearchIndexService } from '../search/search-index.service';
 import { AntiDriftService } from './anti-drift.service';
@@ -70,6 +71,7 @@ describe('ListingService', () => {
 
   const audit = { append: jest.fn().mockResolvedValue(undefined) };
   const searchIndex = { enqueue: jest.fn().mockResolvedValue(undefined) };
+  const assertHoldOrPublish = jest.fn().mockResolvedValue(undefined);
 
   beforeEach(async () => {
     savedListing = null;
@@ -83,6 +85,7 @@ describe('ListingService', () => {
         { provide: getRepositoryToken(UnitEntity), useValue: unitsRepo },
         { provide: AuditService, useValue: audit },
         { provide: SearchIndexService, useValue: searchIndex },
+        { provide: AllocationService, useValue: { assertHoldOrPublish } },
       ],
     }).compile();
 
@@ -150,5 +153,36 @@ describe('ListingService', () => {
     await expect(service.submitReview('ten_dev_01', 'ls_block')).rejects.toBeInstanceOf(
       UnprocessableEntityException,
     );
+  });
+
+  it('refuses to publish a listing when the unit allocation is not active', async () => {
+    savedListing = {
+      id: 'ls_pub',
+      tenantId: 'ten_dev_01',
+      unitId: 'un_03',
+      unitVersion: 1,
+      title: 'Publish',
+      description: 'x',
+      highlights: [],
+      mediaIds: [],
+      priceDisplay: '5200000000',
+      status: 'PENDING_REVIEW',
+      antiDriftStatus: 'PASS',
+      driftReport: null,
+      verified: false,
+      verificationLevel: 'V0',
+      transactionType: 'sale',
+      freshnessPausedAt: null,
+      rejectReason: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      unit,
+    } as ListingEntity;
+    assertHoldOrPublish.mockRejectedValueOnce(
+      new ForbiddenException({ detail: 'unit placement requires an active allocation' }),
+    );
+
+    await expect(service.approve('ten_dev_01', 'ls_pub')).rejects.toBeInstanceOf(ForbiddenException);
+    expect(savedListing.status).toBe('PENDING_REVIEW');
   });
 });
