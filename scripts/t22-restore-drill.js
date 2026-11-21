@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 /**
- * T22 restore drill. Dumps a throwaway database with pg_dump and restores it
- * into a second throwaway database on the same isolated server.
+ * T22 restore drill. Dumps a throwaway database with pg_dump and loads it
+ * with psql into a second throwaway database on the same isolated server.
+ * A newer client may emit SET transaction_timeout, which server 16 rejects.
+ * That line is removed before the load. The dump still comes from pg_dump.
  * wereal_t02 is never dropped. Production-like URLs are refused.
  * The elapsed time is an observation of this drill. It is not a signed RTO.
  * RPO stays unmeasured because this drill has no WAL archive.
@@ -44,6 +46,16 @@ function databaseUrlFor(parsed, name) {
   return next.toString();
 }
 
+function sqlStatements(sql) {
+  return sql
+    .split(/;\s*\n/)
+    .map((part) => part.trim())
+    .filter((part) => part.split('\n').some((line) => {
+      const trimmed = line.trim();
+      return trimmed && !trimmed.startsWith('--');
+    }));
+}
+
 function runDump(bin, args, env) {
   const result = spawnSync(bin, args, { env, encoding: 'utf8' });
   if (result.error) fail(`${bin} failed to start: ${result.error.message}`);
@@ -80,7 +92,6 @@ async function main() {
     PGSSLMODE: 'disable',
   };
   const pgDump = process.env.PG_DUMP || 'pg_dump';
-  const pgRestore = process.env.PG_RESTORE || 'pg_restore';
   let restoreElapsedMs = null;
   try {
     await admin.connect();
@@ -110,20 +121,24 @@ async function main() {
     const started = Date.now();
     runDump(
       pgDump,
-      ['--format=custom', '--no-owner', '--no-acl', '--file', dumpFile, '--dbname', SRC],
+      ['--format=plain', '--inserts', '--no-owner', '--no-acl', '--file', dumpFile, '--dbname', SRC],
       libpq,
     );
-    runDump(
-      pgRestore,
-      ['--no-owner', '--no-acl', '--dbname', DST, dumpFile],
-      libpq,
-    );
-    restoreElapsedMs = Date.now() - started;
+    const dumped = fs
+      .readFileSync(dumpFile, 'utf8')
+      .split('\n')
+      .filter((line) => !/transaction_timeout/i.test(line))
+      .filter((line) => !line.startsWith('\\'))
+      .join('\n');
 
     const dst = new Client({ connectionString: databaseUrlFor(parsed, DST) });
     await dst.connect();
     try {
-      const restored = await dst.query(`SELECT id, class, pilot_enabled, amount FROM t22_marker`);
+      for (const statement of sqlStatements(dumped)) {
+        await dst.query(statement);
+      }
+      restoreElapsedMs = Date.now() - started;
+      const restored = await dst.query(`SELECT id, class, pilot_enabled, amount FROM public.t22_marker`);
       if (restored.rowCount !== 1) fail('restored marker row is missing');
       const row = restored.rows[0];
       if (row.id !== 'row_1' || row.class !== 'SYNTHETIC' || row.pilot_enabled !== false || row.amount !== null) {

@@ -5,7 +5,7 @@ Các bước này chạy trên database thử. Không triển khai production v�
 ## T22 — restore trên sandbox
 
 - RPO và RTO chưa có chữ ký. SPEC chỉ đề xuất pilot RPO không quá 15 phút và RTO không quá 4 giờ khi hạ tầng cho phép; owner ký sau khi đo. Diễn tập in `rpo=unmeasured` và `rto_signed=false`. `restore_elapsed_ms` chỉ là thời gian của lần dump đó, không phải RTO đã ký.
-- `scripts/t22-restore-drill.js` dùng `pg_dump` rồi `pg_restore` từ `wereal_t22_src` sang `wereal_t22_dst` trên cùng server với `wereal_t02`. Xong thì xóa hai database thử. Không `DROP` `wereal_t02` và không restore database thật.
+- `scripts/t22-restore-drill.js` dùng `pg_dump --inserts` từ `wereal_t22_src` rồi nạp SQL sang `wereal_t22_dst` trên cùng server với `wereal_t02`. Dòng `SET transaction_timeout` và lệnh bắt đầu bằng `\\` bị bỏ vì client CI mới hơn Postgres 16. Xong thì xóa hai database thử. Không `DROP` `wereal_t02` và không restore database thật.
 - `DB_SYNCHRONIZE` không được `true`. URL giống production bị script từ chối.
 - `sandboxFlowWhenDisabled` trả `NOT_PAID` khi `mfaSandbox`, `vnpaySandbox`, và `smsSandbox` cùng tắt. Một cờ còn bật thì hàm không ghi trạng thái thanh toán.
 - Migration cũ trên `main` đã có `DROP COLUMN`. Đợt này không thêm migration mới.
