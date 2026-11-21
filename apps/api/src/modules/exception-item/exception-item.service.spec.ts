@@ -139,4 +139,40 @@ describe('exception item review', () => {
       }),
     ).rejects.toBeInstanceOf(ConflictException);
   });
+
+  it('opens a synthetic exception drill and stores no personal data', async () => {
+    const rows: ExceptionItemEntity[] = [];
+    const service = new ExceptionItemService(memory(rows) as never);
+    const drill = await service.openSyntheticDrill({
+      tenantId: 'ten_a',
+      actorId: 'usr_op',
+      actorRole: 'OPS_ADMIN',
+      severity: 'LOW',
+      dueAt: later,
+      accountClass: 'SYNTHETIC',
+      fields: {},
+      collectsMoney: false,
+      pilotFlag: false,
+    });
+    expect(drill.payload).toEqual({
+      kind: 'DISPUTE',
+      class: 'SYNTHETIC',
+      openedBy: 'usr_op',
+      collectsMoney: false,
+      pilotFlag: false,
+    });
+    await expect(
+      service.openSyntheticDrill({
+        tenantId: 'ten_a',
+        actorId: 'usr_op',
+        actorRole: 'OPS_ADMIN',
+        severity: 'LOW',
+        dueAt: later,
+        accountClass: 'LIVE',
+        fields: { phone: 'not-a-real-number' },
+        collectsMoney: true,
+        pilotFlag: true,
+      }),
+    ).rejects.toMatchObject({ response: { detail: 'real account is not allowed' } });
+  });
 });

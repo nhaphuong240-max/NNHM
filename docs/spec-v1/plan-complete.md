@@ -28,19 +28,19 @@ Không production-ready. D01–D12 chưa có chữ ký.
 | T18 | partial | `data-intelligence.service.ts` `unmeasuredDataBilling`. `signedDataProductPrice` trả null. `listingIsPubliclyIndexable` chỉ `PUBLISHED`. `DeveloperShell` noindex | Không có số KPI pilot. Không có đơn giá data product | T03, D11 |
 | T19–T20 | partial | `copilot.service.ts` citation `unit:` và `project:` từ dòng đã lưu. `retrievalCitations` trả mảng rỗng. Abstain không citation | Không có chỉ mục retrieval | D12 |
 | T21 | partial | `mfa-sandbox-seed.ts` chỉ `development` hoặc `test` và cờ đúng `true` | Secret không được log. e2e vẫn cần biến sandbox | T03 |
-| T22 | docs-only | `docs/spec-v1/t22-t24-runbooks.md:5-12` | Không có runtime. Không deploy, không restore DB thật | D01–D12 chưa ký |
-| T23 | docs-only | cùng file `:14-21` | Checklist. Không bật pilot | T22 |
-| T24 | docs-only | cùng file `:23-32` | KP01–KP04 chưa đo. Không tự đánh pass | T23 |
+| T22 | partial | `scripts/t22-restore-drill.js` trong job `t02-isolated-db`. `rpo=unmeasured`, `rto_signed=false` | Không restore database thật. Thời gian một lần dump không phải RTO đã ký | D01–D12 chưa ký |
+| T23 | partial | `reviewPilotChecklist` và `openSyntheticDrill` | Checklist từ chối tài khoản thật, PII, thu tiền và cờ pilot. Không bật pilot | T22 |
+| T24 | partial | `measureDrillKpis` trả `recommendation: none` | Ô trống vẫn `measured: false`. Không đề xuất expand, hold, hay stop | T23 |
 
 ## G01–G12
 
 | Gate | Trạng thái | Bằng chứng | Còn thiếu |
 | --- | --- | --- | --- |
-| G01 | chờ ký | Job `t02-isolated-db` chạy harness, gồm `t02-rls-hold-proof.js` và `t02-rls-app-proof.js`. Test grant trong `spec-target.rules.spec.ts` không phải RLS | Pen-test người ký. Không tự đánh pass |
-| G02 | chờ ký | Cùng job. Proof ≥50 insert một căn, một hold active | Không dùng biến JavaScript |
+| G01 | chờ ký | Job `t02-isolated-db` chạy harness, gồm `t02-rls-hold-proof.js` và `t02-rls-app-proof.js`. Test grant trong `spec-target.rules.spec.ts` không phải RLS. Danh sách job ở `docs/spec-v1/gate-evidence.md` | Pen-test người ký. Job xanh không thành pass |
+| G02 | chờ ký | Cùng job. Proof ≥50 insert một căn, một hold active | Không dùng biến JavaScript. Job xanh không thành pass |
 | G03 | undefined | Không có định nghĩa trong repo | Không bịa check |
 | G04 | undefined | Không có định nghĩa trong repo | Không bịa check |
-| G05 | chờ ký | Job `api` chạy `settlement-label.service.spec.ts`. Service trả `NOT_PAID` khi evidence null | Chữ ký đối soát |
+| G05 | chờ ký | Job `api` chạy `settlement-label.service.spec.ts`. Service trả `NOT_PAID` khi evidence null. Danh sách job ở `docs/spec-v1/gate-evidence.md` | Chữ ký đối soát. Job xanh không thành pass |
 | G06 | partial, chờ ký | Job `api` chạy `refund-check.service.spec.ts` và `refund.service.spec.ts`. Người đề xuất không tự duyệt. Đề xuất sau trong phần chưa hoàn thì người khác được kiểm. Phí giữ chỗ bị từ chối | Cổng sandbox vẫn một lần `SUCCEEDED` mỗi intent |
 | G07 | undefined | Không có định nghĩa trong repo | Không bịa check |
 | G08 | undefined | Không có định nghĩa trong repo | Không bịa check |

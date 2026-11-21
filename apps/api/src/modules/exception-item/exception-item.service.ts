@@ -9,6 +9,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { randomBytes } from 'crypto';
 import { Repository } from 'typeorm';
 import { ExceptionItemEntity } from '../../database/entities/exception-items.entity';
+import { reviewPilotChecklist } from '../spec-target/wave3-operations';
 
 const SEVERITIES = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'] as const;
 const REVIEWER_ROLES = ['OPS_ADMIN', 'DEVELOPER_ADMIN'] as const;
@@ -65,6 +66,52 @@ export class ExceptionItemService {
         dueAt: input.dueAt,
         status: 'OPEN',
         payload: { kind: 'DISPUTE', openedBy: input.actorId },
+      }),
+    );
+  }
+
+  async openSyntheticDrill(input: {
+    tenantId: string;
+    actorId: string;
+    actorRole: string | undefined;
+    severity: string;
+    dueAt: Date;
+    accountClass: string;
+    fields: Record<string, unknown>;
+    collectsMoney: boolean;
+    pilotFlag: boolean;
+  }): Promise<ExceptionItemEntity> {
+    if (!input.actorRole || !REVIEWER_ROLES.includes(input.actorRole as (typeof REVIEWER_ROLES)[number])) {
+      throw new ForbiddenException({ detail: 'exception items require an operator' });
+    }
+    if (!SEVERITIES.includes(input.severity as (typeof SEVERITIES)[number])) {
+      throw new UnprocessableEntityException({ detail: 'severity is invalid' });
+    }
+    if (Number.isNaN(input.dueAt.getTime()) || input.dueAt.getTime() <= Date.now()) {
+      throw new UnprocessableEntityException({ detail: 'due time must be in the future' });
+    }
+    const review = reviewPilotChecklist({
+      accountClass: input.accountClass,
+      fields: input.fields,
+      collectsMoney: input.collectsMoney,
+      pilotFlag: input.pilotFlag,
+    });
+    if (!review.ok) throw new UnprocessableEntityException({ detail: review.reason });
+    return this.items.save(
+      this.items.create({
+        id: `exi_${randomBytes(12).toString('hex')}`,
+        tenantId: input.tenantId,
+        ownerId: input.actorId,
+        severity: input.severity,
+        dueAt: input.dueAt,
+        status: 'OPEN',
+        payload: {
+          kind: 'DISPUTE',
+          class: 'SYNTHETIC',
+          openedBy: input.actorId,
+          collectsMoney: false,
+          pilotFlag: false,
+        },
       }),
     );
   }

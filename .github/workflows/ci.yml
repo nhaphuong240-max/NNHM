@@ -120,6 +120,8 @@ jobs:
           cache-dependency-path: apps/api/package-lock.json
       - run: npm ci
         working-directory: apps/api
+      - name: Install the Postgres client used by the throwaway restore drill
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
       - run: chmod +x scripts/t02-harness.sh && ./scripts/t02-harness.sh
       - name: Revert migrations until the baseline tables are gone
         working-directory: apps/api

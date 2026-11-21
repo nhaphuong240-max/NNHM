@@ -24,9 +24,9 @@ Không phải production-ready. `not-done (rules-only)` nghĩa là có bảng ho
 | T18 | partial | `unmeasuredDataBilling` trả `estimatedMrrVnd: null`. `signedDataProductPrice` trả null. Heatmap meta `measured: false`. Chỉ listing `PUBLISHED` được index. Developer shell `noindex` | Heatmap/MRR chưa đo pilot. Không có đơn giá data product. Locator e2e giữ heading. Local macOS 12 không cài Chromium Playwright 1.62 |
 | T19–T20 | partial | Câu có nguồn ghi `citations` là id căn và dự án đã lưu. `retrievalCitations` trả mảng rỗng. Không có tên dự án thì `không đủ dữ liệu` và không có citation. Mẫu investment bỏ cụm “giá trị” | Không có chỉ mục retrieval riêng. Không tự đánh pass |
 | T21 | partial | `mfaSandboxSeedAllowed` chỉ đúng khi `NODE_ENV` là `development` hoặc `test` và `MFA_SEED_SANDBOX` đúng `true`. Production, staging, và env rỗng bị từ chối | e2e CI vẫn cần tên biến `SEED_MFA_TOTP_SECRET`. Không ghi giá trị secret |
-| T22 | docs-only | `docs/spec-v1/t22-t24-runbooks.md` | Không có runtime. Không deploy. Không restore DB thật |
-| T23 | docs-only | cùng file | Checklist. Không tạo tài khoản, không nhập PII, không thu tiền, không bật pilot |
-| T24 | docs-only | cùng file | KP01–KP04 chưa đo. Không đề xuất expand, hold, hay stop |
+| T22 | partial | `scripts/t22-restore-drill.js` dùng `pg_dump` và `pg_restore` giữa hai database thử `wereal_t22_src` và `wereal_t22_dst` trên cùng server với `wereal_t02`. Log ghi `restore_elapsed_ms`, `rpo=unmeasured`, `rto_signed=false`. Ba cờ sandbox tắt thì `sandboxFlowWhenDisabled` trả `NOT_PAID` | Không restore database thật. Không xóa `wereal_t02`. RPO chưa đo vì không có WAL. Thời gian restore không phải RTO đã ký |
+| T23 | partial | `reviewPilotChecklist` chỉ nhận `SYNTHETIC`, từ chối PII, thu tiền và cờ pilot. `openSyntheticDrill` lưu `class: SYNTHETIC` và không chép field cá nhân | Chưa tạo tài khoản thật. Chưa bật pilot |
+| T24 | partial | `measureDrillKpis` để ô không có số là `measured: false`. `recommendation` luôn `none`, kể cả khi mọi ô đã có số | Không đề xuất expand, hold, hay stop. Số đếm trên database thử không phải kết quả pilot |
 
 ## G01–G12
 
@@ -34,11 +34,11 @@ Gate có định nghĩa trong repo thì job CI hiện có đã chạy bằng ch�
 
 | Gate | Trạng thái | Bằng chứng tự động | Chờ ký |
 | --- | --- | --- | --- |
-| G01 | chờ ký | Job `t02-isolated-db` chạy `scripts/t02-harness.sh`, trong đó `scripts/t02-rls-hold-proof.js` và `scripts/t02-rls-app-proof.js`. Test grant trong `spec-target.rules.spec.ts` không phải bằng chứng RLS | Pen-test người ký. Không tự đánh pass |
-| G02 | chờ ký | Cùng job, proof ≥50 insert một căn, một hold active | Không dùng biến JavaScript làm bằng chứng |
+| G01 | chờ ký | Job `t02-isolated-db` chạy `scripts/t02-harness.sh`, trong đó `scripts/t02-rls-hold-proof.js` và `scripts/t02-rls-app-proof.js`. Test grant trong `spec-target.rules.spec.ts` không phải bằng chứng RLS. `docs/spec-v1/gate-evidence.md` chỉ liệt kê job | Pen-test người ký. Job xanh không thành pass |
+| G02 | chờ ký | Cùng job, proof ≥50 insert một căn, một hold active. Cùng file bằng chứng | Không dùng biến JavaScript làm bằng chứng. Job xanh không thành pass |
 | G03 | undefined | Không có định nghĩa G03 trong repo | Không bịa check |
 | G04 | undefined | Không có định nghĩa G04 trong repo | Không bịa check |
-| G05 | chờ ký | Job `api` chạy Jest `settlement-label.service.spec.ts`. `settlement-label.service.ts` trả `NOT_PAID` khi không có chứng từ | Chữ ký đối soát. Không tự đánh pass |
+| G05 | chờ ký | Job `api` chạy Jest `settlement-label.service.spec.ts`. `settlement-label.service.ts` trả `NOT_PAID` khi không có chứng từ. `docs/spec-v1/gate-evidence.md` chỉ liệt kê job | Chữ ký đối soát. Job xanh không thành pass |
 | G06 | partial, chờ ký | Job `api` chạy `refund-check.service.spec.ts` và `refund.service.spec.ts`. Người đề xuất không tự duyệt. Đề xuất sau còn trong hạn mức thì người khác được kiểm. Phí giữ chỗ bị từ chối | Cổng sandbox vẫn một lần `SUCCEEDED` mỗi intent |
 | G07 | undefined | Không có định nghĩa G07 trong repo | Không bịa check |
 | G08 | undefined | Không có định nghĩa G08 trong repo | Không bịa check |

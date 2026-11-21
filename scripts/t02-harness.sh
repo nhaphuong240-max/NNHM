@@ -125,6 +125,13 @@ echo "=== app pool RLS ==="
 )
 echo "PASS app pool RLS"
 
+echo "=== throwaway restore drill ==="
+(
+  cd "$ROOT"
+  node "$ROOT/scripts/t22-restore-drill.js"
+)
+echo "PASS throwaway restore drill"
+
 if [ -n "${T02_HARNESS_SESSION:-}" ] && [ -f "${T02_HARNESS_SESSION}" ]; then
   echo "REFUSE dispose: session file is recorded and is not used as a delete"
 else

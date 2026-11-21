@@ -23,4 +23,4 @@ Deploy đứng sau proxy phải bật `TRUST_PROXY=true` (`apps/api/src/main.ts:
 
 `refund-check` từ chối duyệt lại cùng một đề xuất. Một đề xuất sau, còn trong phần chưa hoàn, có thể được người khác kiểm. Phí giữ chỗ chưa ký thì từ chối. Cổng sandbox vẫn chỉ ghi một lần `SUCCEEDED` cho mỗi payment intent.
 
-D01–D12 vẫn chưa ký. T22, T23, và T24 chỉ là tài liệu trong `docs/spec-v1/t22-t24-runbooks.md`. Không có quyết định giá, hoa hồng, đặt cọc, hay quyền xem dữ liệu khách. G03, G04, G07, G08, G10, G11, và G12 không có định nghĩa trong repo nên không được ghi là pass.
+D01–D12 vẫn chưa ký. T22 có diễn tập `pg_dump` trên database thử và vẫn để `rpo=unmeasured`, `rto_signed=false`. T23 chỉ nhận dữ liệu `SYNTHETIC`. T24 luôn `recommendation=none`. Không có quyết định giá, hoa hồng, đặt cọc, hay quyền xem dữ liệu khách. G01, G02, và G05 vẫn chờ người ký trong `docs/spec-v1/gate-evidence.md`. G03, G04, G07, G08, G10, G11, và G12 không có định nghĩa trong repo nên không được ghi là pass và đợt này không thêm tiêu chí.
