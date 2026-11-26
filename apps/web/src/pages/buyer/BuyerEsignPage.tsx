@@ -47,8 +47,8 @@ export function BuyerEsignPage() {
     setError(null);
     try {
       const issued = await issueContractSignToken(contractId, tenantId);
-      setSignToken(issued.data.token);
       const res = await fetchContractSignSession(contractId, tenantId, issued.data.token);
+      setSignToken(issued.data.token);
       setSession(res.data);
       setSignerName(res.data.buyerName);
     } catch (e) {

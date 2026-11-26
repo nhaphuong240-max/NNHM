@@ -412,6 +412,12 @@ function seedChallenge(overrides: Partial<MemChallenge> = {}): MemChallenge {
 
 function applySql(state: { challenges: MemChallenge[]; signers: Array<{ jti: string; tenantId: string; consumed: boolean }> }, sql: string, params: unknown[]) {
   if (sql.includes('FOR UPDATE')) {
+    const [tenantId, jti] = params as string[];
+    return state.challenges
+      .filter((row) => row.tenantId === tenantId && row.jti === jti)
+      .map((row) => ({ ...row }));
+  }
+  if (sql.includes('subject_id')) {
     const [tenantId, contractId, subjectId] = params as string[];
     return state.challenges
       .filter((row) => row.tenantId === tenantId && row.contractId === contractId && row.subjectId === subjectId)
@@ -524,6 +530,12 @@ describe('e-sign atomic consume', () => {
     expect(returnedRows([[{ id: 'otp_1' }], 1])).toEqual([{ id: 'otp_1' }]);
     expect(returnedRows([[], 0])).toEqual([]);
     expect(returnedRows([{ id: 'otp_1' }])).toEqual([{ id: 'otp_1' }]);
+  });
+
+  it('finds the open challenge by ticket when the signer subject differs', async () => {
+    const { db, tickets } = gate('3', undefined, seedChallenge({ subjectId: 'someone_else' }));
+    await expect(tickets.completeSign(accessClaims(), CODE, async () => 'signed')).resolves.toBe('signed');
+    expect(db.state.signers[0]?.consumed).toBe(true);
   });
 
   it('does not consume the ticket when the otp is wrong', async () => {

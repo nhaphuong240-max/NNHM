@@ -5,10 +5,18 @@ SELECT c."id" AS id, c."jti" AS jti, c."otp_hash" AS otp_hash, c."attempts" AS a
        c."locked_until" AS locked_until, c."locked_indefinitely" AS locked_indefinitely,
        c."consumed_at" AS consumed_at, c."expires_at" AS expires_at, c."created_at" AS created_at
 FROM "otp_challenges" c
+WHERE c."tenant_id" = $1 AND c."jti" = $2
+FOR UPDATE
+`;
+
+export const SELECT_SIGNER_BUDGET_SQL = `
+SELECT c."id" AS id, c."jti" AS jti, c."otp_hash" AS otp_hash, c."attempts" AS attempts,
+       c."locked_until" AS locked_until, c."locked_indefinitely" AS locked_indefinitely,
+       c."consumed_at" AS consumed_at, c."expires_at" AS expires_at, c."created_at" AS created_at
+FROM "otp_challenges" c
 INNER JOIN "signature_requests" r ON r."id" = c."request_id"
 INNER JOIN "signature_signers" s ON s."id" = c."signer_id"
 WHERE c."tenant_id" = $1 AND r."contract_id" = $2 AND s."subject_id" = $3
-FOR UPDATE
 `;
 
 export const UPDATE_ATTEMPT_SQL = `

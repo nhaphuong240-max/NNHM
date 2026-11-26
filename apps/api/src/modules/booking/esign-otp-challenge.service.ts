@@ -10,6 +10,7 @@ import {
   CONSUME_OTP_SQL,
   COUNT_SENDS_SQL,
   SELECT_SCOPED_CHALLENGES_SQL,
+  SELECT_SIGNER_BUDGET_SQL,
   UPDATE_ATTEMPT_SQL,
   returnedRows,
 } from './esign-otp-atomic';
@@ -150,11 +151,19 @@ export class EsignOtpChallengeService {
     if (demoEsignOtpRejected({ otp, nodeEnv, smsSandbox: this.config.get<string>('SMS_SANDBOX') !== 'false' })) {
       throw new UnprocessableEntityException({ detail: 'demo otp is not accepted' });
     }
-    const selected = returnedRows(
-      await runner.query(SELECT_SCOPED_CHALLENGES_SQL, [claims.tenantId, claims.contractId, claims.buyerId]),
+    const current = returnedRows(
+      await runner.query(SELECT_SCOPED_CHALLENGES_SQL, [claims.tenantId, claims.jti]),
     );
+    const budget = returnedRows(
+      await runner.query(SELECT_SIGNER_BUDGET_SQL, [claims.tenantId, claims.contractId, claims.buyerId]),
+    );
+    const byId = new Map<string, Record<string, unknown>>();
+    for (const row of [...budget, ...current]) {
+      const record = row as Record<string, unknown>;
+      byId.set(String(record.id), record);
+    }
     const decision = decideScopedAttempt({
-      rows: selected.map((row) => this.scoped(row as Record<string, unknown>)),
+      rows: [...byId.values()].map((row) => this.scoped(row)),
       jti: claims.jti,
       now,
       maxAttempts,
