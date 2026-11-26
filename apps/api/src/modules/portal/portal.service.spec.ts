@@ -15,6 +15,7 @@ import { ZaloZnsDeliveryEntity } from '../../database/entities/zalo-zns-delivery
 import { PaymentIntentEntity } from '../../database/entities/payment-intent.entity';
 import { MobileDeviceEntity } from '../../database/entities/mobile-device.entity';
 import { BookingContractService } from '../booking/booking-contract.service';
+import { SignatureTicketService } from '../booking/signature-ticket.service';
 import { PaymentBnplService } from '../payment/payment-bnpl.service';
 import { PortalService } from './portal.service';
 import { BuyerDealNotifyService } from './buyer-deal-notify.service';
@@ -110,6 +111,10 @@ describe('PortalService', () => {
         { provide: BuyerDealNotifyService, useValue: buyerDealNotifyMock },
         { provide: BookingContractService, useValue: {} },
         { provide: PaymentBnplService, useValue: {} },
+        {
+          provide: SignatureTicketService,
+          useValue: { issueBuyerAccess: jest.fn(), assertUsable: jest.fn(), consume: jest.fn(), completeSign: jest.fn() },
+        },
       ],
     }).compile();
 
@@ -169,6 +174,10 @@ describe('PortalService', () => {
         { provide: BuyerDealNotifyService, useValue: buyerDealNotifyMock },
         { provide: BookingContractService, useValue: {} },
         { provide: PaymentBnplService, useValue: {} },
+        {
+          provide: SignatureTicketService,
+          useValue: { issueBuyerAccess: jest.fn(), assertUsable: jest.fn(), consume: jest.fn(), completeSign: jest.fn() },
+        },
         { provide: getRepositoryToken(MobileDeviceEntity), useValue: mockRepo(0) },
       ],
     }).compile();
@@ -283,6 +292,10 @@ describe('PortalService', () => {
         { provide: BuyerDealNotifyService, useValue: buyerDealNotifyMock },
         { provide: BookingContractService, useValue: {} },
         { provide: PaymentBnplService, useValue: {} },
+        {
+          provide: SignatureTicketService,
+          useValue: { issueBuyerAccess: jest.fn(), assertUsable: jest.fn(), consume: jest.fn(), completeSign: jest.fn() },
+        },
       ],
     }).compile();
 

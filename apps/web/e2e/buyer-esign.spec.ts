@@ -75,3 +75,43 @@ test('buyer-esign owning buyer gets a token and opens the sign session', async (
   await expect(page.getByText('Thu Trang')).toBeVisible();
   await expect(page.getByText('contract sign token is missing, expired, or for another contract')).toHaveCount(0);
 });
+
+test('buyer-esign owning buyer enters the otp and signs the contract', async ({ page }) => {
+  const requested = await fetch(`${API_BASE}/auth/seeker/otp/request`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ phone: PHONE, entryToken: ENTRY_TOKEN }),
+  });
+  expect(requested.ok).toBe(true);
+  const requestBody = (await requested.json()) as { data?: { challengeId?: string } };
+  const challengeId = requestBody.data?.challengeId;
+  expect(challengeId).toBeTruthy();
+
+  const verified = await fetch(`${API_BASE}/auth/seeker/otp/verify`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ challengeId, code: '123456', phone: PHONE }),
+  });
+  expect(verified.ok).toBe(true);
+  const verifiedBody = (await verified.json()) as { data?: { accessToken?: string; userId?: string } };
+  const accessToken = verifiedBody.data?.accessToken;
+  expect(accessToken).toBeTruthy();
+
+  await page.goto('/');
+  await page.evaluate(
+    ({ accessToken: token, userId, phone }) => {
+      window.localStorage.setItem(
+        'nnhn_seeker_session',
+        JSON.stringify({ accessToken: token, userId, phone, verifiedAt: new Date().toISOString() }),
+      );
+    },
+    { accessToken, userId: verifiedBody.data?.userId, phone: PHONE },
+  );
+  await page.goto(`/buyer/esign?contractId=${CONTRACT_ID}&tenantId=${TENANT_ID}`);
+  await expect(page.getByRole('heading', { name: 'Ký hợp đồng điện tử' })).toBeVisible();
+  await expect(page.getByText('Thu Trang')).toBeVisible();
+  await page.getByPlaceholder('Mã OTP từ SMS').fill('123456');
+  await page.getByRole('checkbox').check();
+  await page.getByRole('button', { name: 'Ký điện tử' }).click();
+  await expect(page.getByText('Đã ký thành công')).toBeVisible();
+});

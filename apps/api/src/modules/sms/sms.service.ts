@@ -119,18 +119,6 @@ export class SmsService {
     return typeof otp === 'string' ? otp : null;
   }
 
-  async getEsignOtp(tenantId: string, contractId: string): Promise<string | null> {
-    const row = await this.deliveries.findOne({
-      where: {
-        tenantId,
-        sourceType: 'ESIGN_OTP',
-        sourceId: contractId,
-      },
-    });
-    const otp = row?.params?.otp;
-    return typeof otp === 'string' ? otp : null;
-  }
-
   async sendSms(tenantId: string, input: SmsSendInput): Promise<SmsSendResult> {
     if (input.source) {
       const existing = await this.deliveries.findOne({

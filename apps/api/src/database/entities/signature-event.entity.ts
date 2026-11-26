@@ -1,4 +1,5 @@
-import { Column, Entity, Index, PrimaryColumn } from 'typeorm';
+import { Column, Entity, Index, JoinColumn, ManyToOne, PrimaryColumn } from 'typeorm';
+import { SignatureRequestEntity } from './signature-request.entity';
 
 @Entity({ name: 'signature_events' })
 @Index(['tenantId', 'requestId', 'occurredAt'])
@@ -11,6 +12,10 @@ export class SignatureEventEntity {
 
   @Column({ name: 'request_id', type: 'varchar', length: 64 })
   requestId!: string;
+
+  @ManyToOne(() => SignatureRequestEntity)
+  @JoinColumn({ name: 'request_id' })
+  request?: SignatureRequestEntity;
 
   @Column({ name: 'signer_id', type: 'varchar', length: 64, nullable: true })
   signerId!: string | null;

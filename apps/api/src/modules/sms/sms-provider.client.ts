@@ -3,6 +3,12 @@ import { ConfigService } from '@nestjs/config';
 import { RailResolverService } from '../tenant-config/rail-resolver.service';
 import type { SmsGraphMode } from './sms.types';
 
+function maskPhone(phone: string): string {
+  const compact = phone.trim().replace(/\s+/g, '');
+  if (compact.length <= 4) return '****';
+  return `${compact.slice(0, 2)}****${compact.slice(-2)}`;
+}
+
 @Injectable()
 export class SmsProviderClient {
   private readonly logger = new Logger(SmsProviderClient.name);
@@ -38,13 +44,13 @@ export class SmsProviderClient {
     apiKey?: string;
   }): Promise<{ providerRef: string }> {
     if (await this.isSandboxMode(input.tenantId)) {
-      this.logger.log(`SMS sandbox ${input.templateId} → ${input.phone} (${input.trackingId})`);
+      this.logger.log(`SMS sandbox ${input.templateId} → ${maskPhone(input.phone)} (${input.trackingId})`);
       return { providerRef: `sandbox_${input.trackingId}` };
     }
 
     if (this.isStubMode()) {
       this.logger.log(
-        `SMS live stub ${input.templateId} → ${input.phone} (${input.trackingId}) · SMS_PROVIDER_STUB`,
+        `SMS live stub ${input.templateId} → ${maskPhone(input.phone)} (${input.trackingId}) · SMS_PROVIDER_STUB`,
       );
       return { providerRef: `live_stub_${input.trackingId}` };
     }
@@ -77,7 +83,7 @@ export class SmsProviderClient {
 
     const json = (await res.json().catch(() => ({}))) as { providerRef?: string; messageId?: string };
     const providerRef = json.providerRef ?? json.messageId ?? `live_${input.trackingId}`;
-    this.logger.log(`SMS LIVE ${input.templateId} → ${input.phone} ref=${providerRef}`);
+    this.logger.log(`SMS LIVE ${input.templateId} → ${maskPhone(input.phone)} ref=${providerRef}`);
     return { providerRef };
   }
 }

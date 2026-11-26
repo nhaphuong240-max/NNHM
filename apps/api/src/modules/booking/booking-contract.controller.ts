@@ -146,8 +146,11 @@ export class BookingContractController {
     @Body() body: ContractSignInput,
   ) {
     const access = await this.signedContractTenant(contractId, tenantHeader, signToken);
-    const signed = await this.contracts.signContract(access.tenantId, contractId, body, access.claims);
-    await this.tickets?.consume(access.claims);
-    return signed;
+    if (!this.tickets) {
+      throw new UnauthorizedException({ detail: 'sign access ticket is required' });
+    }
+    return this.tickets.completeSign(access.claims, body.otp, () =>
+      this.contracts.signContract(access.tenantId, contractId, body, access.claims, true),
+    );
   }
 }

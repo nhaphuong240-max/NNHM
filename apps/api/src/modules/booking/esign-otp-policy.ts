@@ -5,6 +5,7 @@ import { ESIGN_DEMO_OTP } from './booking-contract.util';
 /** Names only. Empty means refuse. None of these numbers are a signed business limit. */
 export const ESIGN_OTP_PEPPER_ENV = 'ESIGN_OTP_PEPPER';
 export const ESIGN_OTP_MAX_ATTEMPTS_ENV = 'ESIGN_OTP_MAX_ATTEMPTS';
+export const ESIGN_OTP_MAX_SENDS_ENV = 'ESIGN_OTP_MAX_SENDS';
 export const ESIGN_OTP_RESEND_COOLDOWN_ENV = 'ESIGN_OTP_RESEND_COOLDOWN_SECONDS';
 export const ESIGN_OTP_LOCKOUT_ENV = 'ESIGN_OTP_LOCKOUT_SECONDS';
 
@@ -34,12 +35,13 @@ export function readConfiguredPositiveInt(
   return Number.isSafeInteger(value) ? value : null;
 }
 
-export function hashEsignOtp(otp: string, pepper: string): string {
-  return createHmac('sha256', pepper).update(otp.trim()).digest('base64url');
+/** HMAC of the ticket jti and the OTP. The same code on another ticket does not match. */
+export function hashEsignOtp(otp: string, pepper: string, binding: string): string {
+  return createHmac('sha256', pepper).update(`${binding}\n${otp.trim()}`).digest('base64url');
 }
 
-export function esignOtpMatches(otp: string, otpHash: string, pepper: string): boolean {
-  const actual = Buffer.from(hashEsignOtp(otp, pepper));
+export function esignOtpMatches(otp: string, otpHash: string, pepper: string, binding: string): boolean {
+  const actual = Buffer.from(hashEsignOtp(otp, pepper, binding));
   const expected = Buffer.from(otpHash);
   if (actual.length !== expected.length) return false;
   return timingSafeEqual(actual, expected);
@@ -97,7 +99,9 @@ export function verifyStoredEsignOtp(input: {
   lockoutSeconds: number | null;
   nodeEnv: string | undefined;
   smsSandbox: boolean;
+  binding?: string;
 }): EsignOtpVerifyResult {
+  const binding = input.binding ?? 'jti_1';
   if (!input.pepper) {
     return { ok: false, reason: 'esign otp pepper is not configured', next: input.stored };
   }
@@ -118,7 +122,7 @@ export function verifyStoredEsignOtp(input: {
   if (stored.expiresAtMs <= input.now) {
     return { ok: false, reason: 'esign otp challenge is expired', next: stored };
   }
-  if (!esignOtpMatches(input.otp, stored.otpHash, input.pepper)) {
+  if (!esignOtpMatches(input.otp, stored.otpHash, input.pepper, binding)) {
     const attempts = stored.attempts + 1;
     const exhausted = attempts >= input.maxAttempts;
     const next: EsignOtpView = {

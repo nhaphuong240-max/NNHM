@@ -1,4 +1,6 @@
-import { Column, CreateDateColumn, Entity, Index, PrimaryColumn } from 'typeorm';
+import { Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, PrimaryColumn } from 'typeorm';
+import { SignatureRequestEntity } from './signature-request.entity';
+import { SignatureSignerEntity } from './signature-signer.entity';
 
 /** Hash only. The raw code is never stored. */
 @Entity({ name: 'otp_challenges' })
@@ -13,8 +15,16 @@ export class EsignOtpChallengeEntity {
   @Column({ name: 'request_id', type: 'varchar', length: 64 })
   requestId!: string;
 
+  @ManyToOne(() => SignatureRequestEntity)
+  @JoinColumn({ name: 'request_id' })
+  request?: SignatureRequestEntity;
+
   @Column({ name: 'signer_id', type: 'varchar', length: 64 })
   signerId!: string;
+
+  @ManyToOne(() => SignatureSignerEntity)
+  @JoinColumn({ name: 'signer_id' })
+  signer?: SignatureSignerEntity;
 
   @Column({ type: 'varchar', length: 64 })
   jti!: string;

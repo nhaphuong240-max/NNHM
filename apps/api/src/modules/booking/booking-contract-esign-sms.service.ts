@@ -8,7 +8,12 @@ import { SmsService } from '../sms/sms.service';
 import { SMS_TEMPLATES } from '../sms/sms.types';
 import type { ContractSignClaims } from './contract-sign-token';
 import { EsignOtpChallengeService } from './esign-otp-challenge.service';
-import { esignOtpSentAudit } from './esign-otp-policy';
+import {
+  decideEsignResend,
+  esignOtpSentAudit,
+  readConfiguredPositiveInt,
+  ESIGN_OTP_RESEND_COOLDOWN_ENV,
+} from './esign-otp-policy';
 import { RailResolverService } from '../tenant-config/rail-resolver.service';
 
 export interface EsignOtpResult {
@@ -43,50 +48,58 @@ export class BookingContractEsignSmsService {
     if (!access?.jti || !access.signerId || !access.requestId) {
       throw new UnprocessableEntityException({ detail: 'sign access ticket is required' });
     }
-    const booking = await this.bookings.findOne({ where: { id: bookingId, tenantId } });
-    if (!booking) {
-      return { sent: false, skipped: true, skipReason: 'booking_not_found' };
+    this.challenges.assertReadyToIssue();
+    const latest = await this.challenges.findLatest(tenantId, access.jti);
+    const decision = decideEsignResend({
+      latestCreatedAtMs: latest ? latest.createdAt.getTime() : null,
+      latestExpiresAtMs: latest ? latest.expiresAt.getTime() : null,
+      latestConsumed: Boolean(latest?.consumedAt),
+      now: Date.now(),
+      cooldownSeconds: readConfiguredPositiveInt(
+        (key) => this.challenges.readConfig(key),
+        ESIGN_OTP_RESEND_COOLDOWN_ENV,
+      ),
+    });
+    const resolved = await this.resolvePhone(tenantId, bookingId);
+    if (!resolved.ok) return resolved.result;
+    if (decision === 'replay') {
+      if (!latest) {
+        throw new UnprocessableEntityException({ detail: 'e-sign otp was not issued' });
+      }
+      return this.sent(tenantId, contractId, bookingId, resolved.phone, latest.id, undefined, true);
     }
-
-    let phone: string | undefined;
-    if (booking.leadId) {
-      const lead = await this.leads.findOne({ where: { id: booking.leadId, tenantId } });
-      phone = lead?.phone;
+    if (decision === 'unconfigured') {
+      throw new UnprocessableEntityException({ detail: 'esign otp resend cooldown is not configured' });
     }
-
-    if (!phone) {
-      throw new UnprocessableEntityException({
-        detail: 'Buyer phone required for e-sign OTP (UC-NW-03)',
-      });
+    if (decision === 'cooling') {
+      throw new UnprocessableEntityException({ detail: 'esign otp resend is cooling down' });
     }
+    await this.challenges.assertSendBudget(access);
 
     try {
       const delivery = await this.sms.sendSms(tenantId, {
         templateId: SMS_TEMPLATES.OTP,
-        phone,
+        phone: resolved.phone,
         persistOtp: false,
         params: {
           buyer_name: buyerName,
           contract_id: contractId,
         },
-        source: { type: 'ESIGN_OTP', id: `${contractId}:${access.jti}` },
+        source: { type: 'ESIGN_OTP', id: `${contractId}:${access.jti}:${latest?.id ?? 'first'}` },
       });
-      const replay = delivery.idempotentReplay === true || !delivery.otp;
-      if (!replay) {
-        if (!delivery.otp) {
-          throw new UnprocessableEntityException({ detail: 'e-sign otp was not issued' });
-        }
-        const issued = await this.challenges.issue({ claims: access, otp: delivery.otp });
-        if (issued.replay) {
-          return this.sent(tenantId, contractId, bookingId, phone, delivery.deliveryId, delivery.sandbox, true);
-        }
-      } else if (delivery.idempotentReplay) {
-        return this.sent(tenantId, contractId, bookingId, phone, delivery.deliveryId, delivery.sandbox, true);
-      } else {
+      if (!delivery.otp) {
         throw new UnprocessableEntityException({ detail: 'e-sign otp was not issued' });
       }
-
-      return this.sent(tenantId, contractId, bookingId, phone, delivery.deliveryId, delivery.sandbox, false);
+      const issued = await this.challenges.issue({ claims: access, otp: delivery.otp });
+      return this.sent(
+        tenantId,
+        contractId,
+        bookingId,
+        resolved.phone,
+        delivery.deliveryId,
+        delivery.sandbox,
+        issued.replay,
+      );
     } catch (err) {
       if (err instanceof UnprocessableEntityException) throw err;
       const message = err instanceof Error ? err.message : String(err);
@@ -111,6 +124,27 @@ export class BookingContractEsignSmsService {
       otp,
       smsSandbox: rails.smsSandbox !== false,
     });
+  }
+
+  private async resolvePhone(
+    tenantId: string,
+    bookingId: string,
+  ): Promise<{ ok: true; phone: string } | { ok: false; result: EsignOtpResult }> {
+    const booking = await this.bookings.findOne({ where: { id: bookingId, tenantId } });
+    if (!booking) {
+      return { ok: false, result: { sent: false, skipped: true, skipReason: 'booking_not_found' } };
+    }
+    let phone: string | undefined;
+    if (booking.leadId) {
+      const lead = await this.leads.findOne({ where: { id: booking.leadId, tenantId } });
+      phone = lead?.phone;
+    }
+    if (!phone) {
+      throw new UnprocessableEntityException({
+        detail: 'Buyer phone required for e-sign OTP (UC-NW-03)',
+      });
+    }
+    return { ok: true, phone };
   }
 
   private async sent(

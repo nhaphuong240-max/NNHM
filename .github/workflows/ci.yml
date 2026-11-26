@@ -266,6 +266,9 @@ jobs:
       JWT_SECRET: wereal-ci-jwt-secret-min-32-chars-long
       CONTRACT_SIGN_SECRET: wereal-ci-contract-sign-secret
       ESIGN_OTP_PEPPER: wereal-ci-esign-otp-pepper
+      # Unsigned test fixture so one browser sign can pass the fail-closed gate. Not a product limit.
+      ESIGN_OTP_MAX_ATTEMPTS: '4'
+      ESIGN_OTP_MAX_SENDS: '4'
       NOTARY_WEBHOOK_SECRET: wereal-ci-notary-webhook-secret
       AUTH_LOGIN_RATE_LIMIT_PER_MIN: '1000'
       NODE_ENV: development

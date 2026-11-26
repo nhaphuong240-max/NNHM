@@ -189,6 +189,7 @@ export class BookingContractService {
     contractId: string,
     input: ContractSignInput,
     access?: ContractSignClaims,
+    otpConsumed = false,
   ) {
     const record = await this.loadContractRecord(tenantId, contractId.trim());
     if (!record) {
@@ -203,9 +204,11 @@ export class BookingContractService {
     if (!input.signerName?.trim()) {
       throw new BadRequestException({ detail: 'signerName is required' });
     }
-    const otpValid = await this.esignSms.validateContractOtp(tenantId, record.id, input.otp, access?.jti);
-    if (!otpValid) {
-      throw new UnprocessableEntityException({ detail: 'Invalid OTP — request a new sign session' });
+    if (!otpConsumed) {
+      const otpValid = await this.esignSms.validateContractOtp(tenantId, record.id, input.otp, access?.jti);
+      if (!otpValid) {
+        throw new UnprocessableEntityException({ detail: 'Invalid OTP' });
+      }
     }
 
     await this.consentLedger.record(tenantId, {

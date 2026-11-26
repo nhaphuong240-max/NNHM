@@ -1,22 +1,39 @@
 import { Injectable, UnprocessableEntityException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { InjectRepository } from '@nestjs/typeorm';
+import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { randomBytes } from 'crypto';
-import { Repository } from 'typeorm';
+import { DataSource, QueryRunner, Repository } from 'typeorm';
 import { EsignOtpChallengeEntity } from '../../database/entities/esign-otp-challenge.entity';
+import { SignatureEventEntity } from '../../database/entities/signature-event.entity';
 import type { ContractSignClaims } from './contract-sign-token';
 import {
+  CONSUME_OTP_SQL,
+  COUNT_SENDS_SQL,
+  SELECT_SCOPED_CHALLENGES_SQL,
+  UPDATE_ATTEMPT_SQL,
+  returnedRows,
+} from './esign-otp-atomic';
+import {
   decideEsignResend,
+  demoEsignOtpRejected,
   esignOtpExpiresAt,
   hashEsignOtp,
   readConfiguredPositiveInt,
   readEsignOtpPepper,
+  safeSignatureMetadata,
   ESIGN_OTP_LOCKOUT_ENV,
   ESIGN_OTP_MAX_ATTEMPTS_ENV,
+  ESIGN_OTP_MAX_SENDS_ENV,
   ESIGN_OTP_RESEND_COOLDOWN_ENV,
   verifyStoredEsignOtp,
   type EsignOtpView,
 } from './esign-otp-policy';
+import { decideScopedAttempt, type ScopedChallenge } from './esign-otp-scope';
+
+export type AttemptOutcome =
+  | { kind: 'matched' }
+  | { kind: 'refused'; detail: string }
+  | { kind: 'lost' };
 
 @Injectable()
 export class EsignOtpChallengeService {
@@ -24,7 +41,42 @@ export class EsignOtpChallengeService {
     @InjectRepository(EsignOtpChallengeEntity)
     private readonly challenges: Repository<EsignOtpChallengeEntity>,
     private readonly config: ConfigService,
+    @InjectRepository(SignatureEventEntity)
+    private readonly events?: Repository<SignatureEventEntity>,
+    @InjectDataSource()
+    private readonly dataSource?: DataSource,
   ) {}
+
+  readConfig(key: string): string | undefined {
+    return this.config.get<string>(key);
+  }
+
+  /** Pepper and the attempt limit. Call this before any SMS send. */
+  assertReadyToIssue(): void {
+    if (!readEsignOtpPepper((key) => this.config.get<string>(key))) {
+      throw new UnprocessableEntityException({ detail: 'esign otp pepper is not configured' });
+    }
+    if (readConfiguredPositiveInt((key) => this.config.get<string>(key), ESIGN_OTP_MAX_ATTEMPTS_ENV) === null) {
+      throw new UnprocessableEntityException({ detail: 'esign otp attempt limit is not configured' });
+    }
+  }
+
+  /** New sends share one budget per contract and signer. Empty configuration refuses the send. */
+  async assertSendBudget(claims: ContractSignClaims): Promise<void> {
+    const maxSends = readConfiguredPositiveInt((key) => this.config.get<string>(key), ESIGN_OTP_MAX_SENDS_ENV);
+    if (maxSends === null || !this.dataSource) {
+      throw new UnprocessableEntityException({ detail: 'esign otp send limit is not configured' });
+    }
+    const rows = await this.dataSource.query(COUNT_SENDS_SQL, [claims.tenantId, claims.contractId, claims.buyerId]);
+    const count = Number((rows?.[0] as { sends?: number } | undefined)?.sends ?? 0);
+    if (count >= maxSends) {
+      throw new UnprocessableEntityException({ detail: 'esign otp send limit is exhausted' });
+    }
+  }
+
+  findLatest(tenantId: string, jti: string): Promise<EsignOtpChallengeEntity | null> {
+    return this.latest(tenantId, jti);
+  }
 
   /** First send, or an idempotent replay of an open challenge. A real resend needs cooldown config. */
   async issue(input: {
@@ -63,7 +115,7 @@ export class EsignOtpChallengeService {
         requestId: input.claims.requestId,
         signerId: input.claims.signerId,
         jti: input.claims.jti,
-        otpHash: hashEsignOtp(input.otp, pepper),
+        otpHash: hashEsignOtp(input.otp, pepper, input.claims.jti),
         expiresAt: esignOtpExpiresAt(now),
         attempts: 0,
         lockedUntil: null,
@@ -72,7 +124,68 @@ export class EsignOtpChallengeService {
         channel: input.claims.channel,
       }),
     );
+    await this.note(input.claims, 'OTP_SENT', { jti: input.claims.jti }, now);
     return { replay: false };
+  }
+
+  /**
+   * One transaction: conditional attempt update, then consume only when the code matches.
+   * The caller commits a mismatch so the attempt is kept, and rolls back when signing fails.
+   */
+  async takeAttempt(
+    runner: QueryRunner,
+    claims: ContractSignClaims,
+    otp: string,
+    now = Date.now(),
+  ): Promise<AttemptOutcome> {
+    const pepper = readEsignOtpPepper((key) => this.config.get<string>(key));
+    if (!pepper) {
+      throw new UnprocessableEntityException({ detail: 'esign otp pepper is not configured' });
+    }
+    const maxAttempts = readConfiguredPositiveInt((key) => this.config.get<string>(key), ESIGN_OTP_MAX_ATTEMPTS_ENV);
+    if (maxAttempts === null) {
+      throw new UnprocessableEntityException({ detail: 'esign otp attempt limit is not configured' });
+    }
+    const nodeEnv = this.config.get<string>('NODE_ENV');
+    if (demoEsignOtpRejected({ otp, nodeEnv, smsSandbox: this.config.get<string>('SMS_SANDBOX') !== 'false' })) {
+      throw new UnprocessableEntityException({ detail: 'demo otp is not accepted' });
+    }
+    const selected = returnedRows(
+      await runner.query(SELECT_SCOPED_CHALLENGES_SQL, [claims.tenantId, claims.contractId, claims.buyerId]),
+    );
+    const decision = decideScopedAttempt({
+      rows: selected.map((row) => this.scoped(row as Record<string, unknown>)),
+      jti: claims.jti,
+      now,
+      maxAttempts,
+      lockoutSeconds: readConfiguredPositiveInt((key) => this.config.get<string>(key), ESIGN_OTP_LOCKOUT_ENV),
+      otp,
+      pepper,
+    });
+    if (decision.action === 'refuse') {
+      if (decision.lockedEvent) await this.noteOn(runner, claims, 'OTP_LOCKED', { jti: claims.jti }, now);
+      return { kind: 'refused', detail: decision.detail };
+    }
+    const updated = returnedRows(
+      await runner.query(UPDATE_ATTEMPT_SQL, [
+        decision.id,
+        decision.attempts,
+        decision.lockedUntil,
+        decision.lockedIndefinitely,
+        claims.tenantId,
+        maxAttempts,
+        decision.previousAttempts,
+      ]),
+    );
+    if (updated.length !== 1) return { kind: 'lost' };
+    if (!decision.match) {
+      await this.noteOn(runner, claims, 'OTP_FAILED', { jti: claims.jti, attempts: decision.attempts }, now);
+      if (decision.locked) await this.noteOn(runner, claims, 'OTP_LOCKED', { jti: claims.jti }, now);
+      return { kind: 'refused', detail: 'Invalid OTP' };
+    }
+    const consumed = returnedRows(await runner.query(CONSUME_OTP_SQL, [decision.id, claims.tenantId]));
+    if (consumed.length !== 1) return { kind: 'lost' };
+    return { kind: 'matched' };
   }
 
   async verify(input: {
@@ -93,8 +206,14 @@ export class EsignOtpChallengeService {
       lockoutSeconds: readConfiguredPositiveInt((key) => this.config.get<string>(key), ESIGN_OTP_LOCKOUT_ENV),
       nodeEnv: this.config.get<string>('NODE_ENV'),
       smsSandbox: input.smsSandbox,
+      binding: input.jti,
     });
-    if (!result.ok && (result.reason === 'esign otp pepper is not configured' || result.reason === 'esign otp attempt limit is not configured' || result.reason === 'demo otp is not accepted')) {
+    if (
+      !result.ok &&
+      (result.reason === 'esign otp pepper is not configured' ||
+        result.reason === 'esign otp attempt limit is not configured' ||
+        result.reason === 'demo otp is not accepted')
+    ) {
       throw new UnprocessableEntityException({ detail: result.reason });
     }
     if (row && result.next) this.apply(row, result.next);
@@ -133,5 +252,66 @@ export class EsignOtpChallengeService {
     row.lockedIndefinitely = next.lockedIndefinitely;
     row.lockedUntil = next.lockedUntilMs === null ? null : new Date(next.lockedUntilMs);
     row.consumedAt = next.consumedAtMs === null ? null : new Date(next.consumedAtMs);
+  }
+
+  private scoped(row: Record<string, unknown>): ScopedChallenge {
+    return {
+      id: String(row.id),
+      jti: String(row.jti),
+      attempts: Number(row.attempts),
+      lockedUntilMs: row.locked_until ? new Date(String(row.locked_until)).getTime() : null,
+      lockedIndefinitely: row.locked_indefinitely === true,
+      consumedAtMs: row.consumed_at ? new Date(String(row.consumed_at)).getTime() : null,
+      expiresAtMs: new Date(String(row.expires_at)).getTime(),
+      otpHash: String(row.otp_hash),
+      createdAtMs: new Date(String(row.created_at)).getTime(),
+    };
+  }
+
+  private async note(
+    claims: ContractSignClaims,
+    action: string,
+    metadata: Record<string, unknown>,
+    now: number,
+  ): Promise<void> {
+    if (!this.events) return;
+    await this.events.save(
+      this.events.create({
+        id: `sev_${randomBytes(8).toString('hex')}`,
+        tenantId: claims.tenantId,
+        requestId: claims.requestId,
+        signerId: claims.signerId,
+        action,
+        ip: null,
+        userAgent: null,
+        occurredAt: new Date(now),
+        channel: claims.channel,
+        metadata: safeSignatureMetadata(metadata),
+      }),
+    );
+  }
+
+  private async noteOn(
+    runner: QueryRunner,
+    claims: ContractSignClaims,
+    action: string,
+    metadata: Record<string, unknown>,
+    now: number,
+  ): Promise<void> {
+    const repo = runner.manager.getRepository(SignatureEventEntity);
+    await repo.save(
+      repo.create({
+        id: `sev_${randomBytes(8).toString('hex')}`,
+        tenantId: claims.tenantId,
+        requestId: claims.requestId,
+        signerId: claims.signerId,
+        action,
+        ip: null,
+        userAgent: null,
+        occurredAt: new Date(now),
+        channel: claims.channel,
+        metadata: safeSignatureMetadata(metadata),
+      }),
+    );
   }
 }
