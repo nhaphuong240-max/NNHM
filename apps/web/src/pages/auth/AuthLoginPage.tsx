@@ -11,18 +11,21 @@ import {
 } from '../../lib/auth';
 import { brand, finance } from '../../theme/tokens';
 
-const DEMO_ACCOUNTS = [
-  { label: 'Agent', email: 'agent@sunrise-dev.vn', password: 'Agent123!', role: 'AGENT' },
-  {
-    label: 'Agency Admin',
-    email: 'agency@sunrise-realty.vn',
-    password: 'Agency123!',
-    role: 'AGENCY_ADMIN',
-    tenantId: 'ten_agency_01',
-  },
-  { label: 'Developer Admin', email: 'admin@sunrise-dev.vn', password: 'DevAdmin123!', role: 'DEVELOPER_ADMIN' },
-  { label: 'Finance', email: 'finance@sunrise-dev.vn', password: 'Finance123!', role: 'FINANCE_ADMIN' },
-] as const;
+type DemoAccount = {
+  label: string;
+  email: string;
+  password: string;
+  role: string;
+  tenantId?: string;
+};
+
+function demoAccounts(): DemoAccount[] {
+  if (import.meta.env.PROD || import.meta.env.VITE_DEV_PREFILL !== 'true') return [];
+  const email = import.meta.env.VITE_DEV_PREFILL_EMAIL?.trim() ?? '';
+  const password = import.meta.env.VITE_DEV_PREFILL_PASSWORD ?? '';
+  if (!email || !password) return [];
+  return [{ label: 'Dev', email, password, role: 'AGENT' }];
+}
 
 type PortalTheme = {
   accent: string;
@@ -83,8 +86,9 @@ export function AuthLoginPage() {
 
   const [tenants, setTenants] = useState<TenantOption[]>([]);
   const [tenantId, setTenantId] = useState('');
-  const [email, setEmail] = useState('agent@sunrise-dev.vn');
-  const [password, setPassword] = useState('Agent123!');
+  const accounts = useMemo(() => demoAccounts(), []);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -161,7 +165,7 @@ export function AuthLoginPage() {
     }
   }
 
-  function applyDemo(account: (typeof DEMO_ACCOUNTS)[number]) {
+  function applyDemo(account: DemoAccount) {
     setEmail(account.email);
     setPassword(account.password);
     if ('tenantId' in account && account.tenantId) {
@@ -339,19 +343,21 @@ export function AuthLoginPage() {
         </form>
         )}
 
-        <div className="flex flex-wrap gap-2">
-          {DEMO_ACCOUNTS.map((acc) => (
-            <button
-              key={acc.email}
-              type="button"
-              onClick={() => applyDemo(acc)}
-              className="text-xs px-2 py-1 rounded-lg border"
-              style={{ borderColor: brand.border, color: brand.primary }}
-            >
-              {acc.label}
-            </button>
-          ))}
-        </div>
+        {accounts.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {accounts.map((acc) => (
+              <button
+                key={acc.email}
+                type="button"
+                onClick={() => applyDemo(acc)}
+                className="text-xs px-2 py-1 rounded-lg border"
+                style={{ borderColor: brand.border, color: brand.primary }}
+              >
+                {acc.label}
+              </button>
+            ))}
+          </div>
+        )}
 
         <p className="text-xs" style={{ color: brand.muted }}>
           Sau login → redirect theo role: Agent / Developer / Finance / Admin

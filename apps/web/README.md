@@ -36,6 +36,18 @@ npm run dev
 
 Vite proxy `/api` → `http://localhost:3000`.
 
+## Security env
+
+Leave these empty until ops sets them. Production builds do not prefill the login form.
+
+| Variable | Where | Empty value |
+| --- | --- | --- |
+| `CORS_ALLOWED_ORIGINS` | API | Reject every cross-origin browser. `NODE_ENV=development` still allows the local Vite ports. |
+| `SITE_URL` | Web build | `robots.txt` and `sitemap.xml` use relative URLs. |
+| `VITE_DEV_PREFILL` | Web dev | Login fields stay blank. A production build ignores `true`. |
+| `TRUST_PROXY` | API | Must be `true` behind a proxy before `request.ip` and HSTS see the client scheme. |
+| `CONTRACT_SIGN_SECRET` | API | Required in staging and production. |
+
 ## SCR-PUBLIC-006 — Unit detail + lead PDPA (UAT-01)
 
 1. Mở http://localhost:5174/public/units/un_01 (hoặc click từ search)

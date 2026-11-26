@@ -25,6 +25,8 @@ curl -s -H 'X-Tenant-Id: ten_dev_01' http://localhost:3000/api/v1/units | jq .
 
 Seed tự chạy lần đầu: 1 tenant · 1 project · **4 units** · demo users (passwords below).
 
+`CORS_ALLOWED_ORIGINS` để trống thì API từ chối mọi origin trình duyệt. `TRUST_PROXY=true` chỉ khi đứng sau proxy. `CONTRACT_SIGN_SECRET` bắt buộc ở staging và production.
+
 ## Auth — S1-02 JWT (UC-ID-03)
 
 ```bash
