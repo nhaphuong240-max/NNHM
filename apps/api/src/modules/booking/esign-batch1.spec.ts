@@ -5,6 +5,7 @@ import { createHmac } from 'crypto';
 import { BookingContractController } from './booking-contract.controller';
 import { BookingContractEsignSmsService } from './booking-contract-esign-sms.service';
 import { ContractArtifactService } from './contract-artifact.service';
+import { returnedRows } from './esign-otp-atomic';
 import { decideScopedAttempt, type ScopedChallenge } from './esign-otp-scope';
 import {
   contractSignSecret,
@@ -519,6 +520,12 @@ function gate(max: string, lockout: string | undefined, challenge: MemChallenge)
 }
 
 describe('e-sign atomic consume', () => {
+  it('counts one affected row when TypeORM returns rows and a row count', () => {
+    expect(returnedRows([[{ id: 'otp_1' }], 1])).toEqual([{ id: 'otp_1' }]);
+    expect(returnedRows([[], 0])).toEqual([]);
+    expect(returnedRows([{ id: 'otp_1' }])).toEqual([{ id: 'otp_1' }]);
+  });
+
   it('does not consume the ticket when the otp is wrong', async () => {
     const { db, tickets } = gate('2', undefined, seedChallenge());
     await expect(tickets.completeSign(accessClaims(), '111111', async () => 'signed')).rejects.toMatchObject({

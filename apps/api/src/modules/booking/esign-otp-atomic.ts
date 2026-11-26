@@ -45,5 +45,10 @@ WHERE c."tenant_id" = $1 AND r."contract_id" = $2 AND s."subject_id" = $3
 `;
 
 export function returnedRows(result: unknown): unknown[] {
-  return Array.isArray(result) ? result : [];
+  if (!Array.isArray(result)) return [];
+  // TypeORM's Postgres driver returns [rows, rowCount] for UPDATE and DELETE.
+  if (result.length === 2 && Array.isArray(result[0]) && typeof result[1] === 'number') {
+    return result[0] as unknown[];
+  }
+  return result;
 }
