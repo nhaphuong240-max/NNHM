@@ -13,7 +13,7 @@ export function AuthSsoPage() {
   const [label, setLabel] = useState('Azure AD OIDC');
   const [issuerUrl, setIssuerUrl] = useState('https://login.microsoftonline.com/common/v2.0');
   const [clientId, setClientId] = useState('wereal-sso-pilot');
-  const [pilotEmail, setPilotEmail] = useState('agent@sunrise-dev.vn');
+  const [pilotEmail, setPilotEmail] = useState('');
   const [selectedProviderId, setSelectedProviderId] = useState('');
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);

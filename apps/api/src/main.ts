@@ -3,21 +3,12 @@ import { NestFactory } from '@nestjs/core';
 import { initOpenTelemetry } from './infrastructure/telemetry/otel.bootstrap';
 import { ProductionHttpExceptionFilter } from './infrastructure/security/production-http-exception.filter';
 import { AppModule } from './app.module';
+import { createCorsOrigin } from './common/cors-policy';
 import { refuseDefaultTenantAtBoot } from './common/default-tenant-flag';
+import { applySecurityHeaders } from './common/security-headers';
 
 refuseDefaultTenantAtBoot();
 initOpenTelemetry();
-
-function parseCorsOrigins(): string[] | boolean {
-  const raw = process.env.CORS_ORIGINS?.trim();
-  if (process.env.NODE_ENV !== 'production') {
-    return true;
-  }
-  if (!raw || raw === '*') {
-    return ['https://app.wereal.vn', 'https://staging.wereal.vn'];
-  }
-  return raw.split(',').map((origin) => origin.trim()).filter(Boolean);
-}
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
@@ -27,12 +18,16 @@ async function bootstrap() {
   app.enableShutdownHooks();
   app.useGlobalFilters(new ProductionHttpExceptionFilter());
 
+  const server = app.getHttpAdapter().getInstance();
+  server.disable('x-powered-by');
   if (process.env.TRUST_PROXY === 'true') {
-    app.getHttpAdapter().getInstance().set('trust proxy', 1);
+    server.set('trust proxy', 1);
   }
+  server.use(applySecurityHeaders);
 
   app.enableCors({
-    origin: parseCorsOrigins(),
+    origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) =>
+      createCorsOrigin(process.env)(origin, callback),
     credentials: true,
   });
 
