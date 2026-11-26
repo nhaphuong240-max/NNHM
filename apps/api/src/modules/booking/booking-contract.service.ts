@@ -17,6 +17,7 @@ import { ConsentLedgerService } from '../compliance/consent-ledger.service';
 import { DocumentsService } from '../documents/documents.service';
 import { BookingContractEsignProviderService } from './booking-contract-esign-provider.service';
 import { BookingContractEsignSmsService } from './booking-contract-esign-sms.service';
+import type { ContractSignClaims } from './contract-sign-token';
 import type {
   ContractDraftRecord,
   ContractMergeContext,
@@ -127,7 +128,7 @@ export class BookingContractService {
   }
 
   /** UC-BK-07 — sign session + SMS OTP (UC-NW-03) */
-  async getSignSession(tenantId: string, contractId: string) {
+  async getSignSession(tenantId: string, contractId: string, access?: ContractSignClaims) {
     const record = await this.loadContractRecord(tenantId, contractId.trim());
     if (!record) {
       throw new NotFoundException({ detail: `Contract ${contractId} not found` });
@@ -141,6 +142,7 @@ export class BookingContractService {
       record.id,
       record.attributes.bookingId,
       record.attributes.mergeContext.buyerName,
+      access,
     );
 
     const provider = await this.esignProvider.resolve(tenantId);
@@ -171,7 +173,6 @@ export class BookingContractService {
         buyerName: record.attributes.mergeContext.buyerName,
         unitCode: record.attributes.mergeContext.unitCode,
         otpSent: otpResult.sent,
-        otpHint: otpResult.sandbox ? 'Demo OTP: 123456 (SMS sandbox)' : undefined,
         deliveryId: otpResult.deliveryId,
         signingUrl,
         envelopeId,
@@ -183,7 +184,12 @@ export class BookingContractService {
   }
 
   /** UC-BK-07 — e-sign stub + document vault ref */
-  async signContract(tenantId: string, contractId: string, input: ContractSignInput) {
+  async signContract(
+    tenantId: string,
+    contractId: string,
+    input: ContractSignInput,
+    access?: ContractSignClaims,
+  ) {
     const record = await this.loadContractRecord(tenantId, contractId.trim());
     if (!record) {
       throw new NotFoundException({ detail: `Contract ${contractId} not found` });
@@ -197,7 +203,7 @@ export class BookingContractService {
     if (!input.signerName?.trim()) {
       throw new BadRequestException({ detail: 'signerName is required' });
     }
-    const otpValid = await this.esignSms.validateContractOtp(tenantId, record.id, input.otp);
+    const otpValid = await this.esignSms.validateContractOtp(tenantId, record.id, input.otp, access?.jti);
     if (!otpValid) {
       throw new UnprocessableEntityException({ detail: 'Invalid OTP — request a new sign session' });
     }

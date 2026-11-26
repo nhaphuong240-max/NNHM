@@ -92,3 +92,7 @@ export { DepositAgreementEntity } from './deposit-agreements.entity';
 export { ContractArtifactEntity } from './contract-artifacts.entity';
 export { HandoverChecklistEntity } from './handover-checklists.entity';
 export { ExceptionItemEntity } from './exception-items.entity';
+export { SignatureRequestEntity } from './signature-request.entity';
+export { SignatureSignerEntity } from './signature-signer.entity';
+export { EsignOtpChallengeEntity } from './esign-otp-challenge.entity';
+export { SignatureEventEntity } from './signature-event.entity';

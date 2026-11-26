@@ -12,6 +12,7 @@ export interface SmsSendInput {
   templateId: string;
   phone: string;
   params?: Record<string, unknown>;
+  persistOtp?: boolean;
   source?: { type: 'MANUAL' | 'PAYMENT_OTP' | 'PAYMENT_SUCCESS' | 'ESIGN_OTP'; id: string };
 }
 

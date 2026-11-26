@@ -265,6 +265,7 @@ jobs:
       WEBHOOK_HMAC_SECRET: wereal-ci-webhook-secret
       JWT_SECRET: wereal-ci-jwt-secret-min-32-chars-long
       CONTRACT_SIGN_SECRET: wereal-ci-contract-sign-secret
+      ESIGN_OTP_PEPPER: wereal-ci-esign-otp-pepper
       NOTARY_WEBHOOK_SECRET: wereal-ci-notary-webhook-secret
       AUTH_LOGIN_RATE_LIMIT_PER_MIN: '1000'
       NODE_ENV: development

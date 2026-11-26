@@ -9,7 +9,8 @@ import { randomUUID } from 'crypto';
 import { In, Repository } from 'typeorm';
 import { AnalyticsService } from '../analytics/analytics.service';
 import { BookingContractService } from '../booking/booking-contract.service';
-import { CONTRACT_SIGN_TOKEN_TTL_MS, mintContractSignToken } from '../booking/contract-sign-token';
+import { CONTRACT_SIGN_TOKEN_TTL_MS } from '../booking/contract-sign-token';
+import { SignatureTicketService } from '../booking/signature-ticket.service';
 import { PaymentBnplService } from '../payment/payment-bnpl.service';
 import { AuditEventEntity } from '../../database/entities/audit-event.entity';
 import { BookingEntity } from '../../database/entities/booking.entity';
@@ -85,6 +86,7 @@ export class PortalService {
     private readonly bnpl: PaymentBnplService,
     @InjectRepository(MobileDeviceEntity)
     private readonly mobileDevices: Repository<MobileDeviceEntity>,
+    private readonly tickets: SignatureTicketService,
   ) {}
 
   status() {
@@ -444,15 +446,16 @@ export class PortalService {
     if (!user?.userId?.trim()) {
       throw new ForbiddenException({ detail: 'Seeker OTP verification required' });
     }
-    const token = mintContractSignToken({
+    const issued = await this.tickets.issueBuyerAccess({
       tenantId,
       contractId: loaded.data.id,
       buyerId: user.userId,
       secret,
+      bookingId,
     });
     return {
       data: {
-        token,
+        token: issued.token,
         contractId: loaded.data.id,
         expiresInSeconds: CONTRACT_SIGN_TOKEN_TTL_MS / 1000,
       },
@@ -720,23 +723,28 @@ export class PortalService {
   }
 
   /** UC-BK-07 — buyer e-sign session for in-app WebView */
-  async getBuyerSignSession(tenantId: string, bookingId: string) {
+  async getBuyerSignSession(tenantId: string, bookingId: string, buyerId: string, secret: string) {
     const drafts = await this.contracts.listDrafts(tenantId, bookingId.trim());
     const contract = drafts.data?.[0];
     if (!contract?.id) {
       throw new NotFoundException({ detail: `No contract draft for booking ${bookingId}` });
     }
-    const session = await this.contracts.getSignSession(tenantId, contract.id);
-    const attrs = session.data as {
-      contractId: string;
-      signingUrl?: string;
-      otpHint?: string;
-    };
+    if (!buyerId.trim()) {
+      throw new ForbiddenException({ detail: 'Seeker OTP verification required' });
+    }
+    const issued = await this.tickets.issueBuyerAccess({
+      tenantId,
+      contractId: contract.id,
+      buyerId,
+      secret,
+      bookingId,
+    });
+    const session = await this.contracts.getSignSession(tenantId, contract.id, issued.claims);
+    const signingUrl = session.data.signingUrl;
     return {
       data: {
-        contractId: attrs.contractId,
-        signingUrl: attrs.signingUrl ?? `${process.env.WEB_BASE_URL ?? 'http://localhost:5174'}/buyer/contracts/${bookingId}`,
-        otpHint: attrs.otpHint,
+        contractId: session.data.contractId,
+        signingUrl: signingUrl ?? `${process.env.WEB_BASE_URL ?? 'http://localhost:5174'}/buyer/contracts/${bookingId}`,
       },
       meta: { uc: ['UC-BK-07', 'UC-UX-02'], screen: 'SCR-BUYER-MOBILE' },
     };

@@ -3,10 +3,14 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuditEventEntity } from '../../database/entities/audit-event.entity';
 import { BookingEntity } from '../../database/entities/booking.entity';
 import { ContractArtifactEntity } from '../../database/entities/contract-artifacts.entity';
+import { EsignOtpChallengeEntity } from '../../database/entities/esign-otp-challenge.entity';
 import { HandoverChecklistEntity } from '../../database/entities/handover-checklists.entity';
 import { LeadEntity } from '../../database/entities/lead.entity';
 import { PaymentIntentEntity } from '../../database/entities/payment-intent.entity';
 import { ProjectEntity } from '../../database/entities/project.entity';
+import { SignatureEventEntity } from '../../database/entities/signature-event.entity';
+import { SignatureRequestEntity } from '../../database/entities/signature-request.entity';
+import { SignatureSignerEntity } from '../../database/entities/signature-signer.entity';
 import { UnitEntity } from '../../database/entities/unit.entity';
 import { AllocationModule } from '../allocation/allocation.module';
 import { AuditModule } from '../audit/audit.module';
@@ -25,6 +29,8 @@ import { HandoverChecklistController } from './handover-checklist.controller';
 import { HandoverChecklistService } from './handover-checklist.service';
 import { BookingContractEsignProviderService } from './booking-contract-esign-provider.service';
 import { BookingContractEsignSmsService } from './booking-contract-esign-sms.service';
+import { EsignOtpChallengeService } from './esign-otp-challenge.service';
+import { SignatureTicketService } from './signature-ticket.service';
 import { VnptEsignAdapter, EsignAdapterRegistry } from './vnpt-esign.adapter';
 import { BookingContractService } from './booking-contract.service';
 import { BookingEventsModule } from './booking-events.module';
@@ -39,7 +45,11 @@ import { BookingService } from './booking.service';
     TypeOrmModule.forFeature([
       BookingEntity,
       ContractArtifactEntity,
+      EsignOtpChallengeEntity,
       HandoverChecklistEntity,
+      SignatureEventEntity,
+      SignatureRequestEntity,
+      SignatureSignerEntity,
       UnitEntity,
       PaymentIntentEntity,
       LeadEntity,
@@ -71,12 +81,14 @@ import { BookingService } from './booking.service';
     ContractArtifactService,
     HandoverChecklistService,
     BookingContractEsignSmsService,
+    EsignOtpChallengeService,
+    SignatureTicketService,
     BookingContractEsignProviderService,
     VnptEsignAdapter,
     EsignAdapterRegistry,
     BookingExpiryJob,
     BookingWorkflowService,
   ],
-  exports: [BookingService, BookingContractService],
+  exports: [BookingService, BookingContractService, SignatureTicketService],
 })
 export class BookingModule {}
