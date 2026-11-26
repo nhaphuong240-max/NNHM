@@ -1,11 +1,11 @@
 # Kế hoạch triển khai ký online đa bên — NNHM
 
-**Tài liệu:** kế hoạch triển khai kỹ thuật, không phải ý kiến pháp lý và không phải quyết định nghiệp vụ đã chốt.  
+**Tài liệu:** kế hoạch triển khai kỹ thuật, không phải ý kiến pháp lý. Quyết định nghiệp vụ đã chốt chỉ có vai trò duyệt sau khi ký (mục 9.1).  
 **Repo:** `/workspace/nnhm-repo` · nhánh đối chiếu `spec-v1-complete` (commit `ef3f339`). Tài liệu này chỉ đọc repo, không push.  
 **Ngày soạn:** 26/11/2026 (Asia/Saigon).  
 **Phạm vi người dùng:** khách hàng (buyer), đối tác (chủ đầu tư / agency / sàn), sales / agent, và người duyệt nội bộ.
 
-Các số TTL, hạn mức thử OTP, nhà cung cấp, vai trò duyệt và danh sách tài liệu bắt buộc **để trống** khi chưa có quyết định của người sở hữu. Giá trị đang có trong code được nêu rõ là *hiện trạng kỹ thuật*, không được hiểu là đã chốt nghiệp vụ.
+Các số TTL, hạn mức thử OTP, nhà cung cấp và danh sách tài liệu bắt buộc **để trống**. Vai trò duyệt sau khi ký đã chốt: Giám đốc kinh doanh (`SALES_DIRECTOR`, permission `contracts.approve`). Vai trò duyệt KYC vẫn để trống. Giá trị đang có trong code được nêu rõ là *hiện trạng kỹ thuật*, không được hiểu là đã chốt nghiệp vụ.
 
 ---
 
@@ -37,7 +37,7 @@ Hệ thống **đã có một luồng ký OTP cho buyer** trên hợp đồng bo
 | Provider CA | Interface `EsignProviderAdapter` + stub `VNPT_SMARTCA`. Registry trả về VNPT kể cả khi `ESIGN_PROVIDER` khác. | `esign-provider.adapter.ts`; `vnpt-esign.adapter.ts:13–151`; `booking-contract-esign-provider.service.ts` |
 | Artifact pháp lý | Đăng ký artifact cần role `DEVELOPER_ADMIN`. `markProviderSigned` **luôn 422** (D08 đóng). | `contract-artifact.service.ts:14, 31–32, 52, 58–67` |
 | SMS / Zalo / notify | SMS brandname + binding; ZNS có sẵn template `zns_otp_v1`; notify CRM chỉ SMS, **không có module email/SMTP/SES**. | `sms.types.ts`; `zalo.types.ts:38–41`; `notify.service.ts:10–14, 63` |
-| Vai trò | `ADMIN`, `OPS_ADMIN`, `DEVELOPER_ADMIN` (CĐT), `AGENT` (sales), `FINANCE_ADMIN`. Chưa có permission `contracts.sign` / `contracts.approve`. | `role-catalog.ts:2–8, 52–88, 116–137` |
+| Vai trò | `ADMIN`, `OPS_ADMIN`, `DEVELOPER_ADMIN` (CĐT), `AGENT` (sales), `FINANCE_ADMIN`. Chưa có `SALES_DIRECTOR` hay permission `contracts.sign` / `contracts.approve`. Quyết định đã chốt (chưa có trong catalog): Giám đốc kinh doanh = `SALES_DIRECTOR`, chỉ `contracts.approve`. | `role-catalog.ts:2–8, 52–88, 116–137` |
 | eKYC / KYC | eKYC adapter (mặc định `VNPT_EKYC`, sandbox). Duyệt KYC: `POST .../approve` **không kiểm tra role**; service còn **tạo hồ sơ đã APPROVED** nếu chưa có bản ghi. | `ekyc.service.ts:29–30`; `kyc.controller.ts:33–47`; `kyc.service.ts:138–174` |
 | Workflow booking | Định nghĩa có `DEPOSITED → CONTRACTED` (nhãn «Ký HĐ»). **Nhưng** kiểu `BookingStatus` **không gồm** `CONTRACTED` / `CLOSED`. Thanh toán webhook chỉ `RESERVED → DEPOSITED`. `signContract` không chuyển booking. | `booking-workflow.util.ts:32–40`; `booking.types.ts:11`; `booking.entity.ts:9`; `payment-webhook.service.ts:162–163` |
 | Bàn giao / công nợ | Checklist handover tồn tại; `postReceivable()` luôn 422 (D09). | `handover-checklist.service.ts:81–83` |
@@ -111,7 +111,7 @@ Danh sách bắt buộc cho pha 1 do người sở hữu điền ở mục 9.
         ↓
 [9] Gửi bản sao cho các bên (kênh do người sở hữu chốt — mục 9)
         ↓
-[10] Nếu tài liệu thuộc loại cần duyệt: admin (role ____) duyệt hoặc từ chối
+[10] Nếu tài liệu thuộc loại cần duyệt: Giám đốc kinh doanh (`SALES_DIRECTOR`, permission `contracts.approve`) duyệt hoặc từ chối
         ↓
 [11] Cập nhật trạng thái hợp đồng / booking (ví dụ `DEPOSITED → CONTRACTED` khi đã chốt quy tắc)
 ```
@@ -255,7 +255,7 @@ Prefix gợi ý: `/api/v1/signature-requests` (không phá route cũ `/contracts
 | `POST` | `/public/sign/:token/otp` | Signer | Gửi / gửi lại OTP tới kênh đăng ký; tôn trọng cooldown. |
 | `POST` | `/public/sign/:token/complete` | Signer | `consent` + OTP + họ tên / tư cách. Ký, consume token & OTP, ghi hash + audit. |
 | `POST` | `/public/sign/:token/decline` | Signer | Từ chối, ghi lý do. |
-| `POST` | `/signature-requests/:id/review` | Role duyệt: ____ | `APPROVED` / `REJECTED`. Đây là bước đưa booking `DEPOSITED → CONTRACTED` khi quy tắc khớp. |
+| `POST` | `/signature-requests/:id/review` | `SALES_DIRECTOR` với `contracts.approve` | `APPROVED` / `REJECTED`. Đây là bước đưa booking `DEPOSITED → CONTRACTED` khi quy tắc khớp. Role khác nhận 403. |
 | `GET` | `/signature-requests/:id` | Bên có quyền | Trạng thái, ẩn PII. |
 | `GET` | `/signature-requests/:id/audit` | Role `audit.read` hoặc ____ | Trail phục vụ chứng thư hoàn tất. |
 
@@ -284,12 +284,12 @@ Giữ webhook `POST /contracts/webhooks/esign` (`booking-contract.controller.ts:
 - Role `AGENT` («Môi giới / Sales») — quyền hiện tại: listing, giữ chỗ, CRM (`role-catalog.ts:78–83, 135`).
 - Ký **trong app agent** (session đã login) *vẫn* phải nhập OTP gửi tới kênh đăng ký của chính agent — tránh ký hộ trên máy chung.
 - KYC/KYB của agent/agency: dùng module `kyc` + `ekyc`; chỉ nên cho ký HĐ CTV / nhận hoa hồng khi hồ sơ `APPROVED` — quy tắc ____ (chốt). Sửa lỗ role trước khi dựa vào duyệt KYC (mục 4.5).
-- Sales **không** tự duyệt hợp đồng buyer trừ khi được gán role duyệt (mặc định: không).
+- Sales (`AGENT`) **không** duyệt hợp đồng buyer. Quyền duyệt thuộc `SALES_DIRECTOR`, không thuộc `AGENT`.
 
 ### 4.4. Người duyệt nội bộ (approver)
 
 - Không phải «người ký nội dung» trừ khi họ nằm trong danh sách signer.
-- Bước duyệt sau khi đủ chữ ký (Batch 4): chỉ role được chốt (mục 9). Mọi quyết định ghi `signature_events` + `AuditService`.
+- Bước duyệt sau khi đủ chữ ký (Batch 4): chỉ Giám đốc kinh doanh, role `SALES_DIRECTOR`, permission `contracts.approve`. `ADMIN`, `AGENT` và mọi role khác nhận 403. Mọi quyết định ghi `signature_events` + `AuditService`.
 - Tách quyền «tạo yêu cầu ký», «ký», «duyệt», «xem audit».
 
 ### 4.5. Lỗ hổng duyệt KYC (vá trong cùng chương trình, Batch 4)
@@ -415,17 +415,18 @@ Nguyên tắc chung cho mọi batch: **cỡ một PR**; khám phá repo trước
 
 **Làm:**
 
-- API review role-gated (role để trống trong code config / matrix — chưa chốt thì **fail-closed: chưa ai duyệt được**, không mặc định mở cho mọi user đăng nhập).
+- API review chỉ cho `SALES_DIRECTOR` khi role đó có permission `contracts.approve`. Không fail-closed trống cho bước này. `ADMIN`, `AGENT`, `OPS_ADMIN`, `DEVELOPER_ADMIN`, `FINANCE_ADMIN` và mọi role khác nhận 403.
 - Mở rộng `BookingStatus` có `CONTRACTED` (và chỉ chuyển `CLOSED` nếu người sở hữu đã chốt quy tắc; nếu chưa, đừng thêm chuyển `CLOSED`).
 - Chỉ `DEPOSITED → CONTRACTED` khi: đủ chữ ký loại tài liệu đã chốt (mặc định pha 1: ____) **và** review `APPROVED` nếu `requires_admin_review`.
-- Vá `kyc.controller.ts:33–47` + không tự tạo profile `APPROVED`; cùng hàng rào cho reject/resubmit.
-- Thêm permission vào catalog (`contracts.approve`, `kyc.approve`, …) — **không** gán vào role cho đến khi mục 9 được điền; matrix có thể để rỗng / chưa gán.
+- Vá `kyc.controller.ts:33–47` + không tự tạo profile `APPROVED`; cùng hàng rào cho reject/resubmit. Vai trò duyệt KYC vẫn trống nên endpoint KYC fail-closed: chưa ai duyệt được.
+- Thêm `SALES_DIRECTOR` (nhãn «Giám đốc kinh doanh») và permission `contracts.approve` vào catalog. Gán `contracts.approve` đúng cho `SALES_DIRECTOR`. Không gán permission này cho role khác. Không bịa thêm permission cho `SALES_DIRECTOR`. `kyc.approve` không gán cho đến khi mục 9.1 được điền.
 
 **Tiêu chí chấp nhận:**
 
-- User thiếu role gọi review / approve KYC → 403.
+- User không phải `SALES_DIRECTOR`, hoặc thiếu `contracts.approve`, gọi review → 403.
+- Mọi role gọi approve KYC → 403 cho đến khi vai trò duyệt KYC được chốt.
 - `signContract` / hoàn tất chữ ký **không** tự chuyển `CONTRACTED`.
-- Happy path kiểm thử: đủ ký + duyệt đúng role → `CONTRACTED`.
+- Happy path kiểm thử: đủ ký + `SALES_DIRECTOR` duyệt → `CONTRACTED`.
 - `approveProfile` không tạo hồ sơ mới đã duyệt.
 - D08/D09/D10 không đổi hành vi fail-closed.
 
@@ -443,7 +444,7 @@ Nguyên tắc chung cho mọi batch: **cỡ một PR**; khám phá repo trước
 2. Đổi `contractId` / `signerId` trong body token (tamper) → reject (`timingSafeEqual` đã có cho chữ ký HMAC).
 3. Dùng token của hợp đồng A trên hợp đồng B.
 4. Buyer A không mở / ký tài liệu của buyer B (phone/email mismatch).
-5. Sales không duyệt hợp đồng (thiếu role).
+5. `AGENT` và mọi role khác `SALES_DIRECTOR` không duyệt hợp đồng.
 6. Brute-force OTP → lockout; không tiết lộ «còn bao nhiêu lần» nếu policy chưa cho.
 7. Resend spam → cooldown.
 8. OTP/token không xuất hiện trong log, audit, response (trừ token một lần được đưa vào link, không log lại).
@@ -481,10 +482,10 @@ Giá trị môi trường UAT, SĐT, email để trống cho người sở hữu
 
 **Admin / approver**
 
-- UAT-A1: đủ chữ ký HĐ đặt cọc, đúng role duyệt → booking `DEPOSITED → CONTRACTED`.
-- UAT-A2: sai role → 403, booking không đổi.
-- UAT-A3: từ chối duyệt, lý do lưu audit, không `CONTRACTED`.
-- UAT-A4: vá KYC — chỉ role được phép approve; không tự tạo hồ sơ đã duyệt.
+- UAT-A1: đủ chữ ký HĐ đặt cọc, `SALES_DIRECTOR` duyệt → booking `DEPOSITED → CONTRACTED`.
+- UAT-A2: `ADMIN`, `AGENT` hoặc role khác → 403, booking không đổi.
+- UAT-A3: `SALES_DIRECTOR` từ chối duyệt, lý do lưu audit, không `CONTRACTED`.
+- UAT-A4: vá KYC — vai trò duyệt KYC chưa chốt nên mọi role bị 403; không tự tạo hồ sơ đã duyệt.
 
 **Hệ thống / pháp lý vận hành**
 
@@ -600,27 +601,27 @@ Khám phá trước:
 - handover-checklist.service.ts postReceivable (D09, giữ 422)
 
 Làm:
-1. API review signature request: APPROVED / REJECTED, audit đầy đủ. Role/permission được phép: đọc từ config/matrix. CHƯA có quyết định vai trò thì fail-closed (không ai gọi được), KHÔNG mặc định cho mọi user login, KHÔNG đoán ADMIN hay FINANCE_ADMIN.
-2. Mở rộng BookingStatus thêm CONTRACTED. Chỉ chuyển DEPOSITED → CONTRACTED khi đủ chữ ký theo quy tắc và (nếu requires_admin_review) đã APPROVED. sign/complete KHÔNG tự chuyển. Chưa chốt CLOSED thì đừng thêm transition CLOSED.
-3. Vá KYC: endpoint approve/reject/resubmit bắt buộc role/permission (cũng fail-closed nếu chưa gán role). Cấm tạo hồ sơ mới ở trạng thái APPROVED. Test AGENT (và user thiếu quyền) bị 403.
-4. Thêm permission vào catalog nếu cần, nhưng không gán vào role cụ thể trừ khi đã được người sở hữu chốt trong docs đã ký. Ghi rõ ô trống trong PR.
-5. Test: happy path đúng role; 403 sai role; ký xong booking vẫn DEPOSITED cho đến khi duyệt; D08/D09 không đổi.
+1. API review signature request: APPROVED / REJECTED, audit đầy đủ. Chỉ SALES_DIRECTOR có permission contracts.approve được duyệt. ADMIN, AGENT, OPS_ADMIN, DEVELOPER_ADMIN, FINANCE_ADMIN và mọi role khác nhận 403. Không để bước này fail-closed trống. Không mở cho mọi user login.
+2. Mở rộng BookingStatus thêm CONTRACTED. Chỉ chuyển DEPOSITED → CONTRACTED khi đủ chữ ký theo quy tắc và (nếu requires_admin_review) đã APPROVED bởi SALES_DIRECTOR. sign/complete KHÔNG tự chuyển. Chưa chốt CLOSED thì đừng thêm transition CLOSED.
+3. Vá KYC: endpoint approve/reject/resubmit vẫn fail-closed vì vai trò duyệt KYC chưa chốt (không gán cho SALES_DIRECTOR). Cấm tạo hồ sơ mới ở trạng thái APPROVED. Mọi role, kể cả AGENT và SALES_DIRECTOR, bị 403.
+4. Thêm role SALES_DIRECTOR (nhãn Giám đốc kinh doanh) và permission contracts.approve. Gán contracts.approve đúng cho SALES_DIRECTOR. Không gán permission này cho role khác. Không bịa thêm permission cho SALES_DIRECTOR. kyc.approve không gán. Ghi trong PR: ô tạo yêu cầu ký, duyệt KYC, TTL, hạn mức OTP, nhà cung cấp và tài liệu pha 1 vẫn trống.
+5. Test: happy path SALES_DIRECTOR; 403 với ADMIN và AGENT; ký xong booking vẫn DEPOSITED cho đến khi SALES_DIRECTOR duyệt; KYC approve 403; D08/D09 không đổi.
 
-Cấm: mở D08/D09/D10; bật payout; merge; bịa vai trò duyệt như đã chốt.
+Cấm: mở D08/D09/D10; bật payout; merge; gán contracts.approve cho role khác SALES_DIRECTOR; đoán vai trò duyệt KYC.
 
 Draft PR Batch 4.
 ```
 
 ---
 
-## 9. Câu hỏi cần chốt (để trống)
+## 9. Câu hỏi cần chốt
 
-Người sở hữu / pháp lý / vận hành điền. Không lấy mặc định trong code làm câu trả lời.
+Người sở hữu / pháp lý / vận hành điền. Không lấy mặc định trong code làm câu trả lời. Ô chưa điền vẫn để trống.
 
 ### 9.1. Vai trò và quyền
 
 - Role / permission được **tạo** yêu cầu ký: ____
-- Role / permission được **duyệt** sau khi ký (`DEPOSITED → CONTRACTED`): ____
+- Role / permission được **duyệt** sau khi ký (`DEPOSITED → CONTRACTED`): **đã chốt 26/11/2026** — Giám đốc kinh doanh, role `SALES_DIRECTOR`, permission `contracts.approve`. Catalog tại `ef3f339` chưa có role này. Batch 4 thêm role, gán đúng permission này, và không gán cho role khác.
 - Role / permission được **duyệt KYC**: ____
 - Agency / sàn nằm trong `TENANT_ROLES` hiện có, tenant riêng, hay role mới: ____
 - Sales có được tạo yêu cầu ký hộ buyer không: ____
@@ -675,11 +676,11 @@ Người sở hữu / pháp lý / vận hành điền. Không lấy mặc địn
 | --- | --- | --- |
 | Buyer ký OTP | Có, portal + SMS | Link gửi chủ động qua email/SMS/Zalo; siết token/OTP |
 | Đa bên / thứ tự | Không | Batch 3 |
-| Admin duyệt → `CONTRACTED` | Workflow chỉ là định nghĩa; status type chưa có `CONTRACTED` | Batch 4 |
+| Duyệt → `CONTRACTED` | Workflow chỉ là định nghĩa; status type chưa có `CONTRACTED`. Vai trò đã chốt: `SALES_DIRECTOR` / `contracts.approve` | Batch 4 |
 | PDF + chứng thư | File `.txt` trong vault | Batch 3 |
 | Email | Không có module | Batch 2 |
 | CA / artifact executed | Stub VNPT + D08 422 | Pha sau, sau khi ký D08 |
-| Role KYC | Lỗ hổng | Batch 4 |
+| Role KYC | Lỗ hổng. Vai trò duyệt KYC chưa chốt | Batch 4, vẫn fail-closed |
 | HĐ agency / CTV / bàn giao ký online | Chưa (handover chỉ checklist) | Pha 5, sau khi chốt danh sách |
 
 ## Phụ lục B — Nguồn đối chiếu
