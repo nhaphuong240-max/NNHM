@@ -111,7 +111,15 @@ test('buyer-esign owning buyer enters the otp and signs the contract', async ({ 
   await expect(page.getByRole('heading', { name: 'Ký hợp đồng điện tử' })).toBeVisible();
   await expect(page.getByText('Thu Trang')).toBeVisible();
   await page.getByPlaceholder('Mã OTP từ SMS').fill('123456');
-  await page.getByRole('checkbox').check();
+  await page.getByText('Tôi đã đọc và đồng ý ký điện tử').click();
+  await expect(page.getByRole('checkbox')).toBeChecked();
+  const signed = page.waitForResponse(
+    (response) =>
+      response.url().endsWith(`/contracts/${CONTRACT_ID}/sign`) && response.request().method() === 'POST',
+  );
   await page.getByRole('button', { name: 'Ký điện tử' }).click();
+  const response = await signed;
+  const payload = (await response.text()).slice(0, 400);
+  expect(response.ok(), payload).toBe(true);
   await expect(page.getByText('Đã ký thành công')).toBeVisible();
 });
