@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { createHash, randomUUID } from 'crypto';
-import { Repository } from 'typeorm';
+import { EntityManager, Repository } from 'typeorm';
 import {
   ConsentLedgerEntryEntity,
   type ConsentPurpose,
@@ -32,8 +32,9 @@ export class ConsentLedgerService {
     return { module: 'consent-ledger', uc: 'PDPA', appendOnly: true };
   }
 
-  async record(tenantId: string, input: RecordConsentInput) {
-    const row = await this.entries.save({
+  async record(tenantId: string, input: RecordConsentInput, manager?: EntityManager) {
+    const entries = manager ? manager.getRepository(ConsentLedgerEntryEntity) : this.entries;
+    const row = await entries.save({
       id: `cns_${randomUUID().replace(/-/g, '').slice(0, 8)}`,
       tenantId,
       subjectType: input.subjectType,
@@ -47,19 +48,22 @@ export class ConsentLedgerService {
       recordedAt: new Date(),
     });
 
-    await this.audit.append({
-      tenantId,
-      entityType: 'consent_ledger',
-      entityId: row.id,
-      action: input.granted ? 'CONSENT_GRANTED' : 'CONSENT_REVOKED',
-      payload: {
-        subjectType: input.subjectType,
-        subjectId: input.subjectId,
-        purpose: input.purpose,
-        policyVersion: input.policyVersion,
+    await this.audit.append(
+      {
+        tenantId,
+        entityType: 'consent_ledger',
+        entityId: row.id,
+        action: input.granted ? 'CONSENT_GRANTED' : 'CONSENT_REVOKED',
+        payload: {
+          subjectType: input.subjectType,
+          subjectId: input.subjectId,
+          purpose: input.purpose,
+          policyVersion: input.policyVersion,
+        },
+        actorId: input.actorId ?? null,
       },
-      actorId: input.actorId ?? null,
-    });
+      manager,
+    );
 
     return {
       data: {

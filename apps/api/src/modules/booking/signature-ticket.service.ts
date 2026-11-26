@@ -1,7 +1,7 @@
 import { Injectable, UnauthorizedException, UnprocessableEntityException } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { randomBytes } from 'crypto';
-import { DataSource, QueryRunner, Repository } from 'typeorm';
+import { DataSource, EntityManager, QueryRunner, Repository } from 'typeorm';
 import { SignatureEventEntity } from '../../database/entities/signature-event.entity';
 import { SignatureRequestEntity } from '../../database/entities/signature-request.entity';
 import { SignatureSignerEntity } from '../../database/entities/signature-signer.entity';
@@ -142,11 +142,31 @@ export class SignatureTicketService {
   }
 
   /**
-   * Claim the ticket and sign in one transaction.
-   * A wrong OTP commits the attempt and leaves the ticket unused.
-   * A signing failure rolls the claim and the OTP consume back.
+   * A consumed ticket whose signer is SIGNED and whose vault file is still missing
+   * can finish the upload. A finished ticket stays used.
    */
-  async completeSign<T>(claims: ContractSignClaims, otp: string, work: () => Promise<T>): Promise<T> {
+  async pendingVault(claims: ContractSignClaims): Promise<'pending' | 'used' | 'open'> {
+    const signer = await this.signers.findOne({ where: { jti: claims.jti, tenantId: claims.tenantId } });
+    if (!signer || signer.id !== claims.signerId || signer.requestId !== claims.requestId) return 'open';
+    if (!signer.jtiConsumedAt) return 'open';
+    if (signer.status !== 'SIGNED') return 'used';
+    const request = await this.requests.findOne({ where: { id: signer.requestId, tenantId: signer.tenantId } });
+    if (request?.signedPdfDocumentId) return 'used';
+    return 'pending';
+  }
+
+  /**
+   * Claim the ticket and write the signature rows in one transaction.
+   * A wrong OTP commits the attempt and leaves the ticket unused.
+   * A failure before commit rolls the claim, the OTP consume, and every signature write back.
+   * The vault file is stored by afterCommit, after the database commit.
+   */
+  async completeSign<T, R = T>(
+    claims: ContractSignClaims,
+    otp: string,
+    work: (manager: EntityManager) => Promise<T>,
+    afterCommit?: (value: T) => Promise<R>,
+  ): Promise<R> {
     if (!this.dataSource || !this.challenges) {
       throw new UnauthorizedException({ detail: 'sign access ticket is required' });
     }
@@ -169,10 +189,11 @@ export class SignatureTicketService {
         throw new UnauthorizedException({ detail: 'contract sign token was already used' });
       }
       await this.recordOn(runner, claims, 'TOKEN_CONSUMED');
-      const value = await work();
+      const value = await work(runner.manager);
       await runner.commitTransaction();
       committed = true;
-      return value;
+      if (!afterCommit) return value as unknown as R;
+      return await afterCommit(value);
     } catch (error) {
       if (!committed) await runner.rollbackTransaction();
       throw error;

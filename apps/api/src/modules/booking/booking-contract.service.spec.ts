@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
+import { DataSource } from 'typeorm';
 import { AuditEventEntity } from '../../database/entities/audit-event.entity';
 import { BookingEntity } from '../../database/entities/booking.entity';
 import { LeadEntity } from '../../database/entities/lead.entity';
@@ -98,6 +99,7 @@ describe('BookingContractService', () => {
               data: { id: 'doc_signed_demo01' },
               meta: {},
             }),
+            putSignedCopy: jest.fn().mockResolvedValue({ id: 'doc_signed_demo01' }),
           },
         },
         {
@@ -118,6 +120,25 @@ describe('BookingContractService', () => {
         {
           provide: ConsentLedgerService,
           useValue: { record: jest.fn().mockResolvedValue({ data: { id: 'cns_test' } }) },
+        },
+        {
+          provide: DataSource,
+          useValue: {
+            createQueryRunner: () => ({
+              connect: async () => undefined,
+              startTransaction: async () => undefined,
+              commitTransaction: async () => undefined,
+              rollbackTransaction: async () => undefined,
+              release: async () => undefined,
+              query: async (sql: string) => (sql.includes('FOR UPDATE') ? [{ signed_pdf_document_id: null }] : [{ id: 'sreq_1' }]),
+              manager: {
+                getRepository: () => ({
+                  findOne: async () => ({ id: 'aud_signed', payload: {} }),
+                  save: async (row: unknown) => row,
+                }),
+              },
+            }),
+          },
         },
       ],
     }).compile();
@@ -156,16 +177,47 @@ describe('BookingContractService', () => {
   });
 
   it('signs contract with demo OTP', async () => {
-    const result = await service.signContract('ten_dev_01', 'ctr_demo01', {
-      signerName: 'Thu Trang',
-      otp: '123456',
-      consent: true,
-    });
+    const manager = {
+      query: async () => [{ id: 'ssgn_1' }],
+      getRepository: (entity?: { name?: string }) => {
+        if (entity?.name === 'AuditEventEntity') {
+          return {
+            findOne: async ({ where }: { where: Record<string, string> }) =>
+              where.action === 'DRAFT'
+                ? { payload: draftPayload, createdAt: new Date('2026-07-01'), actorId: 'usr_agent_01' }
+                : null,
+            save: async (row: unknown) => row,
+          };
+        }
+        return { save: async (row: { id?: string }) => ({ ...row, id: row.id ?? 'sev_1' }) };
+      },
+    };
+    auditAppend.mockResolvedValue({ id: 'aud_signed' });
+    const prepared = await service.signContract(
+      'ten_dev_01',
+      'ctr_demo01',
+      { signerName: 'Thu Trang', otp: '123456', consent: true },
+      {
+        tenantId: 'ten_dev_01',
+        contractId: 'ctr_demo01',
+        buyerId: 'usr_buyer',
+        signerId: 'ssgn_1',
+        requestId: 'sreq_1',
+        jti: 'jti_1',
+        channel: 'SMS',
+        exp: Date.now() + 60_000,
+      },
+      false,
+      manager as never,
+      'WEREAL_ESIGN_STUB',
+    );
+    const result = await service.finishSignedVault(prepared);
     expect(result.data.attributes.status).toBe('SIGNED');
     expect(result.data.attributes.documentId).toBe('doc_signed_demo01');
     expect(result.data.attributes.documentVaultRef).toBe('doc_signed_demo01');
     expect(auditAppend).toHaveBeenCalledWith(
       expect.objectContaining({ action: 'SIGNED', entityId: 'ctr_demo01' }),
+      manager,
     );
   });
 });

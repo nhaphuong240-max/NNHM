@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { EntityManager, Repository } from 'typeorm';
 import { AuditEventEntity } from '../../database/entities/audit-event.entity';
 
 export interface AppendAuditInput {
@@ -31,8 +31,9 @@ export class AuditService {
     private readonly events: Repository<AuditEventEntity>,
   ) {}
 
-  async append(input: AppendAuditInput): Promise<AuditEventEntity> {
-    return this.events.save({
+  async append(input: AppendAuditInput, manager?: EntityManager): Promise<AuditEventEntity> {
+    const events = manager ? manager.getRepository(AuditEventEntity) : this.events;
+    return events.save({
       tenantId: input.tenantId,
       entityType: input.entityType,
       entityId: input.entityId,

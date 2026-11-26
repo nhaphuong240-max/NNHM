@@ -35,7 +35,7 @@ export class BookingContractController {
     return tenantId;
   }
 
-  private async signedContractTenant(
+  private async readSignedClaims(
     contractId: string,
     header: string | undefined,
     signToken: string | undefined,
@@ -48,8 +48,17 @@ export class BookingContractController {
     if (!this.tickets) {
       throw new UnauthorizedException({ detail: 'contract sign token is missing, expired, or for another contract' });
     }
-    await this.tickets.assertUsable(claims);
     return { tenantId, claims };
+  }
+
+  private async signedContractTenant(
+    contractId: string,
+    header: string | undefined,
+    signToken: string | undefined,
+  ): Promise<{ tenantId: string; claims: ContractSignClaims }> {
+    const access = await this.readSignedClaims(contractId, header, signToken);
+    await this.tickets?.assertUsable(access.claims);
+    return access;
   }
 
   /** UC-BK-06 — template catalog */
@@ -145,12 +154,24 @@ export class BookingContractController {
     @Param('contractId') contractId: string,
     @Body() body: ContractSignInput,
   ) {
-    const access = await this.signedContractTenant(contractId, tenantHeader, signToken);
+    const access = await this.readSignedClaims(contractId, tenantHeader, signToken);
     if (!this.tickets) {
       throw new UnauthorizedException({ detail: 'sign access ticket is required' });
     }
-    return this.tickets.completeSign(access.claims, body.otp, () =>
-      this.contracts.signContract(access.tenantId, contractId, body, access.claims, true),
+    const vault = await this.tickets.pendingVault(access.claims);
+    if (vault === 'used') {
+      throw new UnauthorizedException({ detail: 'contract sign token was already used' });
+    }
+    if (vault === 'pending') {
+      return this.contracts.finishSignedVault(await this.contracts.rebuildPendingSignature(access.claims));
+    }
+    await this.tickets.assertUsable(access.claims);
+    const providerName = await this.contracts.signingProviderName(access.tenantId);
+    return this.tickets.completeSign(
+      access.claims,
+      body.otp,
+      (manager) => this.contracts.signContract(access.tenantId, contractId, body, access.claims, true, manager, providerName),
+      (prepared) => this.contracts.finishSignedVault(prepared),
     );
   }
 }

@@ -2,7 +2,16 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 import { UnauthorizedException, UnprocessableEntityException } from '@nestjs/common';
 import { createHmac } from 'crypto';
+import { AuditService } from '../audit/audit.service';
+import { ConsentLedgerService } from '../compliance/consent-ledger.service';
+import { DocumentsService } from '../documents/documents.service';
+import { AuditEventEntity } from '../../database/entities/audit-event.entity';
+import { ConsentLedgerEntryEntity } from '../../database/entities/consent-ledger-entry.entity';
+import { DocumentAccessLogEntity } from '../../database/entities/document-access-log.entity';
+import { DocumentEntity } from '../../database/entities/document.entity';
+import { SignatureEventEntity } from '../../database/entities/signature-event.entity';
 import { BookingContractController } from './booking-contract.controller';
+import { BookingContractService } from './booking-contract.service';
 import { BookingContractEsignSmsService } from './booking-contract-esign-sms.service';
 import { ContractArtifactService } from './contract-artifact.service';
 import { returnedRows } from './esign-otp-atomic';
@@ -410,12 +419,81 @@ function seedChallenge(overrides: Partial<MemChallenge> = {}): MemChallenge {
   };
 }
 
-function applySql(state: { challenges: MemChallenge[]; signers: Array<{ jti: string; tenantId: string; consumed: boolean }> }, sql: string, params: unknown[]) {
-  if (sql.includes('FOR UPDATE')) {
+type MemSigner = {
+  id: string;
+  jti: string;
+  tenantId: string;
+  requestId: string;
+  status: string;
+  consumed: boolean;
+  signatureRef?: string;
+  displayName?: string;
+};
+
+type MemRequest = { id: string; tenantId: string; status: string; signedPdfDocumentId: string | null };
+
+type MemAudit = {
+  id: string;
+  tenantId: string;
+  entityType: string;
+  entityId: string;
+  action: string;
+  payload: Record<string, unknown> | null;
+  actorId: string | null;
+  createdAt: Date;
+};
+
+type MemState = {
+  challenges: MemChallenge[];
+  signers: MemSigner[];
+  requests: MemRequest[];
+  events: Array<{ action: string; requestId?: string; signerId?: string; metadata?: Record<string, unknown> }>;
+  audits: MemAudit[];
+  consents: Array<{ id: string; subjectId: string; purpose: string }>;
+  documents: Array<{ id: string; tenantId: string; storageKey: string }>;
+  failSigner: boolean;
+};
+
+function applySql(state: MemState, sql: string, params: unknown[]) {
+  if (sql.includes('signature_signers') && sql.includes(`status" = 'SIGNED'`) && state.failSigner) {
+    state.failSigner = false;
+    throw new Error('consent-written');
+  }
+  if (sql.includes('FOR UPDATE') && sql.includes('otp_challenges')) {
     const [tenantId, jti] = params as string[];
     return state.challenges
       .filter((row) => row.tenantId === tenantId && row.jti === jti)
       .map((row) => ({ ...row }));
+  }
+  if (sql.includes('FOR UPDATE') && sql.includes('signed_pdf_document_id')) {
+    const [id, tenantId] = params as string[];
+    const row = state.requests.find((item) => item.id === id && item.tenantId === tenantId);
+    return row ? [{ signed_pdf_document_id: row.signedPdfDocumentId }] : [];
+  }
+  if (sql.includes('signature_signers') && sql.includes(`status" = 'SIGNED'`)) {
+    const [id, tenantId, requestId, , signatureRef, displayName] = params as [string, string, string, Date, string, string];
+    const row = state.signers.find(
+      (item) => item.id === id && item.tenantId === tenantId && item.requestId === requestId && item.status !== 'SIGNED',
+    );
+    if (!row) return [];
+    row.status = 'SIGNED';
+    row.signatureRef = signatureRef;
+    row.displayName = displayName;
+    return [{ id: row.id }];
+  }
+  if (sql.includes('signature_requests') && sql.includes(`status" = 'SIGNED'`)) {
+    const [id, tenantId] = params as string[];
+    const row = state.requests.find((item) => item.id === id && item.tenantId === tenantId && item.status !== 'SIGNED');
+    if (!row) return [];
+    row.status = 'SIGNED';
+    return [{ id: row.id }];
+  }
+  if (sql.includes('signed_pdf_document_id') && sql.includes('UPDATE')) {
+    const [id, tenantId, documentId] = params as string[];
+    const row = state.requests.find((item) => item.id === id && item.tenantId === tenantId && !item.signedPdfDocumentId);
+    if (!row) return [];
+    row.signedPdfDocumentId = documentId;
+    return [{ id: row.id }];
   }
   if (sql.includes('subject_id')) {
     const [tenantId, contractId, subjectId] = params as string[];
@@ -454,11 +532,82 @@ function applySql(state: { challenges: MemChallenge[]; signers: Array<{ jti: str
   return [];
 }
 
+function memoryRepo(state: MemState, name: string) {
+  if (name === AuditEventEntity.name) {
+    return {
+      findOne: async ({ where }: { where: Record<string, string> }) =>
+        state.audits.find((row) =>
+          where.id
+            ? String(row.id) === String(where.id)
+            : row.tenantId === where.tenantId &&
+              row.entityType === where.entityType &&
+              row.entityId === where.entityId &&
+              row.action === where.action,
+        ) ?? null,
+      save: async (row: MemAudit) => {
+        const saved = { ...row, id: row.id ?? `aud_${state.audits.length + 1}`, createdAt: row.createdAt ?? new Date() };
+        const index = state.audits.findIndex((item) => item.id === saved.id);
+        if (index >= 0) state.audits[index] = saved;
+        else state.audits.push(saved);
+        return saved;
+      },
+    };
+  }
+  if (name === ConsentLedgerEntryEntity.name) {
+    return {
+      save: async (row: { id: string; subjectId: string; purpose: string }) => {
+        state.consents.push(row);
+        return row;
+      },
+    };
+  }
+  if (name === DocumentEntity.name) {
+    return {
+      findOne: async ({ where }: { where: { tenantId?: string; storageKey?: string } }) =>
+        state.documents.find((row) => row.tenantId === where.tenantId && row.storageKey === where.storageKey) ?? null,
+      save: async (row: { id: string; tenantId: string; storageKey: string }) => {
+        state.documents.push(row);
+        return row;
+      },
+    };
+  }
+  if (name === DocumentAccessLogEntity.name) {
+    return { save: async (row: unknown) => row };
+  }
+  return {
+    create: (row: { action: string }) => row,
+    save: async (row: { action: string; requestId?: string; signerId?: string }) => {
+      if (
+        row.action === 'SIGNED' &&
+        state.events.some((item) => item.action === 'SIGNED' && item.requestId === row.requestId && item.signerId === row.signerId)
+      ) {
+        const error = new Error('duplicate signed event') as Error & { code: string };
+        error.code = '23505';
+        throw error;
+      }
+      state.events.push(row);
+      return row;
+    },
+  };
+}
+
 function serialDb(challenge: MemChallenge) {
-  const state = {
+  const state: MemState = {
     challenges: [{ ...challenge }],
-    signers: [{ jti: challenge.jti, tenantId: challenge.tenantId, consumed: false }],
-    events: [] as Array<{ action: string; metadata?: Record<string, unknown> }>,
+    signers: [{
+      id: 'ssgn_1',
+      jti: challenge.jti,
+      tenantId: challenge.tenantId,
+      requestId: 'sreq_1',
+      status: 'LINK_SENT',
+      consumed: false,
+    }],
+    requests: [{ id: 'sreq_1', tenantId: challenge.tenantId, status: 'SENT', signedPdfDocumentId: null }],
+    events: [],
+    audits: [],
+    consents: [],
+    documents: [],
+    failSigner: false,
   };
   let gate = Promise.resolve();
   const acquire = () => {
@@ -482,7 +631,11 @@ function serialDb(challenge: MemChallenge) {
         if (restore && snap) {
           state.challenges = snap.challenges;
           state.signers = snap.signers;
+          state.requests = snap.requests;
           state.events = snap.events;
+          state.audits = snap.audits;
+          state.consents = snap.consents;
+          state.documents = snap.documents;
         }
         release?.();
       };
@@ -493,7 +646,12 @@ function serialDb(challenge: MemChallenge) {
           snap = {
             challenges: state.challenges.map((row) => ({ ...row })),
             signers: state.signers.map((row) => ({ ...row })),
+            requests: state.requests.map((row) => ({ ...row })),
             events: state.events.map((row) => ({ ...row })),
+            audits: state.audits.map((row) => ({ ...row, payload: row.payload ? { ...row.payload } : null })),
+            consents: state.consents.map((row) => ({ ...row })),
+            documents: state.documents.map((row) => ({ ...row })),
+            failSigner: state.failSigner,
           };
         },
         commitTransaction: async () => finish(false),
@@ -501,13 +659,8 @@ function serialDb(challenge: MemChallenge) {
         release: async () => undefined,
         query: async (sql: string, params: unknown[] = []) => applySql(state, sql, params),
         manager: {
-          getRepository: () => ({
-            create: (row: { action: string; metadata?: Record<string, unknown> }) => row,
-            save: async (row: { action: string; metadata?: Record<string, unknown> }) => {
-              state.events.push(row);
-              return row;
-            },
-          }),
+          query: async (sql: string, params: unknown[] = []) => applySql(state, sql, params),
+          getRepository: (entity?: { name?: string }) => memoryRepo(state, entity?.name ?? SignatureEventEntity.name),
         },
       };
     },
@@ -516,6 +669,87 @@ function serialDb(challenge: MemChallenge) {
 
 function accessClaims() {
   return readContractSignToken(mintContractSignToken(claims()), SECRET, 1_000)!;
+}
+
+function preparedFrom(state: MemState) {
+  const row = state.audits.find((item) => item.action === 'SIGNED');
+  return {
+    tenantId: 'ten_b',
+    contractId: 'ctr_b',
+    bookingId: 'bk_1',
+    signerId: 'ssgn_1',
+    requestId: 'sreq_1',
+    signerName: 'Thu',
+    signedAt: String(row?.payload?.signedAt ?? ''),
+    signatureRef: String(row?.payload?.signatureRef ?? ''),
+    providerName: 'WEREAL_ESIGN_STUB',
+    envelopeId: null,
+    templateId: 'tpl',
+    templateLabel: 'Hop dong',
+    mergedText: 'contract body',
+    mergeContext: {
+      buyerName: 'Thu',
+      buyerPhone: '0',
+      unitCode: 'A',
+      basePrice: 1,
+      bookingId: 'bk_1',
+      projectName: 'P',
+      agentLabel: 'A',
+      contractDate: '1',
+    },
+    buffer: Buffer.from('contract body'),
+    fileName: 'ctr_b_ssgn_1_signed.txt',
+    auditId: String(row?.id ?? ''),
+  };
+}
+
+function signHarness() {
+  const db = serialDb(seedChallenge());
+  db.state.audits.push({
+    id: 'aud_draft',
+    tenantId: 'ten_b',
+    entityType: 'contract',
+    entityId: 'ctr_b',
+    action: 'DRAFT',
+    payload: {
+      templateId: 'tpl',
+      templateLabel: 'Hop dong',
+      bookingId: 'bk_1',
+      mergedText: 'contract body',
+      mergeContext: preparedFrom(db.state).mergeContext,
+    },
+    actorId: null,
+    createdAt: new Date(),
+  });
+  const audit = new AuditService({} as never);
+  const documents = new DocumentsService({} as never, {} as never, {
+    putObject: async (input: { storageKey: string; buffer: Buffer }) => ({
+      storageKey: input.storageKey,
+      provider: 'LOCAL' as const,
+      sizeBytes: input.buffer.length,
+    }),
+  } as never, {} as never, {} as never);
+  const contracts = new BookingContractService(
+    {} as never,
+    {} as never,
+    {} as never,
+    {} as never,
+    {} as never,
+    audit,
+    documents,
+    {} as never,
+    {} as never,
+    new ConsentLedgerService({} as never, audit),
+    db as never,
+  );
+  const tickets = new SignatureTicketService(
+    {} as never,
+    {} as never,
+    {} as never,
+    db as never,
+    new EsignOtpChallengeService({} as never, gateConfig('3') as never),
+  );
+  return { db, contracts, tickets };
 }
 
 function gate(max: string, lockout: string | undefined, challenge: MemChallenge) {
@@ -640,6 +874,60 @@ describe('e-sign atomic consume', () => {
       pepper: PEPPER,
     });
     expect(after.action).toBe('update');
+  });
+
+  it('rolls consent, audit, and the ticket back when signing fails after consent', async () => {
+    const { db, contracts, tickets } = signHarness();
+    db.state.failSigner = true;
+    await expect(
+      tickets.completeSign(accessClaims(), CODE, (manager) =>
+        contracts.signContract('ten_b', 'ctr_b', { signerName: 'Thu', otp: CODE, consent: true }, accessClaims(), true, manager, 'WEREAL_ESIGN_STUB'),
+      ),
+    ).rejects.toThrow('consent-written');
+    expect(db.state.signers[0]?.consumed).toBe(false);
+    expect(db.state.signers[0]?.status).toBe('LINK_SENT');
+    expect(db.state.requests[0]?.status).toBe('SENT');
+    expect(db.state.consents).toHaveLength(0);
+    expect(db.state.audits.filter((row) => row.action === 'SIGNED')).toHaveLength(0);
+    expect(db.state.events).toHaveLength(0);
+    expect(db.state.documents).toHaveLength(0);
+  });
+
+  it('signs once after a failed attempt and refuses a second signed record', async () => {
+    const { db, contracts, tickets } = signHarness();
+    db.state.failSigner = true;
+    await expect(
+      tickets.completeSign(accessClaims(), CODE, (manager) =>
+        contracts.signContract('ten_b', 'ctr_b', { signerName: 'Thu', otp: CODE, consent: true }, accessClaims(), true, manager, 'WEREAL_ESIGN_STUB'),
+      ),
+    ).rejects.toThrow('consent-written');
+    const signed = await tickets.completeSign(
+      accessClaims(),
+      CODE,
+      (manager) =>
+        contracts.signContract('ten_b', 'ctr_b', { signerName: 'Thu', otp: CODE, consent: true }, accessClaims(), true, manager, 'WEREAL_ESIGN_STUB'),
+      (prepared) => contracts.finishSignedVault(prepared),
+    );
+    expect(signed.data.attributes.status).toBe('SIGNED');
+    expect(db.state.audits.filter((row) => row.action === 'SIGNED')).toHaveLength(1);
+    expect(db.state.events.filter((row) => row.action === 'SIGNED')).toHaveLength(1);
+    expect(db.state.documents).toHaveLength(1);
+    const stored = await contracts.finishSignedVault(preparedFrom(db.state));
+    expect(stored.data.attributes.documentId).toBe(signed.data.attributes.documentId);
+    expect(db.state.documents).toHaveLength(1);
+
+    const kept = db.state.audits.filter((row) => row.action === 'SIGNED');
+    db.state.audits = db.state.audits.filter((row) => row.action !== 'SIGNED');
+    const runner = db.createQueryRunner();
+    await runner.startTransaction();
+    await expect(
+      contracts.signContract('ten_b', 'ctr_b', { signerName: 'Thu', otp: CODE, consent: true }, accessClaims(), true, runner.manager as never, 'WEREAL_ESIGN_STUB'),
+    ).rejects.toMatchObject({ response: { detail: 'signer already has a signed record' } });
+    await runner.rollbackTransaction();
+    db.state.audits.push(...kept);
+    expect(db.state.audits.filter((row) => row.action === 'SIGNED')).toHaveLength(1);
+    expect(db.state.events.filter((row) => row.action === 'SIGNED')).toHaveLength(1);
+    expect(db.state.documents).toHaveLength(1);
   });
 });
 

@@ -3,6 +3,7 @@ import { SignatureRequestEntity } from './signature-request.entity';
 
 @Entity({ name: 'signature_events' })
 @Index(['tenantId', 'requestId', 'occurredAt'])
+@Index(['requestId', 'signerId'], { unique: true, where: "((action)::text = 'SIGNED'::text)" })
 export class SignatureEventEntity {
   @PrimaryColumn({ type: 'varchar', length: 64 })
   id!: string;

@@ -37,6 +37,34 @@ WHERE "id" = $1 AND "tenant_id" = $2 AND "consumed_at" IS NULL
 RETURNING "id"
 `;
 
+export const MARK_SIGNER_SIGNED_SQL = `
+UPDATE "signature_signers"
+SET "status" = 'SIGNED', "signed_at" = $4, "consent_at" = $4, "signature_ref" = $5, "display_name" = $6
+WHERE "id" = $1 AND "tenant_id" = $2 AND "request_id" = $3 AND "status" <> 'SIGNED'
+RETURNING "id"
+`;
+
+export const MARK_REQUEST_SIGNED_SQL = `
+UPDATE "signature_requests"
+SET "status" = 'SIGNED'
+WHERE "id" = $1 AND "tenant_id" = $2 AND "status" <> 'SIGNED'
+RETURNING "id"
+`;
+
+export const LOCK_REQUEST_DOCUMENT_SQL = `
+SELECT "signed_pdf_document_id"
+FROM "signature_requests"
+WHERE "id" = $1 AND "tenant_id" = $2
+FOR UPDATE
+`;
+
+export const SET_REQUEST_DOCUMENT_SQL = `
+UPDATE "signature_requests"
+SET "signed_pdf_document_id" = $3
+WHERE "id" = $1 AND "tenant_id" = $2 AND "signed_pdf_document_id" IS NULL
+RETURNING "id"
+`;
+
 export const CLAIM_TICKET_SQL = `
 UPDATE "signature_signers"
 SET "jti_consumed_at" = now()
