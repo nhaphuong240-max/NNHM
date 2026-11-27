@@ -35,7 +35,7 @@ describe('esign batch 3', () => {
   it('forbids sales from reviewing a signature request', async () => {
     const controller = new SignaturePartyController({} as never, { query: jest.fn() } as never);
     expect(() =>
-      controller.review({ userId: 'usr_agent', role: 'AGENT', tenantId: 'ten_b', email: 'a@x' }, {} as never),
+      controller.review({ userId: 'usr_agent', role: 'AGENT', tenantId: 'ten_b', email: 'a@x' }),
     ).toThrow(ForbiddenException);
   });
 });

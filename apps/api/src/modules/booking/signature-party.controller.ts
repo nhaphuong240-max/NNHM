@@ -1,5 +1,4 @@
-import { Body, Controller, ForbiddenException, Get, Headers, HttpCode, NotFoundException, Param, Post, Req } from '@nestjs/common';
-import type { Request } from 'express';
+import { Body, Controller, ForbiddenException, Get, Headers, HttpCode, NotFoundException, Param, Post } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { oneLookedUpTenant } from '../../common/public-tenant-lookup';
 import { assertHeaderMatches } from '../../common/resolve-tenant-id';
@@ -75,10 +74,7 @@ export class SignaturePartyController {
 
   @Post(':id/review')
   @HttpCode(200)
-  review(
-    @CurrentUser() user: AuthUser | undefined,
-    @Req() _req: Request,
-  ) {
+  review(@CurrentUser() user: AuthUser | undefined) {
     const allowed = user?.role ? permissionsForTenantRole(user.role).includes('contracts.approve') : false;
     if (!allowed) {
       throw new ForbiddenException({ detail: 'forbidden' });
