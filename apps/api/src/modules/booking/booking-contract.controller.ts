@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Headers, HttpCode, Param, Post, Query, UnauthorizedException, UnprocessableEntityException } from '@nestjs/common';
+import { Body, Controller, Get, Headers, HttpCode, NotFoundException, Param, Post, Query, UnauthorizedException, UnprocessableEntityException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DataSource } from 'typeorm';
 import { oneLookedUpTenant } from '../../common/public-tenant-lookup';
@@ -6,7 +6,6 @@ import { assertHeaderMatches, resolveTenantId } from '../../common/resolve-tenan
 import { Public } from '../identity/decorators/public.decorator';
 import { AllowContractSignToken } from './allow-contract-sign-token.decorator';
 import { contractSignSecret, readContractSignToken, type ContractSignClaims } from './contract-sign-token';
-import { EsignLinkService } from './esign-link.service';
 import { SignatureTicketService } from './signature-ticket.service';
 import { CurrentUser } from '../identity/decorators/current-user.decorator';
 import type { AuthUser } from '../identity/identity.types';
@@ -20,7 +19,6 @@ export class BookingContractController {
     private readonly config: ConfigService,
     private readonly dataSource: DataSource,
     private readonly tickets?: SignatureTicketService,
-    private readonly links?: EsignLinkService,
   ) {}
 
   private signSecret(): string {
@@ -122,36 +120,14 @@ export class BookingContractController {
     );
   }
 
-  /** Send or resend the one-time signing link on the registered channel. */
+  /**
+   * Staff send-on-behalf is unsigned (9.1). Closed for every caller, including SEEKER.
+   * Always 404 so existence cannot be probed.
+   */
   @Post(':contractId/sign-link')
-  @HttpCode(200)
-  async sendSignLink(
-    @CurrentUser() user: AuthUser | undefined,
-    @Headers('x-tenant-id') tenantHeader: string | undefined,
-    @Param('contractId') contractId: string,
-    @Body() body: { resend?: boolean },
-  ) {
-    const tenantId = resolveTenantId(this.config, user, tenantHeader);
-    if (!this.links) {
-      throw new UnprocessableEntityException({ detail: 'sign access ticket is required' });
-    }
-    const loaded = await this.contracts.getContract(tenantId, contractId);
-    const bookingId = loaded.data.attributes.bookingId?.trim() ?? '';
-    if (!bookingId) {
-      throw new UnprocessableEntityException({ detail: 'contract is not linked to a booking' });
-    }
-    if (!user?.userId?.trim()) {
-      throw new UnauthorizedException({ detail: 'sign access ticket is required' });
-    }
-    const result = await this.links.send({
-      tenantId,
-      contractId: loaded.data.id,
-      bookingId,
-      buyerId: user.userId,
-      buyerName: loaded.data.attributes.mergeContext.buyerName,
-      resend: body.resend === true,
-    });
-    return { data: result, meta: { uc: ['UC-BK-07', 'UC-NW-03'] } };
+  @HttpCode(404)
+  sendSignLink() {
+    throw new NotFoundException({ detail: 'not found' });
   }
 
   /** UC-BK-07 — buyer sign session. Requires a short-lived token for this contract. */

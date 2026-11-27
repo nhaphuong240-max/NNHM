@@ -44,14 +44,17 @@ export class SignatureTicketService {
     channelDestHash?: string | null;
     channelDestMasked?: string | null;
     recordLinkSent?: boolean;
+    manager?: EntityManager;
   }): Promise<{ token: string; claims: ContractSignClaims }> {
     const now = input.now ?? Date.now();
     const requestId = newId('sreq');
     const signerId = newId('ssgn');
     const jti = newId('jti');
     const channel = input.channel ?? 'SMS';
-    const request = await this.requests.save(
-      this.requests.create({
+    const requests = input.manager?.getRepository(SignatureRequestEntity) ?? this.requests;
+    const signers = input.manager?.getRepository(SignatureSignerEntity) ?? this.signers;
+    const request = await requests.save(
+      requests.create({
         id: requestId,
         tenantId: input.tenantId,
         documentType: 'BOOKING_CONTRACT',
@@ -73,8 +76,8 @@ export class SignatureTicketService {
         reviewNotes: null,
       }),
     );
-    const signer = await this.signers.save(
-      this.signers.create({
+    const signer = await signers.save(
+      signers.create({
         id: signerId,
         requestId: request.id,
         tenantId: input.tenantId,
@@ -106,9 +109,27 @@ export class SignatureTicketService {
       secret: input.secret,
       now,
     });
-    await this.record(input.tenantId, request.id, signer.id, 'REQUEST_CREATED', channel, now);
-    if (input.recordLinkSent !== false) {
-      await this.record(input.tenantId, request.id, signer.id, 'LINK_SENT', channel, now);
+    if (input.manager) {
+      const events = input.manager.getRepository(SignatureEventEntity);
+      await events.save(
+        events.create({
+          id: newId('sev'),
+          tenantId: input.tenantId,
+          requestId: request.id,
+          signerId: signer.id,
+          action: 'REQUEST_CREATED',
+          ip: null,
+          userAgent: null,
+          occurredAt: new Date(now),
+          channel,
+          metadata: safeSignatureMetadata({}),
+        }),
+      );
+    } else {
+      await this.record(input.tenantId, request.id, signer.id, 'REQUEST_CREATED', channel, now);
+      if (input.recordLinkSent !== false) {
+        await this.record(input.tenantId, request.id, signer.id, 'LINK_SENT', channel, now);
+      }
     }
     return {
       token,

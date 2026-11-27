@@ -274,6 +274,8 @@ jobs:
       EMAIL_SANDBOX: 'true'
       ESIGN_LINK_CHANNEL: SMS
       ESIGN_SIGNING_BASE_URL: http://127.0.0.1:4173/buyer/esign
+      # Unsigned test fixture so e2e can read the sandbox outbox. Not a product flag.
+      ESIGN_SANDBOX_OUTBOX: 'true'
       NOTARY_WEBHOOK_SECRET: wereal-ci-notary-webhook-secret
       AUTH_LOGIN_RATE_LIMIT_PER_MIN: '1000'
       NODE_ENV: development
@@ -292,6 +294,11 @@ jobs:
           npm ci
           npm run build
           npm run migration:run
+      - name: Advisory lock concurrency
+        working-directory: apps/api
+        env:
+          ESIGN_CONCURRENCY_PG: '1'
+        run: node node_modules/jest/bin/jest.js src/modules/booking/esign-link-concurrency.spec.ts --forceExit --colors=false
       - name: Start API
         working-directory: apps/api
         run: |

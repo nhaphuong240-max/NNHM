@@ -22,6 +22,12 @@ export function BuyerEsignPage() {
     (contractId === PILOT_CONTRACT_ID ? PILOT_TENANT_ID : '');
 
   const querySignToken = params.get('signToken')?.trim() || '';
+  const hashToken = (() => {
+    if (typeof window === 'undefined') return '';
+    const hash = window.location.hash.replace(/^#/, '');
+    return new URLSearchParams(hash).get('signToken')?.trim() || '';
+  })();
+  const presentedToken = hashToken || querySignToken;
   const [session, setSession] = useState<ContractSignSession | null>(null);
   const [signToken, setSignToken] = useState<string | null>(null);
   const [signerName, setSignerName] = useState('');
@@ -47,9 +53,12 @@ export function BuyerEsignPage() {
     setLoading(true);
     setError(null);
     try {
-      const token = querySignToken
-        ? querySignToken
+      const token = presentedToken
+        ? presentedToken
         : (await issueContractSignToken(contractId, tenantId)).data.token;
+      if (presentedToken && typeof window !== 'undefined') {
+        window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}`);
+      }
       const res = await fetchContractSignSession(contractId, tenantId, token);
       setSignToken(token);
       setSession(res.data);
@@ -59,7 +68,7 @@ export function BuyerEsignPage() {
     } finally {
       setLoading(false);
     }
-  }, [contractId, tenantId, querySignToken]);
+  }, [contractId, tenantId, presentedToken]);
 
   useEffect(() => {
     void load();

@@ -1,6 +1,6 @@
 import { Logger, UnprocessableEntityException } from '@nestjs/common';
 import { maskChannelDest } from '../booking/esign-otp-policy';
-import type { EmailSendInput, EmailSendResult, EmailSender } from './email.types';
+import { EMAIL_TEMPLATE_COPY, type EmailSendInput, type EmailSendResult, type EmailSender } from './email.types';
 
 const log = new Logger('EmailSender');
 
@@ -18,7 +18,7 @@ function dropSecrets(params: Record<string, unknown>): Record<string, unknown> {
 export class SandboxEmailSender implements EmailSender {
   async send(input: EmailSendInput): Promise<EmailSendResult> {
     log.log(
-      `email sandbox ${input.templateId} → ${maskChannelDest(input.to)} (${input.trackingId}) ${JSON.stringify(dropSecrets(input.params))}`,
+      `email sandbox ${input.templateId} → ${maskChannelDest(input.to)} (${input.trackingId}) ${EMAIL_TEMPLATE_COPY[input.templateId] ?? JSON.stringify(dropSecrets(input.params))}`,
     );
     return { providerRef: `sandbox_${input.trackingId}` };
   }
@@ -52,8 +52,8 @@ export class LiveEmailSender implements EmailSender {
       }),
     });
     if (!res.ok) {
-      const body = await res.text().catch(() => '');
-      throw new Error(`email provider failed (${res.status}): ${body.slice(0, 200)}`);
+      await res.text().catch(() => '');
+      throw new Error('email provider failed');
     }
     const json = (await res.json().catch(() => ({}))) as { providerRef?: string; messageId?: string };
     log.log(`email live ${input.templateId} → ${maskChannelDest(input.to)} ref=${json.providerRef ?? json.messageId ?? input.trackingId}`);
@@ -61,30 +61,14 @@ export class LiveEmailSender implements EmailSender {
   }
 }
 
+/** Live send is a generic HTTP relay. smtp and ses are labels only; no vendor SDK. */
 export function assertLiveEmailCredentials(read: (key: string) => string | undefined): void {
   const provider = read('EMAIL_PROVIDER')?.trim().toLowerCase() ?? '';
   if (provider !== 'smtp' && provider !== 'ses') {
     throw new UnprocessableEntityException({ detail: 'email provider is not configured' });
   }
-  if (provider === 'smtp') {
-    const host = read('EMAIL_SMTP_HOST')?.trim();
-    const user = read('EMAIL_SMTP_USER')?.trim();
-    const pass = read('EMAIL_SMTP_PASS')?.trim();
-    const from = read('EMAIL_FROM')?.trim();
-    if (!host || !user || !pass || !from) {
-      throw new UnprocessableEntityException({ detail: 'email smtp is not configured' });
-    }
-  }
-  if (provider === 'ses') {
-    const region = read('EMAIL_SES_REGION')?.trim();
-    const key = read('EMAIL_SES_ACCESS_KEY_ID')?.trim();
-    const secret = read('EMAIL_SES_SECRET_ACCESS_KEY')?.trim();
-    const from = read('EMAIL_FROM')?.trim();
-    if (!region || !key || !secret || !from) {
-      throw new UnprocessableEntityException({ detail: 'email ses is not configured' });
-    }
-  }
-  if (!read('EMAIL_PROVIDER_URL')?.trim() || !read('EMAIL_PROVIDER_API_KEY')?.trim()) {
+  const from = read('EMAIL_FROM')?.trim();
+  if (!from || !read('EMAIL_PROVIDER_URL')?.trim() || !read('EMAIL_PROVIDER_API_KEY')?.trim()) {
     throw new UnprocessableEntityException({ detail: 'email provider is not configured' });
   }
 }

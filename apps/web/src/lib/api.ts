@@ -4190,7 +4190,7 @@ export async function sendContractSignLink(contractId: string, tenantId: string,
     throw new Error(body?.detail ?? `Sign link failed (${res.status})`);
   }
   return res.json() as Promise<{
-    data: { sent: boolean; channel: string; destMasked: string; deliveryId: string; signingUrl?: string };
+    data: { sent: boolean; channel: string; destMasked: string; deliveryId: string; sandbox: boolean };
   }>;
 }
 

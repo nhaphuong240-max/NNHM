@@ -9,6 +9,7 @@ import type { ContractSignClaims } from './contract-sign-token';
 import {
   CONSUME_OTP_SQL,
   COUNT_SENDS_SQL,
+  esignLinkSourceArgs,
   SELECT_SCOPED_CHALLENGES_SQL,
   SELECT_SIGNER_BUDGET_SQL,
   UPDATE_ATTEMPT_SQL,
@@ -68,11 +69,13 @@ export class EsignOtpChallengeService {
     if (maxSends === null || !this.dataSource) {
       throw new UnprocessableEntityException({ detail: 'esign otp send limit is not configured' });
     }
+    const [exact, like] = esignLinkSourceArgs(`${claims.contractId}:${claims.buyerId}`);
     const rows = await this.dataSource.query(COUNT_SENDS_SQL, [
       claims.tenantId,
       claims.contractId,
       claims.buyerId,
-      `${claims.contractId}:${claims.buyerId}%`,
+      exact,
+      like,
     ]);
     const count = Number((rows?.[0] as { sends?: number } | undefined)?.sends ?? 0);
     if (count >= maxSends) {
@@ -153,7 +156,15 @@ export class EsignOtpChallengeService {
       throw new UnprocessableEntityException({ detail: 'esign otp attempt limit is not configured' });
     }
     const nodeEnv = this.config.get<string>('NODE_ENV');
-    if (demoEsignOtpRejected({ otp, nodeEnv, smsSandbox: this.config.get<string>('SMS_SANDBOX') !== 'false' })) {
+    if (
+      demoEsignOtpRejected({
+        otp,
+        nodeEnv,
+        smsSandbox: this.config.get<string>('SMS_SANDBOX') !== 'false',
+        emailSandbox: this.config.get<string>('EMAIL_SANDBOX')?.trim() === 'true',
+        channel: claims.channel,
+      })
+    ) {
       throw new UnprocessableEntityException({ detail: 'demo otp is not accepted' });
     }
     const current = returnedRows(
@@ -207,6 +218,8 @@ export class EsignOtpChallengeService {
     jti: string;
     otp: string;
     smsSandbox: boolean;
+    emailSandbox?: boolean;
+    channel?: 'EMAIL' | 'SMS' | 'ZALO';
     now?: number;
   }): Promise<boolean> {
     const now = input.now ?? Date.now();
@@ -220,6 +233,8 @@ export class EsignOtpChallengeService {
       lockoutSeconds: readConfiguredPositiveInt((key) => this.config.get<string>(key), ESIGN_OTP_LOCKOUT_ENV),
       nodeEnv: this.config.get<string>('NODE_ENV'),
       smsSandbox: input.smsSandbox,
+      emailSandbox: input.emailSandbox,
+      channel: input.channel ?? (row?.channel as 'EMAIL' | 'SMS' | 'ZALO' | undefined),
       binding: input.jti,
     });
     if (

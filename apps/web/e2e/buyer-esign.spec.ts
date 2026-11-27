@@ -108,25 +108,24 @@ test('buyer-esign send link then open issues otp and signs', async ({ page }) =>
   });
   const sentText = await sent.text();
   expect(sent.ok, sentText.slice(0, 400)).toBe(true);
-  const sentBody = JSON.parse(sentText) as { data?: { signingUrl?: string } };
-  expect(sentBody.data?.signingUrl).toBeTruthy();
+  const sentBody = JSON.parse(sentText) as { data?: { deliveryId?: string; signingUrl?: string } };
+  expect(sentBody.data?.signingUrl).toBeUndefined();
+  expect(sentText).not.toMatch(/v1s\./);
   expect(sentText).not.toContain(PHONE);
+  const deliveryId = sentBody.data?.deliveryId;
+  expect(deliveryId).toBeTruthy();
 
-  const signingUrl = sentBody.data?.signingUrl ?? '';
-  expect(new URL(signingUrl).searchParams.get('signToken')).toBeTruthy();
+  const outbox = await fetch(`${API_BASE}/esign-sandbox/deliveries/${deliveryId}`);
+  const outboxText = await outbox.text();
+  expect(outbox.ok, outboxText.slice(0, 400)).toBe(true);
+  const outboxBody = JSON.parse(outboxText) as { data?: { signingUrl?: string } };
+  const signingUrl = outboxBody.data?.signingUrl ?? '';
+  expect(signingUrl).toContain('#signToken=');
 
   await page.goto('/');
-  await page.evaluate(
-    ({ accessToken: token, userId, phone }) => {
-      window.localStorage.setItem(
-        'nnhn_seeker_session',
-        JSON.stringify({ accessToken: token, userId, phone, verifiedAt: new Date().toISOString() }),
-      );
-    },
-    { accessToken, userId: verifiedBody.data?.userId, phone: PHONE },
-  );
+  await page.evaluate(() => window.localStorage.removeItem('nnhn_seeker_session'));
   const parsed = new URL(signingUrl);
-  await page.goto(`${parsed.pathname}${parsed.search}`);
+  await page.goto(`${parsed.pathname}${parsed.search}${parsed.hash}`);
   await expect(page.getByRole('heading', { name: 'Ký hợp đồng điện tử' })).toBeVisible();
   await expect(page.getByText('Thu Trang')).toBeVisible();
   await page.getByPlaceholder('Mã OTP từ SMS').fill('123456');

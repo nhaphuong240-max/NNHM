@@ -12,6 +12,7 @@ import { SignatureEventEntity } from '../../database/entities/signature-event.en
 import { SignatureRequestEntity } from '../../database/entities/signature-request.entity';
 import { SignatureSignerEntity } from '../../database/entities/signature-signer.entity';
 import { UnitEntity } from '../../database/entities/unit.entity';
+import { UserEntity } from '../../database/entities/user.entity';
 import { AllocationModule } from '../allocation/allocation.module';
 import { AuditModule } from '../audit/audit.module';
 import { DocumentsModule } from '../documents/documents.module';
@@ -24,6 +25,8 @@ import { TenantWebhooksModule } from '../tenant-webhooks/tenant-webhooks.module'
 import { CrmModule } from '../crm/crm.module';
 import { NotifyModule } from '../notify/notify.module';
 import { BookingContractController } from './booking-contract.controller';
+import { EsignSandboxController } from './esign-sandbox.controller';
+import { SandboxEsignOutbox } from './sandbox-esign-outbox';
 import { ContractArtifactController } from './contract-artifact.controller';
 import { ContractArtifactService } from './contract-artifact.service';
 import { HandoverChecklistController } from './handover-checklist.controller';
@@ -56,6 +59,7 @@ import { BookingService } from './booking.service';
       UnitEntity,
       PaymentIntentEntity,
       LeadEntity,
+      UserEntity,
       ProjectEntity,
       AuditEventEntity,
     ]),
@@ -78,6 +82,7 @@ import { BookingService } from './booking.service';
     BookingWorkflowController,
     ContractArtifactController,
     HandoverChecklistController,
+    EsignSandboxController,
   ],
   providers: [
     BookingService,
@@ -86,6 +91,7 @@ import { BookingService } from './booking.service';
     HandoverChecklistService,
     BookingContractEsignSmsService,
     EsignLinkService,
+    SandboxEsignOutbox,
     EsignOtpChallengeService,
     SignatureTicketService,
     BookingContractEsignProviderService,

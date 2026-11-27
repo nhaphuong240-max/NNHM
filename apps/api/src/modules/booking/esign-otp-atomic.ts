@@ -82,11 +82,13 @@ SELECT (
   +
   (SELECT COUNT(*)::int
    FROM "email_deliveries" e
-   WHERE e."tenant_id" = $1 AND e."source_type" = 'ESIGN_LINK' AND e."source_id" LIKE $4)
+   WHERE e."tenant_id" = $1 AND e."source_type" = 'ESIGN_LINK'
+     AND (e."source_id" = $4 OR e."source_id" LIKE $5 ESCAPE '\\'))
   +
   (SELECT COUNT(*)::int
    FROM "sms_deliveries" d
-   WHERE d."tenant_id" = $1 AND d."source_type" = 'ESIGN_LINK' AND d."source_id" LIKE $4)
+   WHERE d."tenant_id" = $1 AND d."source_type" = 'ESIGN_LINK'
+     AND (d."source_id" = $4 OR d."source_id" LIKE $5 ESCAPE '\\'))
 )::int AS sends
 `;
 
@@ -104,19 +106,35 @@ RETURNING s."id", s."jti"
 `;
 
 export const LATEST_LINK_SQL = `
-SELECT e."created_at" AS created_at, e."status" AS status, e."source_id" AS source_id
+SELECT e."created_at" AS created_at, e."status" AS status, e."source_id" AS source_id, e."id" AS id, 'EMAIL' AS channel
 FROM "email_deliveries" e
-WHERE e."tenant_id" = $1 AND e."source_type" = 'ESIGN_LINK' AND e."source_id" LIKE $2
+WHERE e."tenant_id" = $1 AND e."source_type" = 'ESIGN_LINK'
+  AND (e."source_id" = $2 OR e."source_id" LIKE $3 ESCAPE '\\')
 UNION ALL
-SELECT d."created_at" AS created_at, d."status" AS status, d."source_id" AS source_id
+SELECT d."created_at" AS created_at, d."status" AS status, d."source_id" AS source_id, d."id" AS id, 'SMS' AS channel
 FROM "sms_deliveries" d
-WHERE d."tenant_id" = $1 AND d."source_type" = 'ESIGN_LINK' AND d."source_id" LIKE $2
+WHERE d."tenant_id" = $1 AND d."source_type" = 'ESIGN_LINK'
+  AND (d."source_id" = $2 OR d."source_id" LIKE $3 ESCAPE '\\')
 ORDER BY created_at DESC
 LIMIT 1
 `;
 
-export const ADVISORY_LOCK_SQL = `SELECT pg_advisory_lock(hashtext($1))`;
-export const ADVISORY_UNLOCK_SQL = `SELECT pg_advisory_unlock(hashtext($1))`;
+export const ADVISORY_LOCK_SQL = `SELECT pg_advisory_xact_lock(hashtext($1))`;
+
+export const VOID_TICKET_JTI_SQL = `
+UPDATE "signature_signers"
+SET "jti_consumed_at" = now()
+WHERE "jti" = $1 AND "tenant_id" = $2 AND "jti_consumed_at" IS NULL
+RETURNING "id"
+`;
+
+export function escapeLikePrefix(value: string): string {
+  return value.replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_');
+}
+
+export function esignLinkSourceArgs(prefix: string): [string, string] {
+  return [prefix, `${escapeLikePrefix(prefix)}:%`];
+}
 
 export function returnedRows(result: unknown): unknown[] {
   if (!Array.isArray(result)) return [];

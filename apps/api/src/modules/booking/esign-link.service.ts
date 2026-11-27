@@ -6,21 +6,28 @@ import { DataSource, QueryFailedError, Repository } from 'typeorm';
 import { BookingEntity } from '../../database/entities/booking.entity';
 import { LeadEntity } from '../../database/entities/lead.entity';
 import { SignatureEventEntity } from '../../database/entities/signature-event.entity';
+import { UserEntity } from '../../database/entities/user.entity';
+import { normalizePhone } from '../crm/phone.util';
 import { EmailService } from '../email/email.service';
 import { EMAIL_TEMPLATES } from '../email/email.types';
 import { SmsService } from '../sms/sms.service';
 import { SMS_TEMPLATES } from '../sms/sms.types';
-import { contractSignSecret, type ContractSignChannel, type ContractSignClaims } from './contract-sign-token';
+import {
+  CONTRACT_SIGN_TOKEN_TTL_MS,
+  contractSignSecret,
+  type ContractSignChannel,
+  type ContractSignClaims,
+} from './contract-sign-token';
 import {
   ADVISORY_LOCK_SQL,
-  ADVISORY_UNLOCK_SQL,
+  esignLinkSourceArgs,
   LATEST_LINK_SQL,
-  VOID_OPEN_TICKETS_SQL,
   returnedRows,
+  VOID_OPEN_TICKETS_SQL,
+  VOID_TICKET_JTI_SQL,
 } from './esign-otp-atomic';
 import { EsignOtpChallengeService } from './esign-otp-challenge.service';
 import {
-  decideEsignResend,
   ESIGN_OTP_RESEND_COOLDOWN_ENV,
   hashChannelDest,
   maskChannelDest,
@@ -39,13 +46,13 @@ import {
   pickRegisteredChannel,
   znsEnabled,
 } from './esign-link.policy';
+import { SandboxEsignOutbox } from './sandbox-esign-outbox';
 import { SignatureTicketService } from './signature-ticket.service';
 
 export type SendSignLinkInput = {
   tenantId: string;
   contractId: string;
   bookingId: string;
-  buyerId: string;
   buyerName: string;
   resend?: boolean;
 };
@@ -57,7 +64,14 @@ export type SendSignLinkResult = {
   deliveryId: string;
   sandbox: boolean;
   idempotentReplay?: boolean;
-  signingUrl?: string;
+};
+
+type LatestLink = {
+  created_at: string | Date;
+  status: string;
+  source_id: string;
+  id: string;
+  channel: string;
 };
 
 @Injectable()
@@ -67,6 +81,8 @@ export class EsignLinkService {
     private readonly bookings: Repository<BookingEntity>,
     @InjectRepository(LeadEntity)
     private readonly leads: Repository<LeadEntity>,
+    @InjectRepository(UserEntity)
+    private readonly users: Repository<UserEntity>,
     @InjectDataSource()
     private readonly dataSource: DataSource,
     private readonly config: ConfigService,
@@ -74,6 +90,7 @@ export class EsignLinkService {
     private readonly challenges: EsignOtpChallengeService,
     private readonly email: EmailService,
     private readonly sms: SmsService,
+    private readonly outbox: SandboxEsignOutbox,
   ) {}
 
   async send(input: SendSignLinkInput): Promise<SendSignLinkResult> {
@@ -86,140 +103,228 @@ export class EsignLinkService {
       throw new UnprocessableEntityException({ detail: 'esign signing base url is not configured' });
     }
     const dest = await this.resolveDest(input.tenantId, input.bookingId);
+    const buyerId = await this.buyerSubjectFromBooking(input.tenantId, input.bookingId);
     await this.assertChannelReady(input.tenantId, dest.channel);
-    const prefix = `${input.contractId}:${input.buyerId}`;
+    const prefix = `${input.contractId}:${buyerId}`;
     const lockKey = `esign-link:${input.tenantId}:${prefix}`;
-    await this.dataSource.query(ADVISORY_LOCK_SQL, [lockKey]);
+    const [exact, like] = esignLinkSourceArgs(prefix);
+    const runner = this.dataSource.createQueryRunner();
+    await runner.connect();
+    await runner.startTransaction();
     try {
-      const latest = returnedRows(await this.dataSource.query(LATEST_LINK_SQL, [input.tenantId, `${prefix}%`]))[0] as
-        | { created_at: string | Date; status: string; source_id: string }
+      await runner.query(ADVISORY_LOCK_SQL, [lockKey]);
+      const latest = returnedRows(await runner.query(LATEST_LINK_SQL, [input.tenantId, exact, like]))[0] as
+        | LatestLink
         | undefined;
-      if (!input.resend && latest?.status === 'SENT' && latest.source_id === prefix) {
+
+      if (!input.resend && latest && (latest.status === 'SENT' || latest.status === 'DELIVERED')) {
+        const age = Date.now() - new Date(latest.created_at).getTime();
+        if (age > CONTRACT_SIGN_TOKEN_TTL_MS) {
+          throw new UnprocessableEntityException({ detail: 'esign link already exists; resend is required' });
+        }
+        await runner.commitTransaction();
         return {
           sent: true,
           channel: dest.channel,
           destMasked: maskChannelDest(dest.value),
-          deliveryId: 'replay',
-          sandbox: dest.channel === 'EMAIL' ? this.email.isSandbox() : true,
+          deliveryId: latest.id,
+          sandbox: await this.channelSandbox(input.tenantId, dest.channel),
           idempotentReplay: true,
         };
       }
-      await this.challenges.assertSendBudget({
-        tenantId: input.tenantId,
-        contractId: input.contractId,
-        buyerId: input.buyerId,
-      } as ContractSignClaims);
-      const decision = decideEsignResend({
-        latestCreatedAtMs: latest ? new Date(latest.created_at).getTime() : null,
-        latestExpiresAtMs: latest ? new Date(latest.created_at).getTime() + 15 * 60 * 1000 : null,
-        latestConsumed: Boolean(input.resend),
-        now: Date.now(),
-        cooldownSeconds: readConfiguredPositiveInt((key) => this.config.get<string>(key), ESIGN_OTP_RESEND_COOLDOWN_ENV),
-      });
-      if (input.resend) {
-        if (!latest) throw new UnprocessableEntityException({ detail: 'esign link has not been sent' });
-        if (decision === 'unconfigured') {
-          throw new UnprocessableEntityException({ detail: 'esign otp resend cooldown is not configured' });
-        }
-        if (decision === 'cooling') {
-          throw new UnprocessableEntityException({ detail: 'esign otp resend is cooling down' });
-        }
-      }
-
-      const runner = this.dataSource.createQueryRunner();
-      await runner.connect();
-      await runner.startTransaction();
-      let minted: { token: string; claims: ContractSignClaims } | null = null;
-      const sourceId = input.resend ? `${prefix}:${randomBytes(4).toString('hex')}` : prefix;
-      try {
-        if (input.resend) {
-          await runner.query(VOID_OPEN_TICKETS_SQL, [input.tenantId, input.contractId, input.buyerId]);
-        }
-        const pepper = readEsignOtpPepper((key) => this.config.get<string>(key));
-        if (!pepper) {
-          throw new UnprocessableEntityException({ detail: 'esign otp pepper is not configured' });
-        }
-        minted = await this.tickets.issueBuyerAccess({
-          tenantId: input.tenantId,
-          contractId: input.contractId,
-          buyerId: input.buyerId,
-          secret,
-          bookingId: input.bookingId,
-          channel: dest.channel,
-          channelDestHash: hashChannelDest(dest.value, pepper),
-          channelDestMasked: maskChannelDest(dest.value),
-          recordLinkSent: false,
-        });
+      if (!input.resend && latest?.status === 'QUEUED') {
+        const storedUrl = this.outbox.peek(latest.id);
         await runner.commitTransaction();
-      } catch (error) {
-        await runner.rollbackTransaction();
-        throw error;
-      } finally {
-        await runner.release();
-      }
-
-      if (!minted) {
-        throw new UnprocessableEntityException({ detail: 'sign access ticket is required' });
-      }
-      const claims = minted.claims;
-      const signingUrl = buildSigningUrl(baseUrl, {
-        contractId: input.contractId,
-        tenantId: input.tenantId,
-        token: minted.token,
-      });
-      const action = input.resend ? 'LINK_RESENT' : 'LINK_SENT';
-      try {
-        const delivery = await this.dispatchLink({
+        if (!storedUrl) {
+          if (dest.channel === 'SMS') await this.sms.markFailed(input.tenantId, latest.id);
+          else await this.email.markFailed(input.tenantId, latest.id);
+          throw new UnprocessableEntityException({ detail: 'esign link already exists; resend is required' });
+        }
+        const delivery = await this.completeLink({
           tenantId: input.tenantId,
           dest,
           buyerName: input.buyerName,
           contractId: input.contractId,
-          sourceId,
-          signingUrl,
+          sourceId: latest.source_id,
+          deliveryId: latest.id,
+          signingUrl: storedUrl,
         });
-        await this.note(claims, action, { deliveryId: delivery.deliveryId, jti: claims.jti });
         return {
           sent: true,
           channel: dest.channel,
           destMasked: maskChannelDest(dest.value),
           deliveryId: delivery.deliveryId,
           sandbox: delivery.sandbox,
+          idempotentReplay: delivery.idempotentReplay,
+        };
+      }
+      if (!input.resend && latest) {
+        throw new UnprocessableEntityException({ detail: 'esign link already exists; resend is required' });
+      }
+
+      await this.challenges.assertSendBudget({
+        tenantId: input.tenantId,
+        contractId: input.contractId,
+        buyerId,
+      } as ContractSignClaims);
+
+      if (input.resend) {
+        if (!latest) throw new UnprocessableEntityException({ detail: 'esign link has not been sent' });
+        const cooldown = readConfiguredPositiveInt((key) => this.config.get<string>(key), ESIGN_OTP_RESEND_COOLDOWN_ENV);
+        if (cooldown === null) {
+          throw new UnprocessableEntityException({ detail: 'esign otp resend cooldown is not configured' });
+        }
+        if (Date.now() < new Date(latest.created_at).getTime() + cooldown * 1000) {
+          throw new UnprocessableEntityException({ detail: 'esign otp resend is cooling down' });
+        }
+        await runner.query(VOID_OPEN_TICKETS_SQL, [input.tenantId, input.contractId, buyerId]);
+      }
+
+      const pepper = readEsignOtpPepper((key) => this.config.get<string>(key));
+      if (!pepper) {
+        throw new UnprocessableEntityException({ detail: 'esign otp pepper is not configured' });
+      }
+      const sourceId = input.resend ? `${prefix}:${randomBytes(4).toString('hex')}` : prefix;
+      const minted = await this.tickets.issueBuyerAccess({
+        tenantId: input.tenantId,
+        contractId: input.contractId,
+        buyerId,
+        secret,
+        bookingId: input.bookingId,
+        channel: dest.channel,
+        channelDestHash: hashChannelDest(dest.value, pepper),
+        channelDestMasked: maskChannelDest(dest.value),
+        recordLinkSent: false,
+        manager: runner.manager,
+      });
+      const queued = await this.enqueueLink({
+        tenantId: input.tenantId,
+        dest,
+        buyerName: input.buyerName,
+        contractId: input.contractId,
+        sourceId,
+        manager: runner.manager,
+      });
+      const signingUrl = buildSigningUrl(baseUrl, {
+        contractId: input.contractId,
+        tenantId: input.tenantId,
+        token: minted.token,
+      });
+      this.outbox.put(queued.deliveryId, signingUrl);
+      await runner.commitTransaction();
+      try {
+        const delivery = await this.completeLink({
+          tenantId: input.tenantId,
+          dest,
+          buyerName: input.buyerName,
+          contractId: input.contractId,
+          sourceId,
+          deliveryId: queued.deliveryId,
           signingUrl,
+        });
+        this.outbox.put(delivery.deliveryId, signingUrl);
+        await this.note(minted.claims, input.resend ? 'LINK_RESENT' : 'LINK_SENT', {
+          deliveryId: delivery.deliveryId,
+          jti: minted.claims.jti,
+        });
+        return {
+          sent: true,
+          channel: dest.channel,
+          destMasked: maskChannelDest(dest.value),
+          deliveryId: delivery.deliveryId,
+          sandbox: delivery.sandbox,
         };
       } catch (error) {
-        await this.note(claims, 'LINK_FAILED', { jti: claims.jti });
+        await this.dataSource.query(VOID_TICKET_JTI_SQL, [minted.claims.jti, input.tenantId]);
+        await this.note(minted.claims, 'LINK_FAILED', { jti: minted.claims.jti });
         if (error instanceof UnprocessableEntityException) throw error;
-        const message = error instanceof Error ? error.message : 'link send failed';
-        throw new UnprocessableEntityException({ detail: `e-sign link send failed: ${message}` });
+        throw new UnprocessableEntityException({ detail: 'e-sign link send failed' });
       }
+    } catch (error) {
+      if (runner.isTransactionActive) await runner.rollbackTransaction();
+      throw error;
     } finally {
-      await this.dataSource.query(ADVISORY_UNLOCK_SQL, [lockKey]);
+      await runner.release();
     }
   }
 
   private async assertChannelReady(tenantId: string, channel: ContractSignChannel): Promise<void> {
+    if (this.config.get<string>('NODE_ENV') === 'production') {
+      if (channel === 'EMAIL' && this.email.isSandbox()) {
+        throw new UnprocessableEntityException({ detail: 'email sandbox is not allowed in production' });
+      }
+      if (channel === 'SMS' && (await this.sms.isSandbox(tenantId))) {
+        throw new UnprocessableEntityException({ detail: 'sms sandbox is not allowed in production' });
+      }
+    }
     if (channel === 'EMAIL') this.email.assertReady(EMAIL_TEMPLATES.SIGN_LINK);
     if (channel === 'SMS') await this.sms.assertEsignReady(tenantId);
-    if (channel === 'ZALO' && !znsEnabled(this.config.get<string>(ESIGN_ZNS_ENABLED_ENV))) {
-      throw new UnprocessableEntityException({ detail: 'esign zalo is disabled' });
+    if (channel === 'ZALO') {
+      throw new UnprocessableEntityException({
+        detail: znsEnabled(this.config.get<string>(ESIGN_ZNS_ENABLED_ENV))
+          ? 'esign zalo is not implemented'
+          : 'esign zalo is disabled',
+      });
     }
   }
 
-  private async dispatchLink(input: {
+  private async enqueueLink(input: {
     tenantId: string;
     dest: { channel: ContractSignChannel; value: string };
     buyerName: string;
     contractId: string;
     sourceId: string;
-    signingUrl: string;
-  }): Promise<{ deliveryId: string; sandbox: boolean }> {
+    manager: import('typeorm').EntityManager;
+  }): Promise<{ deliveryId: string }> {
     const params = { buyer_name: input.buyerName, contract_id: input.contractId };
     if (input.dest.channel === 'EMAIL') {
-      try {
-        const sent = await this.email.send(input.tenantId, {
+      const queued = await this.email.send(
+        input.tenantId,
+        {
           to: input.dest.value,
           templateId: EMAIL_TEMPLATES.SIGN_LINK,
-          params: { ...params, signingUrl: input.signingUrl },
+          params,
+          source: { type: 'ESIGN_LINK', id: input.sourceId },
+          persistOtp: false,
+        },
+        input.manager,
+      );
+      return { deliveryId: queued.deliveryId };
+    }
+    if (input.dest.channel === 'SMS') {
+      const queued = await this.sms.enqueueEsignLink(
+        input.tenantId,
+        {
+          templateId: SMS_TEMPLATES.SIGN_LINK,
+          phone: input.dest.value,
+          persistOtp: false,
+          maskStoredDest: true,
+          params,
+          source: { type: 'ESIGN_LINK', id: input.sourceId },
+        },
+        input.manager,
+      );
+      return { deliveryId: queued.deliveryId };
+    }
+    throw new UnprocessableEntityException({ detail: 'esign zalo is not implemented' });
+  }
+
+  private async completeLink(input: {
+    tenantId: string;
+    dest: { channel: ContractSignChannel; value: string };
+    buyerName: string;
+    contractId: string;
+    sourceId: string;
+    deliveryId: string;
+    signingUrl: string;
+  }): Promise<{ deliveryId: string; sandbox: boolean; idempotentReplay?: boolean }> {
+    const params = { buyer_name: input.buyerName, contract_id: input.contractId };
+    try {
+      if (input.dest.channel === 'EMAIL') {
+        const sent = await this.email.completeQueued(input.tenantId, input.deliveryId, {
+          to: input.dest.value,
+          templateId: EMAIL_TEMPLATES.SIGN_LINK,
+          params: input.signingUrl ? { ...params, signingUrl: input.signingUrl } : params,
           source: { type: 'ESIGN_LINK', id: input.sourceId },
           persistOtp: false,
         });
@@ -227,58 +332,56 @@ export class EsignLinkService {
           throw new UnprocessableEntityException({ detail: 'e-sign link was not sent' });
         }
         return { deliveryId: sent.deliveryId, sandbox: sent.sandbox };
-      } catch (error) {
-        if (uniqueViolation(error)) {
-          const replay = await this.email.send(input.tenantId, {
-            to: input.dest.value,
-            templateId: EMAIL_TEMPLATES.SIGN_LINK,
-            params,
-            source: { type: 'ESIGN_LINK', id: input.sourceId },
-          });
-          if (!replay.idempotentReplay || replay.status !== 'SENT') {
-            throw new UnprocessableEntityException({ detail: 'e-sign link was not sent' });
-          }
-          return { deliveryId: replay.deliveryId, sandbox: replay.sandbox };
-        }
-        throw error;
       }
-    }
-    if (input.dest.channel === 'SMS') {
-      try {
-        const sent = await this.sms.sendSms(input.tenantId, {
+      if (input.dest.channel === 'SMS') {
+        const sent = await this.sms.completeEsignLink(input.tenantId, input.deliveryId, {
           templateId: SMS_TEMPLATES.SIGN_LINK,
           phone: input.dest.value,
           persistOtp: false,
           maskStoredDest: true,
-          params: { ...params, signingUrl: input.signingUrl },
+          params: input.signingUrl ? { ...params, signingUrl: input.signingUrl } : params,
           source: { type: 'ESIGN_LINK', id: input.sourceId },
         });
-        if (sent.idempotentReplay && sent.status !== 'SENT') {
-          throw new UnprocessableEntityException({ detail: 'e-sign link was not sent' });
-        }
         if (sent.status !== 'SENT' && sent.status !== 'DELIVERED') {
           throw new UnprocessableEntityException({ detail: 'e-sign link was not sent' });
         }
-        return { deliveryId: sent.deliveryId, sandbox: sent.sandbox };
-      } catch (error) {
-        if (uniqueViolation(error)) {
-          const replay = await this.sms.sendSms(input.tenantId, {
-            templateId: SMS_TEMPLATES.SIGN_LINK,
-            phone: input.dest.value,
-            persistOtp: false,
-            maskStoredDest: true,
-            params,
-            source: { type: 'ESIGN_LINK', id: input.sourceId },
-          });
-          if (!replay.idempotentReplay || (replay.status !== 'SENT' && replay.status !== 'DELIVERED')) {
-            throw new UnprocessableEntityException({ detail: 'e-sign link was not sent' });
-          }
-          return { deliveryId: replay.deliveryId, sandbox: replay.sandbox };
-        }
-        throw error;
+        return { deliveryId: sent.deliveryId, sandbox: sent.sandbox, idempotentReplay: sent.idempotentReplay };
       }
+      throw new UnprocessableEntityException({ detail: 'esign zalo is not implemented' });
+    } catch (error) {
+      if (uniqueViolation(error)) {
+        const existing =
+          input.dest.channel === 'EMAIL'
+            ? await this.email.findBySource(input.tenantId, { type: 'ESIGN_LINK', id: input.sourceId })
+            : await this.sms.findBySource(input.tenantId, { type: 'ESIGN_LINK', id: input.sourceId });
+        if (!existing || (existing.status !== 'SENT' && existing.status !== 'DELIVERED')) {
+          throw new UnprocessableEntityException({ detail: 'e-sign link was not sent' });
+        }
+        return {
+          deliveryId: existing.id,
+          sandbox: await this.channelSandbox(input.tenantId, input.dest.channel),
+          idempotentReplay: true,
+        };
+      }
+      throw error;
     }
-    throw new UnprocessableEntityException({ detail: 'esign zalo is disabled' });
+  }
+
+  private async buyerSubjectFromBooking(tenantId: string, bookingId: string): Promise<string> {
+    const booking = await this.bookings.findOne({ where: { id: bookingId, tenantId } });
+    if (!booking?.leadId) {
+      throw new UnprocessableEntityException({ detail: 'signer channel destination is not registered' });
+    }
+    const lead = await this.leads.findOne({ where: { id: booking.leadId, tenantId } });
+    if (!lead?.phone) {
+      throw new UnprocessableEntityException({ detail: 'signer channel destination is not registered' });
+    }
+    const email = `seeker+${normalizePhone(lead.phone)}@nnhn.local`;
+    const user = await this.users.findOne({ where: { tenantId, email } });
+    if (!user) {
+      throw new UnprocessableEntityException({ detail: 'signer buyer is not registered' });
+    }
+    return user.id;
   }
 
   private async resolveDest(tenantId: string, bookingId: string) {
@@ -303,6 +406,12 @@ export class EsignLinkService {
     });
     if (!picked.ok) throw new UnprocessableEntityException({ detail: picked.detail });
     return picked.dest;
+  }
+
+  private async channelSandbox(tenantId: string, channel: ContractSignChannel): Promise<boolean> {
+    if (channel === 'EMAIL') return this.email.isSandbox();
+    if (channel === 'SMS') return this.sms.isSandbox(tenantId);
+    return false;
   }
 
   private async note(claims: ContractSignClaims, action: string, metadata: Record<string, unknown>): Promise<void> {

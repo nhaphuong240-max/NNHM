@@ -62,6 +62,10 @@ export function buildSigningUrl(baseUrl: string, input: { contractId: string; te
   const url = new URL(baseUrl);
   url.searchParams.set('contractId', input.contractId);
   url.searchParams.set('tenantId', input.tenantId);
-  url.searchParams.set('signToken', input.token);
+  url.hash = `signToken=${encodeURIComponent(input.token)}`;
   return url.toString();
+}
+
+export function sandboxOutboxEnabled(nodeEnv: string | undefined, flag: string | undefined): boolean {
+  return nodeEnv === 'test' || flag?.trim() === 'true';
 }

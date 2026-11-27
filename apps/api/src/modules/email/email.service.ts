@@ -1,4 +1,4 @@
-import { Injectable, Logger, UnprocessableEntityException } from '@nestjs/common';
+import { Inject, Injectable, Logger, Optional, UnprocessableEntityException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { randomInt, randomUUID } from 'crypto';
@@ -7,7 +7,7 @@ import { EmailDeliveryEntity } from '../../database/entities/email-delivery.enti
 import { AuditService } from '../audit/audit.service';
 import { hashChannelDest, maskChannelDest, readEsignOtpPepper, safeSignatureMetadata } from '../booking/esign-otp-policy';
 import { assertLiveEmailCredentials, LiveEmailSender, SandboxEmailSender } from './email-sender';
-import { EMAIL_TEMPLATES, type EmailSendResult, type EmailSender } from './email.types';
+import { EMAIL_SENDER, EMAIL_TEMPLATES, type EmailSendResult, type EmailSender } from './email.types';
 
 export type EmailDispatchInput = {
   to: string;
@@ -36,6 +36,7 @@ export class EmailService {
     private readonly deliveries: Repository<EmailDeliveryEntity>,
     private readonly audit: AuditService,
     private readonly config: ConfigService,
+    @Optional() @Inject(EMAIL_SENDER) private readonly injectedSender?: EmailSender,
   ) {}
 
   read(key: string): string | undefined {
@@ -57,7 +58,13 @@ export class EmailService {
   }
 
   sender(): EmailSender {
+    if (this.injectedSender) return this.injectedSender;
     return this.isSandbox() ? new SandboxEmailSender() : new LiveEmailSender((key) => this.read(key));
+  }
+
+  async findBySource(tenantId: string, source: { type: 'ESIGN_LINK' | 'ESIGN_OTP'; id: string }, manager?: EntityManager) {
+    const deliveries = manager ? manager.getRepository(EmailDeliveryEntity) : this.deliveries;
+    return deliveries.findOne({ where: { tenantId, sourceType: source.type, sourceId: source.id } });
   }
 
   async send(tenantId: string, input: EmailDispatchInput, manager?: EntityManager): Promise<EmailSendResult & {
@@ -87,7 +94,7 @@ export class EmailService {
             status: existing.status,
           };
         }
-        if (existing.status === 'FAILED') {
+        if (existing.status === 'FAILED' || existing.status === 'QUEUED') {
           return this.deliver(tenantId, existing, input, deliveries);
         }
         throw new UnprocessableEntityException({ detail: 'e-sign link is already sending' });
@@ -114,7 +121,36 @@ export class EmailService {
       sourceId: input.source?.id ?? null,
     });
     await deliveries.save(row);
+    if (manager) {
+      return {
+        deliveryId: row.id,
+        providerRef: row.providerRef ?? row.id,
+        sandbox,
+        status: row.status,
+        otp: input.persistOtp === false ? otp : undefined,
+      };
+    }
     return this.deliver(tenantId, row, { ...input, params }, deliveries, otp);
+  }
+
+  async markFailed(tenantId: string, deliveryId: string): Promise<void> {
+    const row = await this.deliveries.findOne({ where: { id: deliveryId, tenantId } });
+    if (!row || row.status === 'SENT') return;
+    row.status = 'FAILED';
+    row.lastError = 'email send failed';
+    await this.deliveries.save(row);
+  }
+
+  async completeQueued(
+    tenantId: string,
+    deliveryId: string,
+    input: EmailDispatchInput,
+  ) {
+    const row = await this.deliveries.findOne({ where: { id: deliveryId, tenantId } });
+    if (!row) {
+      throw new UnprocessableEntityException({ detail: 'e-sign link was not sent' });
+    }
+    return this.deliver(tenantId, row, input, this.deliveries);
   }
 
   private async deliver(
@@ -160,11 +196,10 @@ export class EmailService {
         status: row.status,
       };
     } catch (error) {
-      if (error instanceof UnprocessableEntityException) throw error;
       row.status = 'FAILED';
-      row.lastError = error instanceof Error ? error.message.slice(0, 200) : 'email send failed';
+      row.lastError = 'email send failed';
       await deliveries.save(row);
-      this.logger.warn(`email failed ${row.id} ${row.lastError}`);
+      this.logger.warn(`email failed ${row.id}`);
       throw error;
     }
   }

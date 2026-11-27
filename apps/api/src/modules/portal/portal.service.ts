@@ -483,7 +483,6 @@ export class PortalService {
       tenantId,
       contractId: loaded.data.id,
       bookingId,
-      buyerId: user.userId,
       buyerName: loaded.data.attributes.mergeContext.buyerName,
       resend,
     });

@@ -72,9 +72,13 @@ export function demoEsignOtpRejected(input: {
   otp: string;
   nodeEnv: string | undefined;
   smsSandbox: boolean;
+  emailSandbox?: boolean;
+  channel?: 'EMAIL' | 'SMS' | 'ZALO';
 }): boolean {
   if (input.otp.trim() !== ESIGN_DEMO_OTP) return false;
-  return input.nodeEnv === 'production' || !input.smsSandbox;
+  if (input.nodeEnv === 'production') return true;
+  if (input.channel === 'EMAIL') return input.emailSandbox !== true;
+  return !input.smsSandbox;
 }
 
 export type EsignOtpView = {
@@ -99,6 +103,8 @@ export function verifyStoredEsignOtp(input: {
   lockoutSeconds: number | null;
   nodeEnv: string | undefined;
   smsSandbox: boolean;
+  emailSandbox?: boolean;
+  channel?: 'EMAIL' | 'SMS' | 'ZALO';
   binding?: string;
 }): EsignOtpVerifyResult {
   const binding = input.binding ?? 'jti_1';
