@@ -11,6 +11,7 @@ import { ProjectEntity } from '../../database/entities/project.entity';
 import { SignatureEventEntity } from '../../database/entities/signature-event.entity';
 import { SignatureRequestEntity } from '../../database/entities/signature-request.entity';
 import { SignatureSignerEntity } from '../../database/entities/signature-signer.entity';
+import { SignerChannelVerificationEntity } from '../../database/entities/signer-channel-verification.entity';
 import { UnitEntity } from '../../database/entities/unit.entity';
 import { UserEntity } from '../../database/entities/user.entity';
 import { AllocationModule } from '../allocation/allocation.module';
@@ -26,6 +27,8 @@ import { CrmModule } from '../crm/crm.module';
 import { NotifyModule } from '../notify/notify.module';
 import { BookingContractController } from './booking-contract.controller';
 import { EsignSandboxController } from './esign-sandbox.controller';
+import { EsignChannelVerificationController } from './esign-channel-verification.controller';
+import { SignerChannelVerificationService } from './signer-channel-verification.service';
 import { SandboxEsignOutbox } from './sandbox-esign-outbox';
 import { ContractArtifactController } from './contract-artifact.controller';
 import { ContractArtifactService } from './contract-artifact.service';
@@ -56,6 +59,7 @@ import { BookingService } from './booking.service';
       SignatureEventEntity,
       SignatureRequestEntity,
       SignatureSignerEntity,
+      SignerChannelVerificationEntity,
       UnitEntity,
       PaymentIntentEntity,
       LeadEntity,
@@ -83,6 +87,7 @@ import { BookingService } from './booking.service';
     ContractArtifactController,
     HandoverChecklistController,
     EsignSandboxController,
+    EsignChannelVerificationController,
   ],
   providers: [
     BookingService,
@@ -91,6 +96,7 @@ import { BookingService } from './booking.service';
     HandoverChecklistService,
     BookingContractEsignSmsService,
     EsignLinkService,
+    SignerChannelVerificationService,
     SandboxEsignOutbox,
     EsignOtpChallengeService,
     SignatureTicketService,

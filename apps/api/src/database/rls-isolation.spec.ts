@@ -3,6 +3,7 @@ import {
   SPEC_TENANT_TABLES,
   ESIGN_TENANT_TABLES,
   ESIGN_LINK_TENANT_TABLES,
+  ESIGN_CHANNEL_VERIFY_TABLES,
   TENANT_ID_TABLES,
   buildDisableRlsStatements,
   buildEnableRlsStatements,
@@ -34,7 +35,12 @@ describe('tenant-scoped-tables (ADR-002)', () => {
     expect(SPEC_TENANT_TABLES).toHaveLength(15);
     expect(ESIGN_TENANT_TABLES).toHaveLength(4);
     expect(ESIGN_LINK_TENANT_TABLES).toEqual(['email_deliveries']);
-    for (const table of [...ESIGN_TENANT_TABLES, ...ESIGN_LINK_TENANT_TABLES]) {
+    expect(ESIGN_CHANNEL_VERIFY_TABLES).toEqual(['signer_channel_verifications']);
+    for (const table of [
+      ...ESIGN_TENANT_TABLES,
+      ...ESIGN_LINK_TENANT_TABLES,
+      ...ESIGN_CHANNEL_VERIFY_TABLES,
+    ]) {
       expect(TENANT_ID_TABLES).not.toContain(table);
       expect(REMAINING_TENANT_ID_TABLES).not.toContain(table);
       expect(SPEC_TENANT_TABLES).not.toContain(table);

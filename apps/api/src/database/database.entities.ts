@@ -94,6 +94,7 @@ import {
   EsignOtpChallengeEntity,
   SignatureEventEntity,
   EmailDeliveryEntity,
+  SignerChannelVerificationEntity,
   ProjectEntity,
   TenantEntity,
   UnitEntity,
@@ -201,4 +202,5 @@ export const databaseEntities = [
   EsignOtpChallengeEntity,
   SignatureEventEntity,
   EmailDeliveryEntity,
+  SignerChannelVerificationEntity,
 ];

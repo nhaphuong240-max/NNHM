@@ -97,6 +97,24 @@ test('buyer-esign send link then open issues otp and signs', async ({ page }) =>
   const accessToken = verifiedBody.data?.accessToken;
   expect(accessToken).toBeTruthy();
 
+  const started = await fetch(`${API_BASE}/esign/channel-verifications`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Tenant-Id': TENANT_ID },
+    body: JSON.stringify({ phone: PHONE }),
+  });
+  const startedText = await started.text();
+  expect(started.ok, startedText.slice(0, 400)).toBe(true);
+  const startedBody = JSON.parse(startedText) as { data?: { id?: string } };
+  const verificationId = startedBody.data?.id;
+  expect(verificationId).toBeTruthy();
+  const confirmed = await fetch(`${API_BASE}/esign/channel-verifications/${verificationId}/confirm`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Tenant-Id': TENANT_ID },
+    body: JSON.stringify({ code: '123456' }),
+  });
+  const confirmedText = await confirmed.text();
+  expect(confirmed.ok, confirmedText.slice(0, 400)).toBe(true);
+
   const sent = await fetch(`${API_BASE}/portal/buyer/contracts/${CONTRACT_ID}/sign-link`, {
     method: 'POST',
     headers: {

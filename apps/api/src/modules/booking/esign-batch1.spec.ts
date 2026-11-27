@@ -958,6 +958,8 @@ describe('e-sign sms send gate', () => {
       { append: jest.fn() } as never,
       challenges,
       { resolve: jest.fn() } as never,
+      undefined,
+      { assertVerified: jest.fn(async () => undefined) } as never,
     );
     return { service, sendSms, saved };
   }

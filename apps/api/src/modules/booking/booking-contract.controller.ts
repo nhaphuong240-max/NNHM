@@ -9,8 +9,10 @@ import { contractSignSecret, readContractSignToken, type ContractSignClaims } fr
 import { SignatureTicketService } from './signature-ticket.service';
 import { CurrentUser } from '../identity/decorators/current-user.decorator';
 import type { AuthUser } from '../identity/identity.types';
+import { canSendSignLink } from '../identity/role-catalog';
 import { BookingContractService } from './booking-contract.service';
 import type { ContractPreviewInput, ContractSignInput, CreateContractInput } from './booking-contract.types';
+import { EsignLinkService } from './esign-link.service';
 
 @Controller('contracts')
 export class BookingContractController {
@@ -19,6 +21,7 @@ export class BookingContractController {
     private readonly config: ConfigService,
     private readonly dataSource: DataSource,
     private readonly tickets?: SignatureTicketService,
+    private readonly links?: EsignLinkService,
   ) {}
 
   private signSecret(): string {
@@ -121,13 +124,34 @@ export class BookingContractController {
   }
 
   /**
-   * Staff send-on-behalf is unsigned (9.1). Closed for every caller, including SEEKER.
-   * Always 404 so existence cannot be probed.
+   * Staff send-on-behalf. Only PROCEDURE_STAFF (`contracts.send_sign_link`).
+   * Missing permission is 404 with no lookup. buyerId is resolved from the booking/lead.
    */
   @Post(':contractId/sign-link')
-  @HttpCode(404)
-  sendSignLink() {
-    throw new NotFoundException({ detail: 'not found' });
+  @HttpCode(200)
+  async sendSignLink(
+    @CurrentUser() user: AuthUser | undefined,
+    @Headers('x-tenant-id') tenantHeader: string | undefined,
+    @Param('contractId') contractId: string,
+    @Body() body: { resend?: boolean },
+  ) {
+    if (!canSendSignLink(user?.role) || !this.links) {
+      throw new NotFoundException({ detail: 'not found' });
+    }
+    const tenantId = await this.contractTenant(contractId, tenantHeader);
+    const loaded = await this.contracts.getContract(tenantId, contractId);
+    const bookingId = loaded.data.attributes.bookingId?.trim() ?? '';
+    if (!bookingId) {
+      throw new NotFoundException({ detail: 'not found' });
+    }
+    const sent = await this.links.send({
+      tenantId,
+      contractId: loaded.data.id,
+      bookingId,
+      buyerName: loaded.data.attributes.mergeContext.buyerName,
+      resend: body.resend === true,
+    });
+    return { data: sent, meta: { uc: ['UC-BK-07'] } };
   }
 
   /** UC-BK-07 — buyer sign session. Requires a short-lived token for this contract. */

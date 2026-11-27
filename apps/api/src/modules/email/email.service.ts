@@ -13,7 +13,7 @@ export type EmailDispatchInput = {
   to: string;
   templateId: string;
   params?: Record<string, unknown>;
-  source?: { type: 'ESIGN_LINK' | 'ESIGN_OTP'; id: string };
+  source?: { type: 'ESIGN_LINK' | 'ESIGN_OTP' | 'CHANNEL_VERIFY'; id: string };
   persistOtp?: boolean;
 };
 
@@ -62,7 +62,11 @@ export class EmailService {
     return this.isSandbox() ? new SandboxEmailSender() : new LiveEmailSender((key) => this.read(key));
   }
 
-  async findBySource(tenantId: string, source: { type: 'ESIGN_LINK' | 'ESIGN_OTP'; id: string }, manager?: EntityManager) {
+  async findBySource(
+    tenantId: string,
+    source: { type: 'ESIGN_LINK' | 'ESIGN_OTP' | 'CHANNEL_VERIFY'; id: string },
+    manager?: EntityManager,
+  ) {
     const deliveries = manager ? manager.getRepository(EmailDeliveryEntity) : this.deliveries;
     return deliveries.findOne({ where: { tenantId, sourceType: source.type, sourceId: source.id } });
   }
@@ -103,7 +107,10 @@ export class EmailService {
 
     const sandbox = this.isSandbox();
     const params = { ...(input.params ?? {}) };
-    if (input.templateId === EMAIL_TEMPLATES.OTP && typeof params.otp !== 'string') {
+    if (
+      (input.templateId === EMAIL_TEMPLATES.OTP || input.templateId === EMAIL_TEMPLATES.CHANNEL_VERIFY) &&
+      typeof params.otp !== 'string'
+    ) {
       params.otp = sandbox ? '123456' : String(randomInt(100000, 999999));
     }
     const otp = typeof params.otp === 'string' ? params.otp : undefined;

@@ -2,12 +2,12 @@ import { Client } from 'pg';
 import { ADVISORY_LOCK_SQL } from './esign-otp-atomic';
 
 const url = process.env.DATABASE_URL ?? '';
-const run = Boolean(url) && (process.env.ESIGN_CONCURRENCY_PG === '1' || process.env.CI === 'true');
 
 describe('esign link advisory lock on postgres', () => {
-  const itPg = run ? it : it.skip;
-
-  itPg('serializes two transactions on the same key and unlocks on commit', async () => {
+  it('serializes two transactions on the same key and unlocks on commit', async () => {
+    if (!url) {
+      throw new Error('DATABASE_URL is required for the advisory lock proof');
+    }
     const a = new Client({ connectionString: url });
     const b = new Client({ connectionString: url });
     await a.connect();

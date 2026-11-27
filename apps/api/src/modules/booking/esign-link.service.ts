@@ -48,6 +48,7 @@ import {
 } from './esign-link.policy';
 import { SandboxEsignOutbox } from './sandbox-esign-outbox';
 import { SignatureTicketService } from './signature-ticket.service';
+import { SignerChannelVerificationService } from './signer-channel-verification.service';
 
 export type SendSignLinkInput = {
   tenantId: string;
@@ -91,6 +92,7 @@ export class EsignLinkService {
     private readonly email: EmailService,
     private readonly sms: SmsService,
     private readonly outbox: SandboxEsignOutbox,
+    private readonly channels: SignerChannelVerificationService,
   ) {}
 
   async send(input: SendSignLinkInput): Promise<SendSignLinkResult> {
@@ -103,6 +105,7 @@ export class EsignLinkService {
       throw new UnprocessableEntityException({ detail: 'esign signing base url is not configured' });
     }
     const dest = await this.resolveDest(input.tenantId, input.bookingId);
+    await this.channels.assertVerified(input.tenantId, dest.channel, dest.value);
     const buyerId = await this.buyerSubjectFromBooking(input.tenantId, input.bookingId);
     await this.assertChannelReady(input.tenantId, dest.channel);
     const prefix = `${input.contractId}:${buyerId}`;

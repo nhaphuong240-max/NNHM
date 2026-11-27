@@ -1275,7 +1275,14 @@ Ngày lập: 29/07/2026
 
   private async ensureLeads() {
     const count = await this.leads.count({ where: { tenantId: SEED_TENANT_ID } });
-    if (count > 0) return;
+    if (count > 0) {
+      const ld01 = await this.leads.findOne({ where: { id: 'ld_01', tenantId: SEED_TENANT_ID } });
+      if (ld01 && !ld01.email) {
+        ld01.email = 'trang@example.com';
+        await this.leads.save(ld01);
+      }
+      return;
+    }
 
     await this.leads.save([
       {
@@ -1283,6 +1290,7 @@ Ngày lập: 29/07/2026
         tenantId: SEED_TENANT_ID,
         fullName: 'Thu Trang',
         phone: '+84901234567',
+        email: 'trang@example.com',
         source: 'PUBLIC_FORM',
         score: 92,
         tier: 'HOT',

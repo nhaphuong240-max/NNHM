@@ -20,6 +20,7 @@ import {
   ESIGN_OTP_RESEND_COOLDOWN_ENV,
 } from './esign-otp-policy';
 import { RailResolverService } from '../tenant-config/rail-resolver.service';
+import { SignerChannelVerificationService } from './signer-channel-verification.service';
 
 export interface EsignOtpResult {
   sent: boolean;
@@ -44,6 +45,7 @@ export class BookingContractEsignSmsService {
     private readonly rails: RailResolverService,
     @InjectRepository(SignatureSignerEntity)
     private readonly signers?: Repository<SignatureSignerEntity>,
+    private readonly channels?: SignerChannelVerificationService,
   ) {}
 
   async sendContractOtp(
@@ -70,6 +72,10 @@ export class BookingContractEsignSmsService {
     });
     const resolved = await this.resolveDest(tenantId, bookingId, access.channel);
     if (!resolved.ok) return resolved.result;
+    if (!this.channels) {
+      throw new UnprocessableEntityException({ detail: 'signer channel is not verified' });
+    }
+    await this.channels.assertVerified(tenantId, access.channel, resolved.dest);
     await this.assertDestMatchesTicket(tenantId, access, resolved.dest);
     if (decision === 'replay') {
       if (!latest) {

@@ -3,6 +3,7 @@ import { EMAIL_TEMPLATE_COPY, EMAIL_TEMPLATES } from '../email/email.types';
 import { assertLiveEmailCredentials, LiveEmailSender, SandboxEmailSender } from '../email/email-sender';
 import { EmailService } from '../email/email.service';
 import { SMS_TEMPLATE_COPY, SMS_TEMPLATES } from '../sms/sms.types';
+import { canSendSignLink } from '../identity/role-catalog';
 import { BookingContractController } from './booking-contract.controller';
 import {
   ESIGN_OTP_MAX_SENDS_ENV,
@@ -163,6 +164,7 @@ function harness(
       isSandbox: jest.fn(async () => true),
     } as never,
     outbox,
+    { assertVerified: jest.fn(async () => undefined) } as never,
   );
   return { service, enqueue, complete, issueBuyerAccess, events, ticketsVoided, outbox };
 }
@@ -175,6 +177,17 @@ const sendInput = {
 };
 
 describe('esign batch 2 send link', () => {
+  it('refuses send when the destination channel is not verified', async () => {
+    const { service, enqueue } = harness();
+    (service as unknown as { channels: { assertVerified: jest.Mock } }).channels.assertVerified = jest.fn(async () => {
+      throw new UnprocessableEntityException({ detail: 'signer channel is not verified' });
+    });
+    await expect(service.send(sendInput)).rejects.toMatchObject({
+      response: { detail: 'signer channel is not verified' },
+    });
+    expect(enqueue).not.toHaveBeenCalled();
+  });
+
   it('rejects a missing registered destination', async () => {
     const { service, enqueue } = harness({ phone: '', email: null });
     await expect(service.send(sendInput)).rejects.toMatchObject({
@@ -321,15 +334,58 @@ describe('esign batch 2 send link', () => {
     expect(picked).toEqual({ ok: false, detail: 'esign zalo is disabled' });
   });
 
-  it('closes POST /contracts/:id/sign-link for every caller including SEEKER', async () => {
+  it('closes POST /contracts/:id/sign-link for SEEKER and other roles without send_sign_link', async () => {
     const links = { send: jest.fn() };
+    const getContract = jest.fn();
     const controller = new BookingContractController(
-      { getContract: jest.fn() } as never,
+      { getContract } as never,
       { get: () => SECRET } as never,
       { query: jest.fn() } as never,
+      undefined,
+      links as never,
     );
-    expect(() => controller.sendSignLink()).toThrow(NotFoundException);
+    await expect(
+      controller.sendSignLink({ userId: 'usr_a', role: 'SEEKER', tenantId: 'ten_b', email: 'a@x' }, 'ten_b', 'ctr_b', {}),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    await expect(
+      controller.sendSignLink({ userId: 'usr_agent', role: 'AGENT', tenantId: 'ten_b', email: 'a@x' }, 'ten_b', 'ctr_other', {}),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(canSendSignLink('SEEKER')).toBe(false);
+    expect(canSendSignLink('AGENT')).toBe(false);
+    expect(getContract).not.toHaveBeenCalled();
     expect(links.send).not.toHaveBeenCalled();
+  });
+
+  it('lets PROCEDURE_STAFF send using the booking buyer, not the caller', async () => {
+    const links = { send: jest.fn(async (input: { buyerId?: string; bookingId: string }) => {
+      expect(input).not.toHaveProperty('buyerId');
+      expect(input.bookingId).toBe('bk_owned');
+      return { sent: true, channel: 'SMS', destMasked: '09****01', deliveryId: 'sms_1', sandbox: true };
+    }) };
+    const query = jest.fn(async () => [{ tenant_id: 'ten_b' }]);
+    const controller = new BookingContractController(
+      {
+        getContract: jest.fn(async () => ({
+          data: { id: 'ctr_b', attributes: { bookingId: 'bk_owned', mergeContext: { buyerName: 'Thu' } } },
+        })),
+      } as never,
+      { get: () => SECRET } as never,
+      {
+        query,
+        createQueryRunner: () => ({ connect: async () => undefined, release: async () => undefined, query }),
+      } as never,
+      undefined,
+      links as never,
+    );
+    expect(canSendSignLink('PROCEDURE_STAFF')).toBe(true);
+    const result = await controller.sendSignLink(
+      { userId: 'usr_staff', role: 'PROCEDURE_STAFF', tenantId: 'ten_b', email: 'staff@x' },
+      'ten_b',
+      'ctr_b',
+      {},
+    );
+    expect(links.send).toHaveBeenCalledTimes(1);
+    expect(result.data.deliveryId).toBe('sms_1');
   });
 
   it('refuses otp when the current destination hash does not match the ticket', async () => {
@@ -347,6 +403,7 @@ describe('esign batch 2 send link', () => {
       challenges,
       { resolve: jest.fn() } as never,
       { findOne: jest.fn(async () => ({ channelDestHash: hashChannelDest('0999999999', PEPPER) })) } as never,
+      { assertVerified: jest.fn(async () => undefined) } as never,
     );
     await expect(
       service.sendContractOtp('ten_b', 'ctr_b', 'bkg', 'Thu', {
