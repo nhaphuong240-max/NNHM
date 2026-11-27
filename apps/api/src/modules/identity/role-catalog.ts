@@ -9,6 +9,8 @@ export const TENANT_ROLES = [
 ] as const;
 
 export const SEND_SIGN_LINK_PERMISSION = 'contracts.send_sign_link';
+export const CONTRACTS_APPROVE_PERMISSION = 'contracts.approve';
+export const KYC_APPROVE_PERMISSION = 'kyc.approve';
 
 export type TenantRole = (typeof TENANT_ROLES)[number];
 
@@ -52,6 +54,18 @@ export const PERMISSION_CATALOG: PermissionDefinition[] = [
     label: 'Gửi link ký hộ buyer',
     group: 'Contracts',
     description: 'Gửi URL ký trên kênh đã VERIFIED. Không phải quyền duyệt hợp đồng.',
+  },
+  {
+    id: CONTRACTS_APPROVE_PERMISSION,
+    label: 'Duyệt yêu cầu chữ ký',
+    group: 'Contracts',
+    description: 'Chưa gán role. Fail-closed cho tới khi chủ dự án chốt GDKD hoặc FINANCE_ADMIN.',
+  },
+  {
+    id: KYC_APPROVE_PERMISSION,
+    label: 'Duyệt KYC',
+    group: 'KYC',
+    description: 'Chưa gán role. Fail-closed cho tới khi chủ dự án chốt người duyệt.',
   },
 ];
 
@@ -134,6 +148,14 @@ export function isValidTenantRole(role: string): role is TenantRole {
 
 export function canSendSignLink(role: string | undefined): boolean {
   return Boolean(role && permissionsForTenantRole(role).includes(SEND_SIGN_LINK_PERMISSION));
+}
+
+export function canApproveContract(role: string | undefined): boolean {
+  return Boolean(role && permissionsForTenantRole(role).includes(CONTRACTS_APPROVE_PERMISSION));
+}
+
+export function canApproveKyc(role: string | undefined): boolean {
+  return Boolean(role && permissionsForTenantRole(role).includes(KYC_APPROVE_PERMISSION));
 }
 
 const ROLE_LABELS: Record<TenantRole, string> = {

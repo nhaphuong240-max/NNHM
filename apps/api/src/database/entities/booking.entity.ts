@@ -6,7 +6,7 @@ import {
   PrimaryColumn,
 } from 'typeorm';
 
-export type BookingStatus = 'RESERVED' | 'DEPOSITED' | 'EXPIRED' | 'CANCELLED' | 'REFUNDED';
+export type BookingStatus = 'RESERVED' | 'DEPOSITED' | 'EXPIRED' | 'CANCELLED' | 'REFUNDED' | 'CONTRACTED';
 
 @Entity({ name: 'bookings' })
 @Index(['tenantId', 'idempotencyKey'], { unique: true })

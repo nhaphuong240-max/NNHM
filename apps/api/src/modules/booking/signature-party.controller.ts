@@ -4,7 +4,7 @@ import { oneLookedUpTenant } from '../../common/public-tenant-lookup';
 import { assertHeaderMatches } from '../../common/resolve-tenant-id';
 import { CurrentUser } from '../identity/decorators/current-user.decorator';
 import type { AuthUser } from '../identity/identity.types';
-import { canSendSignLink, permissionsForTenantRole } from '../identity/role-catalog';
+import { canApproveContract, canSendSignLink } from '../identity/role-catalog';
 import type { SigningMode } from './esign-multi-party';
 import { SignaturePartyService, type PartySignerInput } from './signature-party.service';
 
@@ -92,11 +92,20 @@ export class SignaturePartyController {
 
   @Post(':id/review')
   @HttpCode(200)
-  review(@CurrentUser() user: AuthUser | undefined) {
-    const allowed = user?.role ? permissionsForTenantRole(user.role).includes('contracts.approve') : false;
-    if (!allowed) {
+  async review(
+    @CurrentUser() user: AuthUser | undefined,
+    @Headers('x-tenant-id') tenantHeader: string | undefined,
+    @Param('id') id: string,
+    @Body() body: { decision?: 'APPROVED' | 'REJECTED'; notes?: string },
+  ) {
+    if (!canApproveContract(user?.role)) {
       throw new ForbiddenException({ detail: 'forbidden' });
     }
-    throw new ForbiddenException({ detail: 'forbidden' });
+    const tenantId = tenantHeader?.trim() ?? user?.tenantId ?? '';
+    if (!tenantId) throw new NotFoundException({ detail: 'not found' });
+    if (body.decision !== 'APPROVED' && body.decision !== 'REJECTED') {
+      throw new ForbiddenException({ detail: 'forbidden' });
+    }
+    return this.parties.review(tenantId, id, { userId: user?.userId, role: user?.role }, body.decision, body.notes);
   }
 }
