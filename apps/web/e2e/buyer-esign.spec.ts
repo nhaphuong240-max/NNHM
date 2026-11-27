@@ -6,6 +6,26 @@ const CONTRACT_ID = 'ctr_esign_demo01';
 const TENANT_ID = 'ten_dev_01';
 const PHONE = '0901234567';
 
+async function verifySignerChannel() {
+  const started = await fetch(`${API_BASE}/esign/channel-verifications`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Tenant-Id': TENANT_ID },
+    body: JSON.stringify({ phone: PHONE }),
+  });
+  const startedText = await started.text();
+  expect(started.ok, startedText.slice(0, 400)).toBe(true);
+  const startedBody = JSON.parse(startedText) as { data?: { id?: string } };
+  const verificationId = startedBody.data?.id;
+  expect(verificationId).toBeTruthy();
+  const confirmed = await fetch(`${API_BASE}/esign/channel-verifications/${verificationId}/confirm`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Tenant-Id': TENANT_ID },
+    body: JSON.stringify({ code: '123456' }),
+  });
+  const confirmedText = await confirmed.text();
+  expect(confirmed.ok, confirmedText.slice(0, 400)).toBe(true);
+}
+
 test('buyer-esign rejects sign-session when the contract sign token is missing', async () => {
   const response = await fetch(`${API_BASE}/contracts/${CONTRACT_ID}/sign-session`, {
     headers: { 'X-Tenant-Id': TENANT_ID },
@@ -33,6 +53,7 @@ test('buyer-esign owning buyer gets a token and opens the sign session', async (
   const verifiedBody = (await verified.json()) as { data?: { accessToken?: string; userId?: string } };
   const accessToken = verifiedBody.data?.accessToken;
   expect(accessToken).toBeTruthy();
+  await verifySignerChannel();
 
   const minted = await fetch(`${API_BASE}/portal/buyer/contracts/${CONTRACT_ID}/sign-token`, {
     method: 'POST',
@@ -97,23 +118,7 @@ test('buyer-esign send link then open issues otp and signs', async ({ page }) =>
   const accessToken = verifiedBody.data?.accessToken;
   expect(accessToken).toBeTruthy();
 
-  const started = await fetch(`${API_BASE}/esign/channel-verifications`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-Tenant-Id': TENANT_ID },
-    body: JSON.stringify({ phone: PHONE }),
-  });
-  const startedText = await started.text();
-  expect(started.ok, startedText.slice(0, 400)).toBe(true);
-  const startedBody = JSON.parse(startedText) as { data?: { id?: string } };
-  const verificationId = startedBody.data?.id;
-  expect(verificationId).toBeTruthy();
-  const confirmed = await fetch(`${API_BASE}/esign/channel-verifications/${verificationId}/confirm`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-Tenant-Id': TENANT_ID },
-    body: JSON.stringify({ code: '123456' }),
-  });
-  const confirmedText = await confirmed.text();
-  expect(confirmed.ok, confirmedText.slice(0, 400)).toBe(true);
+  await verifySignerChannel();
 
   const sent = await fetch(`${API_BASE}/portal/buyer/contracts/${CONTRACT_ID}/sign-link`, {
     method: 'POST',
