@@ -133,6 +133,7 @@ describe('BookingContractService', () => {
               query: async (sql: string) => (sql.includes('FOR UPDATE') ? [{ signed_pdf_document_id: null }] : [{ id: 'sreq_1' }]),
               manager: {
                 getRepository: () => ({
+                  find: async () => [],
                   findOne: async () => ({ id: 'aud_signed', payload: {} }),
                   save: async (row: unknown) => row,
                 }),
@@ -190,7 +191,11 @@ describe('BookingContractService', () => {
             save: async (row: unknown) => row,
           };
         }
-        return { save: async (row: { id?: string }) => ({ ...row, id: row.id ?? 'sev_1' }) };
+        return {
+          find: async () => [],
+          findOne: async () => null,
+          save: async (row: { id?: string }) => ({ ...row, id: row.id ?? 'sev_1' }),
+        };
       },
     };
     auditAppend.mockResolvedValue({ id: 'aud_signed' });

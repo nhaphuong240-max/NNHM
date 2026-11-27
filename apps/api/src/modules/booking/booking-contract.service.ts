@@ -14,6 +14,8 @@ import { LeadEntity } from '../../database/entities/lead.entity';
 import { ProjectEntity } from '../../database/entities/project.entity';
 import { UnitEntity } from '../../database/entities/unit.entity';
 import { SignatureEventEntity } from '../../database/entities/signature-event.entity';
+import { SignatureRequestEntity } from '../../database/entities/signature-request.entity';
+import { SignatureSignerEntity } from '../../database/entities/signature-signer.entity';
 import { AuditService } from '../audit/audit.service';
 import { ConsentLedgerService } from '../compliance/consent-ledger.service';
 import { DocumentsService } from '../documents/documents.service';
@@ -37,9 +39,12 @@ import {
   LOCK_REQUEST_DOCUMENT_SQL,
   MARK_REQUEST_SIGNED_SQL,
   MARK_SIGNER_SIGNED_SQL,
+  SET_REQUEST_CERTIFICATE_SQL,
   SET_REQUEST_DOCUMENT_SQL,
   returnedRows,
 } from './esign-otp-atomic';
+import { buildPlainPdf } from './esign-completion-pdf';
+import { allSignersSigned, hashDocumentText, signerTurn, type SigningMode } from './esign-multi-party';
 
 export type PreparedContractSignature = {
   tenantId: string;
@@ -59,6 +64,8 @@ export type PreparedContractSignature = {
   buffer: Buffer;
   fileName: string;
   auditId: string;
+  ip?: string | null;
+  userAgent?: string | null;
 };
 
 @Injectable()
@@ -159,10 +166,36 @@ export class BookingContractService {
   }
 
   /** UC-BK-07 — sign session + SMS OTP (UC-NW-03) */
-  async getSignSession(tenantId: string, contractId: string, access?: ContractSignClaims) {
+  async getSignSession(
+    tenantId: string,
+    contractId: string,
+    access?: ContractSignClaims,
+    ctx?: { ip?: string | null; userAgent?: string | null },
+  ) {
     const record = await this.loadContractRecord(tenantId, contractId.trim());
     if (!record) {
       throw new NotFoundException({ detail: `Contract ${contractId} not found` });
+    }
+    if (access) {
+      await this.assertSignerTurn(tenantId, access);
+      const request = await this.dataSource.getRepository(SignatureRequestEntity).findOne({
+        where: { id: access.requestId, tenantId },
+      });
+      if (request?.documentHash && request.documentHash !== hashDocumentText(record.attributes.mergedText)) {
+        throw new UnprocessableEntityException({ detail: 'document hash does not match the frozen copy' });
+      }
+      await this.dataSource.getRepository(SignatureEventEntity).save({
+        id: `sev_${randomUUID().replace(/-/g, '').slice(0, 16)}`,
+        tenantId,
+        requestId: access.requestId,
+        signerId: access.signerId,
+        action: 'VIEWED',
+        ip: ctx?.ip ?? null,
+        userAgent: ctx?.userAgent ?? null,
+        occurredAt: new Date(),
+        channel: access.channel,
+        metadata: { jti: access.jti },
+      });
     }
     if (record.attributes.status === 'SIGNED') {
       throw new UnprocessableEntityException({ detail: 'Contract already signed' });
@@ -228,6 +261,7 @@ export class BookingContractService {
     otpConsumed: boolean,
     manager: EntityManager,
     providerName?: string,
+    ctx?: { ip?: string | null; userAgent?: string | null },
   ): Promise<PreparedContractSignature> {
     if (!access?.signerId || !access.requestId) {
       throw new UnprocessableEntityException({ detail: 'sign access ticket is required' });
@@ -238,6 +272,13 @@ export class BookingContractService {
     }
     if (record.attributes.status === 'SIGNED') {
       throw new UnprocessableEntityException({ detail: 'Contract already signed' });
+    }
+    await this.assertSignerTurn(tenantId, access, manager);
+    const frozen = await manager.getRepository(SignatureRequestEntity).findOne({
+      where: { id: access.requestId, tenantId },
+    });
+    if (frozen?.documentHash && frozen.documentHash !== hashDocumentText(record.attributes.mergedText)) {
+      throw new UnprocessableEntityException({ detail: 'document hash does not match the frozen copy' });
     }
     if (!input.consent) {
       throw new BadRequestException({ detail: 'Consent required before e-sign' });
@@ -283,10 +324,7 @@ export class BookingContractService {
     if (marked.length !== 1) {
       throw new UnprocessableEntityException({ detail: 'signer already has a signed record' });
     }
-    const requested = returnedRows(await manager.query(MARK_REQUEST_SIGNED_SQL, [access.requestId, tenantId]));
-    if (requested.length !== 1) {
-      throw new UnprocessableEntityException({ detail: 'signer already has a signed record' });
-    }
+    await manager.query(MARK_REQUEST_SIGNED_SQL, [access.requestId, tenantId]);
     try {
       await manager.getRepository(SignatureEventEntity).save({
         id: `sev_${randomUUID().replace(/-/g, '').slice(0, 16)}`,
@@ -294,8 +332,8 @@ export class BookingContractService {
         requestId: access.requestId,
         signerId: access.signerId,
         action: 'SIGNED',
-        ip: null,
-        userAgent: null,
+        ip: ctx?.ip ?? null,
+        userAgent: ctx?.userAgent ?? null,
         occurredAt: signedAtDate,
         channel: access.channel,
         metadata: { jti: access.jti },
@@ -356,6 +394,8 @@ export class BookingContractService {
       buffer,
       fileName: `${record.id}_${access.signerId}_signed.txt`,
       auditId: String(signedAudit.id),
+      ip: ctx?.ip ?? null,
+      userAgent: ctx?.userAgent ?? null,
     };
   }
 
@@ -372,10 +412,6 @@ export class BookingContractService {
         await active.query(LOCK_REQUEST_DOCUMENT_SQL, [prepared.requestId, prepared.tenantId]),
       );
       const existingId = documentIdOf(locked[0]);
-      if (existingId) {
-        if (owned) await active.commitTransaction();
-        return this.signedResponse(prepared, existingId);
-      }
       const stored = await this.documents.putSignedCopy(active.manager, {
         tenantId: prepared.tenantId,
         bookingId: prepared.bookingId,
@@ -384,31 +420,52 @@ export class BookingContractService {
         buffer: prepared.buffer,
         fileName: prepared.fileName,
       });
-      const attached = returnedRows(
-        await active.query(SET_REQUEST_DOCUMENT_SQL, [prepared.requestId, prepared.tenantId, stored.id]),
-      );
-      if (attached.length !== 1) {
-        const again = returnedRows(
-          await active.query(LOCK_REQUEST_DOCUMENT_SQL, [prepared.requestId, prepared.tenantId]),
-        );
-        const winner = documentIdOf(again[0]);
-        if (!winner) throw new UnprocessableEntityException({ detail: 'signed document was not stored' });
-        if (owned) await active.commitTransaction();
-        return this.signedResponse(prepared, winner);
+      const roster = await active.manager.getRepository(SignatureSignerEntity).find({
+        where: { requestId: prepared.requestId, tenantId: prepared.tenantId },
+      });
+      let documentId = existingId ?? stored.id;
+      if (allSignersSigned(roster) && !existingId) {
+        const pdf = await this.documents.putPdfCopy(active.manager, {
+          tenantId: prepared.tenantId,
+          bookingId: prepared.bookingId,
+          contractId: prepared.contractId,
+          kind: 'signed',
+          buffer: buildPlainPdf('Hợp đồng đã ký', [prepared.mergedText.slice(0, 1200), `hash:${hashDocumentText(prepared.mergedText)}`]),
+          fileName: `${prepared.contractId}_signed.pdf`,
+        });
+        const cert = await this.documents.putPdfCopy(active.manager, {
+          tenantId: prepared.tenantId,
+          bookingId: prepared.bookingId,
+          contractId: prepared.contractId,
+          kind: 'certificate',
+          buffer: buildPlainPdf('Chứng thư hoàn tất', [
+            `request:${prepared.requestId}`,
+            `hash:${hashDocumentText(prepared.mergedText)}`,
+            `vault:${pdf.id}`,
+            ...roster.map(
+              (row) =>
+                `${row.partyType} ${row.title ?? ''} ${row.signedAt?.toISOString() ?? ''} ${row.channel} ${row.channelDestMasked ?? ''}`,
+            ),
+          ]),
+          fileName: `${prepared.contractId}_certificate.pdf`,
+        });
+        await active.query(SET_REQUEST_DOCUMENT_SQL, [prepared.requestId, prepared.tenantId, pdf.id]);
+        await active.query(SET_REQUEST_CERTIFICATE_SQL, [prepared.requestId, prepared.tenantId, cert.id]);
+        documentId = pdf.id;
       }
       const audits = active.manager.getRepository(AuditEventEntity);
       const row = await audits.findOne({ where: { id: prepared.auditId } });
       if (row) {
         row.payload = {
           ...(row.payload ?? {}),
-          documentId: stored.id,
-          documentVaultRef: buildSignedDocumentRef(stored.id),
+          documentId,
+          documentVaultRef: buildSignedDocumentRef(documentId),
           vaultStatus: 'STORED',
         };
         await audits.save(row);
       }
       if (owned) await active.commitTransaction();
-      return this.signedResponse(prepared, stored.id);
+      return this.signedResponse(prepared, documentId);
     } catch (error) {
       if (owned) await active.rollbackTransaction();
       throw error;
@@ -645,6 +702,34 @@ export class BookingContractService {
     };
 
     return { mergeContext, template, booking };
+  }
+
+  private async assertSignerTurn(
+    tenantId: string,
+    access: ContractSignClaims,
+    manager?: EntityManager,
+  ): Promise<void> {
+    const requests = manager
+      ? manager.getRepository(SignatureRequestEntity)
+      : this.dataSource.getRepository(SignatureRequestEntity);
+    const signers = manager
+      ? manager.getRepository(SignatureSignerEntity)
+      : this.dataSource.getRepository(SignatureSignerEntity);
+    const request = await requests.findOne({ where: { id: access.requestId, tenantId } });
+    const roster = await signers.find({ where: { requestId: access.requestId, tenantId } });
+    if (!request || roster.length === 0) return;
+    const signer = roster.find((row) => row.id === access.signerId);
+    if (!signer) {
+      throw new UnprocessableEntityException({ detail: 'signer is not next in the signing order' });
+    }
+    const turn = signerTurn({
+      mode: (request.signingMode as SigningMode) || 'SEQUENTIAL',
+      signer,
+      roster,
+    });
+    if (turn !== 'ok') {
+      throw new UnprocessableEntityException({ detail: 'signer is not next in the signing order' });
+    }
   }
 
   private async loadContractRecord(

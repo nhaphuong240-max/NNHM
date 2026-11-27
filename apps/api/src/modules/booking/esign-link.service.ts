@@ -4,6 +4,7 @@ import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { randomBytes } from 'crypto';
 import { DataSource, QueryFailedError, Repository } from 'typeorm';
 import { BookingEntity } from '../../database/entities/booking.entity';
+import { SignatureRequestEntity } from '../../database/entities/signature-request.entity';
 import { LeadEntity } from '../../database/entities/lead.entity';
 import { SignatureEventEntity } from '../../database/entities/signature-event.entity';
 import { UserEntity } from '../../database/entities/user.entity';
@@ -50,12 +51,14 @@ import {
 import { SandboxEsignOutbox } from './sandbox-esign-outbox';
 import { SignatureTicketService } from './signature-ticket.service';
 import { SignerChannelVerificationService } from './signer-channel-verification.service';
+import { hashDocumentText } from './esign-multi-party';
 
 export type SendSignLinkInput = {
   tenantId: string;
   contractId: string;
   bookingId: string;
   buyerName: string;
+  documentText?: string;
   resend?: boolean;
   actor?: { userId: string; role: string };
 };
@@ -177,6 +180,16 @@ export class EsignLinkService {
         throw new UnprocessableEntityException({ detail: 'esign otp pepper is not configured' });
       }
       const sourceId = input.resend ? `${prefix}:${randomBytes(4).toString('hex')}` : prefix;
+      if (input.documentText) {
+        const frozen = hashDocumentText(input.documentText);
+        const open = await runner.manager.getRepository(SignatureRequestEntity).findOne({
+          where: { tenantId: input.tenantId, contractId: input.contractId },
+          order: { createdAt: 'DESC' },
+        });
+        if (open?.documentHash && open.documentHash !== frozen) {
+          throw new UnprocessableEntityException({ detail: 'document hash does not match the frozen copy' });
+        }
+      }
       const minted = await this.tickets.issueBuyerAccess({
         tenantId: input.tenantId,
         contractId: input.contractId,
@@ -188,6 +201,7 @@ export class EsignLinkService {
         channelDestMasked: maskChannelDest(dest.value),
         recordLinkSent: false,
         manager: runner.manager,
+        documentHash: input.documentText ? hashDocumentText(input.documentText) : null,
       });
       const queued = await this.enqueueLink({
         tenantId: input.tenantId,
@@ -262,6 +276,23 @@ export class EsignLinkService {
           : 'esign zalo is disabled',
       });
     }
+  }
+
+  async deliverSigningUrl(input: {
+    tenantId: string;
+    dest: { channel: ContractSignChannel; value: string };
+    buyerName: string;
+    contractId: string;
+    sourceId: string;
+    signingUrl: string;
+    manager: import('typeorm').EntityManager;
+  }): Promise<{ deliveryId: string; sandbox: boolean }> {
+    await this.assertChannelReady(input.tenantId, input.dest.channel);
+    const queued = await this.enqueueLink(input);
+    this.outbox.put(queued.deliveryId, input.signingUrl);
+    const delivery = await this.completeLink({ ...input, deliveryId: queued.deliveryId });
+    this.outbox.put(delivery.deliveryId, input.signingUrl);
+    return { deliveryId: delivery.deliveryId, sandbox: delivery.sandbox };
   }
 
   private async enqueueLink(input: {

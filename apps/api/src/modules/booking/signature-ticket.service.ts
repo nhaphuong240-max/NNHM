@@ -45,6 +45,7 @@ export class SignatureTicketService {
     channelDestMasked?: string | null;
     recordLinkSent?: boolean;
     manager?: EntityManager;
+    documentHash?: string | null;
   }): Promise<{ token: string; claims: ContractSignClaims }> {
     const now = input.now ?? Date.now();
     const requestId = newId('sreq');
@@ -64,7 +65,7 @@ export class SignatureTicketService {
         contractId: input.contractId,
         status: 'SENT',
         signingMode: 'SEQUENTIAL',
-        documentHash: null,
+        documentHash: input.documentHash ?? null,
         signedPdfDocumentId: null,
         certificateDocumentId: null,
         expiresAt: new Date(now + CONTRACT_SIGN_TOKEN_TTL_MS),
@@ -139,6 +140,48 @@ export class SignatureTicketService {
         buyerId: input.buyerId,
         signerId: signer.id,
         requestId: request.id,
+        jti: signer.jti,
+        channel,
+        exp: now + CONTRACT_SIGN_TOKEN_TTL_MS,
+      },
+    };
+  }
+
+  async rotateTicket(input: {
+    tenantId: string;
+    contractId: string;
+    subjectId: string;
+    signer: SignatureSignerEntity;
+    secret: string;
+    now?: number;
+    manager?: EntityManager;
+  }): Promise<{ token: string; claims: ContractSignClaims }> {
+    const now = input.now ?? Date.now();
+    const signers = input.manager?.getRepository(SignatureSignerEntity) ?? this.signers;
+    input.signer.jti = newId('jti');
+    input.signer.jtiConsumedAt = null;
+    input.signer.status = input.signer.status === 'SIGNED' ? 'SIGNED' : 'LINK_SENT';
+    const signer = await signers.save(input.signer);
+    const channel = (signer.channel === 'EMAIL' || signer.channel === 'ZALO' ? signer.channel : 'SMS') as ContractSignClaims['channel'];
+    const token = mintContractSignToken({
+      tenantId: input.tenantId,
+      contractId: input.contractId,
+      buyerId: input.subjectId,
+      signerId: signer.id,
+      requestId: signer.requestId,
+      jti: signer.jti,
+      channel,
+      secret: input.secret,
+      now,
+    });
+    return {
+      token,
+      claims: {
+        tenantId: input.tenantId,
+        contractId: input.contractId,
+        buyerId: input.subjectId,
+        signerId: signer.id,
+        requestId: signer.requestId,
         jti: signer.jti,
         channel,
         exp: now + CONTRACT_SIGN_TOKEN_TTL_MS,

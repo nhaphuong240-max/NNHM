@@ -28,6 +28,8 @@ import { NotifyModule } from '../notify/notify.module';
 import { BookingContractController } from './booking-contract.controller';
 import { EsignSandboxController } from './esign-sandbox.controller';
 import { EsignChannelVerificationController } from './esign-channel-verification.controller';
+import { SignaturePartyController } from './signature-party.controller';
+import { SignaturePartyService } from './signature-party.service';
 import { SignerChannelVerificationService } from './signer-channel-verification.service';
 import { LeadChannelRevokeSubscriber } from './lead-channel-revoke.subscriber';
 import { SandboxEsignOutbox } from './sandbox-esign-outbox';
@@ -89,6 +91,7 @@ import { BookingService } from './booking.service';
     HandoverChecklistController,
     EsignSandboxController,
     EsignChannelVerificationController,
+    SignaturePartyController,
   ],
   providers: [
     BookingService,
@@ -99,6 +102,7 @@ import { BookingService } from './booking.service';
     EsignLinkService,
     SignerChannelVerificationService,
     LeadChannelRevokeSubscriber,
+    SignaturePartyService,
     SandboxEsignOutbox,
     EsignOtpChallengeService,
     SignatureTicketService,

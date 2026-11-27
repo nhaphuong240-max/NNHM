@@ -1,4 +1,5 @@
-import { Body, Controller, ForbiddenException, Get, Headers, HttpCode, NotFoundException, Param, Post, Query, UnauthorizedException, UnprocessableEntityException } from '@nestjs/common';
+import { Body, Controller, ForbiddenException, Get, Headers, HttpCode, NotFoundException, Param, Post, Query, Req, UnauthorizedException, UnprocessableEntityException } from '@nestjs/common';
+import type { Request } from 'express';
 import { ConfigService } from '@nestjs/config';
 import { DataSource } from 'typeorm';
 import { AuditEventEntity } from '../../database/entities/audit-event.entity';
@@ -156,6 +157,7 @@ export class BookingContractController {
       contractId: loaded.data.id,
       bookingId,
       buyerName: loaded.data.attributes.mergeContext.buyerName,
+      documentText: loaded.data.attributes.mergedText,
       resend: body.resend === true,
       actor: { userId: user.userId, role: user.role },
     });
@@ -178,9 +180,13 @@ export class BookingContractController {
     @Headers('x-tenant-id') tenantHeader: string | undefined,
     @Headers('x-contract-sign-token') signToken: string | undefined,
     @Param('contractId') contractId: string,
+    @Req() req?: Request,
   ) {
     const access = await this.signedContractTenant(contractId, tenantHeader, signToken);
-    return this.contracts.getSignSession(access.tenantId, contractId, access.claims);
+    return this.contracts.getSignSession(access.tenantId, contractId, access.claims, {
+      ip: req?.ip ?? null,
+      userAgent: typeof req?.headers['user-agent'] === 'string' ? req.headers['user-agent'] : null,
+    });
   }
 
   /** UC-BK-07 — contract detail for buyer e-sign */
@@ -204,8 +210,13 @@ export class BookingContractController {
     @Headers('x-contract-sign-token') signToken: string | undefined,
     @Param('contractId') contractId: string,
     @Body() body: ContractSignInput,
+    @Req() req?: Request,
   ) {
     const access = await this.readSignedClaims(contractId, tenantHeader, signToken);
+    const ctx = {
+      ip: req?.ip ?? null,
+      userAgent: typeof req?.headers['user-agent'] === 'string' ? req.headers['user-agent'] : null,
+    };
     if (!this.tickets) {
       throw new UnauthorizedException({ detail: 'sign access ticket is required' });
     }
@@ -221,7 +232,7 @@ export class BookingContractController {
     return this.tickets.completeSign(
       access.claims,
       body.otp,
-      (manager) => this.contracts.signContract(access.tenantId, contractId, body, access.claims, true, manager, providerName),
+      (manager) => this.contracts.signContract(access.tenantId, contractId, body, access.claims, true, manager, providerName, ctx),
       (prepared) => this.contracts.finishSignedVault(prepared),
     );
   }
