@@ -127,7 +127,7 @@ jobs:
         working-directory: apps/api
         env:
           ESIGN_CONCURRENCY_PG: '1'
-        run: node node_modules/jest/bin/jest.js --testRegex 'esign-link-concurrency\\.pgtest\\.ts$' --forceExit --colors=false
+        run: node node_modules/jest/bin/jest.js --testRegex pgtest.ts$ --testPathPattern esign-link-concurrency --forceExit --colors=false
       - name: Revert migrations until the baseline tables are gone
         working-directory: apps/api
         run: |
@@ -303,7 +303,7 @@ jobs:
         working-directory: apps/api
         env:
           ESIGN_CONCURRENCY_PG: '1'
-        run: node node_modules/jest/bin/jest.js --testRegex 'esign-link-concurrency\\.pgtest\\.ts$' --forceExit --colors=false
+        run: node node_modules/jest/bin/jest.js --testRegex pgtest.ts$ --testPathPattern esign-link-concurrency --forceExit --colors=false
       - name: Start API
         working-directory: apps/api
         run: |
