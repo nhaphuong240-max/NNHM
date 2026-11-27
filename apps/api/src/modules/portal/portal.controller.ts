@@ -155,6 +155,21 @@ export class PortalController {
     return this.portal.issueContractSignToken(tenantId, contractId, user, secret);
   }
 
+  @Post('buyer/contracts/:contractId/sign-link')
+  async sendContractSignLink(
+    @CurrentUser() user: AuthUser | undefined,
+    @Headers('x-tenant-id') tenantHeader: string | undefined,
+    @Param('contractId') contractId: string,
+    @Body() body: { resend?: boolean },
+  ) {
+    const tenantId = await oneLookedUpTenant(this.dataSource, 'contract', contractId, 'not-found');
+    assertHeaderMatches(tenantHeader, tenantId);
+    if (!user?.tenantId || user.tenantId !== tenantId) {
+      throw new ForbiddenException({ detail: 'contract tenant does not match the signed-in buyer' });
+    }
+    return this.portal.sendContractSignLink(tenantId, contractId, user, body.resend === true);
+  }
+
   /** UC-UX-06 · SCR-PUBLIC-003 */
   @Public()
   @Get('public/map')

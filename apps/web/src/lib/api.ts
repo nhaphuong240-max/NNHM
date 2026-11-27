@@ -4172,6 +4172,28 @@ export type ContractSignSession = {
   providerMode?: string;
 };
 
+export async function sendContractSignLink(contractId: string, tenantId: string, resend = false) {
+  const res = await fetch(
+    `${API_BASE}/portal/buyer/contracts/${encodeURIComponent(contractId)}/sign-link`,
+    {
+      method: 'POST',
+      headers: {
+        ...buyerPortalHeaders(),
+        'Content-Type': 'application/json',
+        'X-Tenant-Id': tenantId,
+      },
+      body: JSON.stringify({ resend }),
+    },
+  );
+  if (!res.ok) {
+    const body = (await res.json().catch(() => null)) as { detail?: string } | null;
+    throw new Error(body?.detail ?? `Sign link failed (${res.status})`);
+  }
+  return res.json() as Promise<{
+    data: { sent: boolean; channel: string; destMasked: string; deliveryId: string; signingUrl?: string };
+  }>;
+}
+
 export async function issueContractSignToken(contractId: string, tenantId: string) {
   const res = await fetch(
     `${API_BASE}/portal/buyer/contracts/${encodeURIComponent(contractId)}/sign-token`,

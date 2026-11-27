@@ -21,6 +21,7 @@ export function BuyerEsignPage() {
     params.get('tenantId')?.trim() ||
     (contractId === PILOT_CONTRACT_ID ? PILOT_TENANT_ID : '');
 
+  const querySignToken = params.get('signToken')?.trim() || '';
   const [session, setSession] = useState<ContractSignSession | null>(null);
   const [signToken, setSignToken] = useState<string | null>(null);
   const [signerName, setSignerName] = useState('');
@@ -46,9 +47,11 @@ export function BuyerEsignPage() {
     setLoading(true);
     setError(null);
     try {
-      const issued = await issueContractSignToken(contractId, tenantId);
-      const res = await fetchContractSignSession(contractId, tenantId, issued.data.token);
-      setSignToken(issued.data.token);
+      const token = querySignToken
+        ? querySignToken
+        : (await issueContractSignToken(contractId, tenantId)).data.token;
+      const res = await fetchContractSignSession(contractId, tenantId, token);
+      setSignToken(token);
       setSession(res.data);
       setSignerName(res.data.buyerName);
     } catch (e) {
@@ -56,7 +59,7 @@ export function BuyerEsignPage() {
     } finally {
       setLoading(false);
     }
-  }, [contractId, tenantId]);
+  }, [contractId, tenantId, querySignToken]);
 
   useEffect(() => {
     void load();
@@ -191,7 +194,7 @@ export function BuyerEsignPage() {
                 required
               />
               <p className="text-xs mt-1" style={{ color: brand.muted }}>
-                OTP gửi qua SMS tới số đã đăng ký
+                OTP gửi trên cùng kênh đã đăng ký khi mở link ký
               </p>
             </div>
 

@@ -76,7 +76,7 @@ test('buyer-esign owning buyer gets a token and opens the sign session', async (
   await expect(page.getByText('contract sign token is missing, expired, or for another contract')).toHaveCount(0);
 });
 
-test('buyer-esign owning buyer enters the otp and signs the contract', async ({ page }) => {
+test('buyer-esign send link then open issues otp and signs', async ({ page }) => {
   const requested = await fetch(`${API_BASE}/auth/seeker/otp/request`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -97,6 +97,24 @@ test('buyer-esign owning buyer enters the otp and signs the contract', async ({ 
   const accessToken = verifiedBody.data?.accessToken;
   expect(accessToken).toBeTruthy();
 
+  const sent = await fetch(`${API_BASE}/portal/buyer/contracts/${CONTRACT_ID}/sign-link`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+      'X-Tenant-Id': TENANT_ID,
+    },
+    body: JSON.stringify({}),
+  });
+  const sentText = await sent.text();
+  expect(sent.ok, sentText.slice(0, 400)).toBe(true);
+  const sentBody = JSON.parse(sentText) as { data?: { signingUrl?: string } };
+  expect(sentBody.data?.signingUrl).toBeTruthy();
+  expect(sentText).not.toContain(PHONE);
+
+  const signingUrl = sentBody.data?.signingUrl ?? '';
+  expect(new URL(signingUrl).searchParams.get('signToken')).toBeTruthy();
+
   await page.goto('/');
   await page.evaluate(
     ({ accessToken: token, userId, phone }) => {
@@ -107,7 +125,8 @@ test('buyer-esign owning buyer enters the otp and signs the contract', async ({ 
     },
     { accessToken, userId: verifiedBody.data?.userId, phone: PHONE },
   );
-  await page.goto(`/buyer/esign?contractId=${CONTRACT_ID}&tenantId=${TENANT_ID}`);
+  const parsed = new URL(signingUrl);
+  await page.goto(`${parsed.pathname}${parsed.search}`);
   await expect(page.getByRole('heading', { name: 'Ký hợp đồng điện tử' })).toBeVisible();
   await expect(page.getByText('Thu Trang')).toBeVisible();
   await page.getByPlaceholder('Mã OTP từ SMS').fill('123456');

@@ -16,6 +16,7 @@ import { AllocationModule } from '../allocation/allocation.module';
 import { AuditModule } from '../audit/audit.module';
 import { DocumentsModule } from '../documents/documents.module';
 import { PaymentModule } from '../payment/payment.module';
+import { EmailModule } from '../email/email.module';
 import { SmsModule } from '../sms/sms.module';
 import { ComplianceModule } from '../compliance/compliance.module';
 import { TenantConfigModule } from '../tenant-config/tenant-config.module';
@@ -29,6 +30,7 @@ import { HandoverChecklistController } from './handover-checklist.controller';
 import { HandoverChecklistService } from './handover-checklist.service';
 import { BookingContractEsignProviderService } from './booking-contract-esign-provider.service';
 import { BookingContractEsignSmsService } from './booking-contract-esign-sms.service';
+import { EsignLinkService } from './esign-link.service';
 import { EsignOtpChallengeService } from './esign-otp-challenge.service';
 import { SignatureTicketService } from './signature-ticket.service';
 import { VnptEsignAdapter, EsignAdapterRegistry } from './vnpt-esign.adapter';
@@ -64,6 +66,7 @@ import { BookingService } from './booking.service';
     BookingEventsModule,
     TenantWebhooksModule,
     SmsModule,
+    EmailModule,
     ComplianceModule,
     TenantConfigModule,
     CrmModule,
@@ -82,6 +85,7 @@ import { BookingService } from './booking.service';
     ContractArtifactService,
     HandoverChecklistService,
     BookingContractEsignSmsService,
+    EsignLinkService,
     EsignOtpChallengeService,
     SignatureTicketService,
     BookingContractEsignProviderService,
@@ -91,6 +95,6 @@ import { BookingService } from './booking.service';
     EsignVaultRetryJob,
     BookingWorkflowService,
   ],
-  exports: [BookingService, BookingContractService, SignatureTicketService],
+  exports: [BookingService, BookingContractService, SignatureTicketService, EsignLinkService],
 })
 export class BookingModule {}

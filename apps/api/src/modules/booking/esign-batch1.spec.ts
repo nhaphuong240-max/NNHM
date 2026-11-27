@@ -954,6 +954,7 @@ describe('e-sign sms send gate', () => {
       { findOne: jest.fn(async () => ({ id: 'bkg', leadId: 'ld' })) } as never,
       { findOne: jest.fn(async () => ({ phone: '0900000001' })) } as never,
       { sendSms } as never,
+      { send: jest.fn(), assertReady: jest.fn(), isSandbox: jest.fn() } as never,
       { append: jest.fn() } as never,
       challenges,
       { resolve: jest.fn() } as never,

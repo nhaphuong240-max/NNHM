@@ -40,11 +40,16 @@ export class SignatureTicketService {
     secret: string;
     bookingId?: string;
     now?: number;
+    channel?: ContractSignClaims['channel'];
+    channelDestHash?: string | null;
+    channelDestMasked?: string | null;
+    recordLinkSent?: boolean;
   }): Promise<{ token: string; claims: ContractSignClaims }> {
     const now = input.now ?? Date.now();
     const requestId = newId('sreq');
     const signerId = newId('ssgn');
     const jti = newId('jti');
+    const channel = input.channel ?? 'SMS';
     const request = await this.requests.save(
       this.requests.create({
         id: requestId,
@@ -77,9 +82,9 @@ export class SignatureTicketService {
         subjectId: input.buyerId,
         displayName: null,
         title: null,
-        channel: 'SMS',
-        channelDestHash: null,
-        channelDestMasked: null,
+        channel,
+        channelDestHash: input.channelDestHash ?? null,
+        channelDestMasked: input.channelDestMasked ?? null,
         signOrder: 1,
         groupId: null,
         status: 'LINK_SENT',
@@ -97,12 +102,14 @@ export class SignatureTicketService {
       signerId: signer.id,
       requestId: request.id,
       jti: signer.jti,
-      channel: 'SMS',
+      channel,
       secret: input.secret,
       now,
     });
-    await this.record(input.tenantId, request.id, signer.id, 'REQUEST_CREATED', 'SMS', now);
-    await this.record(input.tenantId, request.id, signer.id, 'LINK_SENT', 'SMS', now);
+    await this.record(input.tenantId, request.id, signer.id, 'REQUEST_CREATED', channel, now);
+    if (input.recordLinkSent !== false) {
+      await this.record(input.tenantId, request.id, signer.id, 'LINK_SENT', channel, now);
+    }
     return {
       token,
       claims: {
@@ -112,7 +119,7 @@ export class SignatureTicketService {
         signerId: signer.id,
         requestId: request.id,
         jti: signer.jti,
-        channel: 'SMS',
+        channel,
         exp: now + CONTRACT_SIGN_TOKEN_TTL_MS,
       },
     };

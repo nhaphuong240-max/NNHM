@@ -268,7 +268,12 @@ jobs:
       ESIGN_OTP_PEPPER: wereal-ci-esign-otp-pepper
       # Unsigned test fixture so one browser sign can pass the fail-closed gate. Not a product limit.
       ESIGN_OTP_MAX_ATTEMPTS: '4'
-      ESIGN_OTP_MAX_SENDS: '4'
+      # Unsigned test fixture so OTP plus sign-link on the shared demo contract can pass. Not a product limit.
+      ESIGN_OTP_MAX_SENDS: '12'
+      ESIGN_OTP_RESEND_COOLDOWN_SECONDS: '1'
+      EMAIL_SANDBOX: 'true'
+      ESIGN_LINK_CHANNEL: SMS
+      ESIGN_SIGNING_BASE_URL: http://127.0.0.1:4173/buyer/esign
       NOTARY_WEBHOOK_SECRET: wereal-ci-notary-webhook-secret
       AUTH_LOGIN_RATE_LIMIT_PER_MIN: '1000'
       NODE_ENV: development

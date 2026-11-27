@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, UnauthorizedException, UnprocessableEntityException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { randomInt, randomUUID } from 'crypto';
@@ -119,6 +119,15 @@ export class SmsService {
     return typeof otp === 'string' ? otp : null;
   }
 
+  async assertEsignReady(tenantId: string): Promise<void> {
+    if (await this.provider.isSandboxMode(tenantId)) return;
+    const url = this.config.get<string>('SMS_PROVIDER_URL')?.trim();
+    const apiKey = this.config.get<string>('SMS_PROVIDER_API_KEY')?.trim();
+    if (!url || !apiKey) {
+      throw new UnprocessableEntityException({ detail: 'sms provider is not configured' });
+    }
+  }
+
   async sendSms(tenantId: string, input: SmsSendInput): Promise<SmsSendResult> {
     if (input.source) {
       const existing = await this.deliveries.findOne({
@@ -163,16 +172,21 @@ export class SmsService {
     }
     const revealOtp = typeof params.otp === 'string' ? params.otp : undefined;
     const persistOtp = input.persistOtp !== false;
-    const storedParams = persistOtp
-      ? params
-      : Object.fromEntries(Object.entries(params).filter(([key]) => key !== 'otp'));
+    const storedParams = Object.fromEntries(
+      Object.entries(persistOtp ? params : Object.fromEntries(Object.entries(params).filter(([key]) => key !== 'otp'))).filter(
+        ([key, value]) =>
+          !['token', 'signingUrl', 'email', 'to'].includes(key) &&
+          !(typeof value === 'string' && value.includes('v1s.')),
+      ),
+    );
+    const storedPhone = input.maskStoredDest ? maskStoredPhone(phone) : phone;
 
     if (sandbox) {
       const row = await this.deliveries.save({
         id: deliveryId,
         tenantId,
         templateId: input.templateId,
-        phone,
+        phone: storedPhone,
         params: storedParams,
         status: 'SENT',
         providerRef: `sandbox_${deliveryId}`,
@@ -188,7 +202,7 @@ export class SmsService {
         action: 'SMS_SENT',
         payload: {
           templateId: row.templateId,
-          phone: persistOtp ? row.phone : maskStoredPhone(row.phone),
+          phone: persistOtp && !input.maskStoredDest ? row.phone : maskStoredPhone(phone),
           sandbox: true,
           providerRef: row.providerRef,
           sourceType: row.sourceType,
@@ -212,8 +226,8 @@ export class SmsService {
     let row: SmsDeliveryEntity = await this.deliveries.save({
       id: deliveryId,
       tenantId,
-      templateId: input.templateId,
-        phone,
+        templateId: input.templateId,
+        phone: storedPhone,
         params: storedParams,
       status: 'QUEUED',
       providerRef: null,
@@ -242,7 +256,7 @@ export class SmsService {
         action: 'SMS_SENT',
         payload: {
           templateId: row.templateId,
-          phone: persistOtp ? row.phone : maskStoredPhone(row.phone),
+          phone: persistOtp && !input.maskStoredDest ? row.phone : maskStoredPhone(phone),
           providerRef: row.providerRef,
         },
         actorId: null,

@@ -4,6 +4,8 @@ import { Repository } from 'typeorm';
 import { BookingEntity } from '../../database/entities/booking.entity';
 import { LeadEntity } from '../../database/entities/lead.entity';
 import { AuditService } from '../audit/audit.service';
+import { EmailService } from '../email/email.service';
+import { EMAIL_TEMPLATES } from '../email/email.types';
 import { SmsService } from '../sms/sms.service';
 import { SMS_TEMPLATES } from '../sms/sms.types';
 import type { ContractSignClaims } from './contract-sign-token';
@@ -33,6 +35,7 @@ export class BookingContractEsignSmsService {
     @InjectRepository(LeadEntity)
     private readonly leads: Repository<LeadEntity>,
     private readonly sms: SmsService,
+    private readonly email: EmailService,
     private readonly audit: AuditService,
     private readonly challenges: EsignOtpChallengeService,
     private readonly rails: RailResolverService,
@@ -60,13 +63,13 @@ export class BookingContractEsignSmsService {
         ESIGN_OTP_RESEND_COOLDOWN_ENV,
       ),
     });
-    const resolved = await this.resolvePhone(tenantId, bookingId);
+    const resolved = await this.resolveDest(tenantId, bookingId, access.channel);
     if (!resolved.ok) return resolved.result;
     if (decision === 'replay') {
       if (!latest) {
         throw new UnprocessableEntityException({ detail: 'e-sign otp was not issued' });
       }
-      return this.sent(tenantId, contractId, bookingId, resolved.phone, latest.id, undefined, true);
+      return this.sent(tenantId, contractId, bookingId, resolved.dest, latest.id, undefined, true);
     }
     if (decision === 'unconfigured') {
       throw new UnprocessableEntityException({ detail: 'esign otp resend cooldown is not configured' });
@@ -75,18 +78,31 @@ export class BookingContractEsignSmsService {
       throw new UnprocessableEntityException({ detail: 'esign otp resend is cooling down' });
     }
     await this.challenges.assertSendBudget(access);
+    if (access.channel === 'ZALO') {
+      throw new UnprocessableEntityException({ detail: 'esign zalo is disabled' });
+    }
 
     try {
-      const delivery = await this.sms.sendSms(tenantId, {
-        templateId: SMS_TEMPLATES.OTP,
-        phone: resolved.phone,
-        persistOtp: false,
-        params: {
-          buyer_name: buyerName,
-          contract_id: contractId,
-        },
-        source: { type: 'ESIGN_OTP', id: `${contractId}:${access.jti}:${latest?.id ?? 'first'}` },
-      });
+      const delivery =
+        access.channel === 'EMAIL'
+          ? await this.email.send(tenantId, {
+              to: resolved.dest,
+              templateId: EMAIL_TEMPLATES.OTP,
+              persistOtp: false,
+              params: { buyer_name: buyerName, contract_id: contractId },
+              source: { type: 'ESIGN_OTP', id: `${contractId}:${access.jti}:${latest?.id ?? 'first'}` },
+            })
+          : await this.sms.sendSms(tenantId, {
+              templateId: SMS_TEMPLATES.OTP,
+              phone: resolved.dest,
+              persistOtp: false,
+              maskStoredDest: true,
+              params: {
+                buyer_name: buyerName,
+                contract_id: contractId,
+              },
+              source: { type: 'ESIGN_OTP', id: `${contractId}:${access.jti}:${latest?.id ?? 'first'}` },
+            });
       if (!delivery.otp) {
         throw new UnprocessableEntityException({ detail: 'e-sign otp was not issued' });
       }
@@ -95,7 +111,7 @@ export class BookingContractEsignSmsService {
         tenantId,
         contractId,
         bookingId,
-        resolved.phone,
+        resolved.dest,
         delivery.deliveryId,
         delivery.sandbox,
         issued.replay,
@@ -126,25 +142,34 @@ export class BookingContractEsignSmsService {
     });
   }
 
-  private async resolvePhone(
+  private async resolveDest(
     tenantId: string,
     bookingId: string,
-  ): Promise<{ ok: true; phone: string } | { ok: false; result: EsignOtpResult }> {
+    channel: ContractSignClaims['channel'],
+  ): Promise<{ ok: true; dest: string } | { ok: false; result: EsignOtpResult }> {
     const booking = await this.bookings.findOne({ where: { id: bookingId, tenantId } });
     if (!booking) {
       return { ok: false, result: { sent: false, skipped: true, skipReason: 'booking_not_found' } };
     }
-    let phone: string | undefined;
-    if (booking.leadId) {
-      const lead = await this.leads.findOne({ where: { id: booking.leadId, tenantId } });
-      phone = lead?.phone;
+    const lead = booking.leadId
+      ? await this.leads.findOne({ where: { id: booking.leadId, tenantId } })
+      : null;
+    if (channel === 'EMAIL') {
+      if (!lead?.email?.trim()) {
+        throw new UnprocessableEntityException({ detail: 'signer email is not registered' });
+      }
+      return { ok: true, dest: lead.email.trim() };
     }
+    if (channel === 'ZALO') {
+      throw new UnprocessableEntityException({ detail: 'esign zalo is disabled' });
+    }
+    const phone = lead?.phone;
     if (!phone) {
       throw new UnprocessableEntityException({
-        detail: 'Buyer phone required for e-sign OTP (UC-NW-03)',
+        detail: 'signer phone is not registered',
       });
     }
-    return { ok: true, phone };
+    return { ok: true, dest: phone };
   }
 
   private async sent(

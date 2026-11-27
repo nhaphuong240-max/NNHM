@@ -68,7 +68,12 @@ export class EsignOtpChallengeService {
     if (maxSends === null || !this.dataSource) {
       throw new UnprocessableEntityException({ detail: 'esign otp send limit is not configured' });
     }
-    const rows = await this.dataSource.query(COUNT_SENDS_SQL, [claims.tenantId, claims.contractId, claims.buyerId]);
+    const rows = await this.dataSource.query(COUNT_SENDS_SQL, [
+      claims.tenantId,
+      claims.contractId,
+      claims.buyerId,
+      `${claims.contractId}:${claims.buyerId}%`,
+    ]);
     const count = Number((rows?.[0] as { sends?: number } | undefined)?.sends ?? 0);
     if (count >= maxSends) {
       throw new UnprocessableEntityException({ detail: 'esign otp send limit is exhausted' });

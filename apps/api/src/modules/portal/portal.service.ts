@@ -10,6 +10,7 @@ import { In, Repository } from 'typeorm';
 import { AnalyticsService } from '../analytics/analytics.service';
 import { BookingContractService } from '../booking/booking-contract.service';
 import { CONTRACT_SIGN_TOKEN_TTL_MS } from '../booking/contract-sign-token';
+import { EsignLinkService } from '../booking/esign-link.service';
 import { SignatureTicketService } from '../booking/signature-ticket.service';
 import { PaymentBnplService } from '../payment/payment-bnpl.service';
 import { AuditEventEntity } from '../../database/entities/audit-event.entity';
@@ -87,6 +88,7 @@ export class PortalService {
     @InjectRepository(MobileDeviceEntity)
     private readonly mobileDevices: Repository<MobileDeviceEntity>,
     private readonly tickets: SignatureTicketService,
+    private readonly links: EsignLinkService,
   ) {}
 
   status() {
@@ -460,6 +462,32 @@ export class PortalService {
         expiresInSeconds: CONTRACT_SIGN_TOKEN_TTL_MS / 1000,
       },
     };
+  }
+
+  async sendContractSignLink(
+    tenantId: string,
+    contractId: string,
+    user: AuthUser | undefined,
+    resend = false,
+  ) {
+    const loaded = await this.contracts.getContract(tenantId, contractId);
+    const bookingId = loaded.data.attributes.bookingId?.trim() ?? '';
+    if (!bookingId) {
+      throw new NotFoundException({ detail: 'contract is not linked to a booking' });
+    }
+    await this.requireOwnedBuyerBooking(tenantId, bookingId, user);
+    if (!user?.userId?.trim()) {
+      throw new ForbiddenException({ detail: 'Seeker OTP verification required' });
+    }
+    const sent = await this.links.send({
+      tenantId,
+      contractId: loaded.data.id,
+      bookingId,
+      buyerId: user.userId,
+      buyerName: loaded.data.attributes.mergeContext.buyerName,
+      resend,
+    });
+    return { data: sent, meta: { uc: ['UC-BK-07', 'UC-NW-03'] } };
   }
 
   /** Buyer routes that change or open a deal must match the seeker phone on the lead. */

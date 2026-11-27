@@ -73,12 +73,50 @@ RETURNING "id"
 `;
 
 export const COUNT_SENDS_SQL = `
-SELECT COUNT(*)::int AS sends
-FROM "otp_challenges" c
-INNER JOIN "signature_requests" r ON r."id" = c."request_id"
-INNER JOIN "signature_signers" s ON s."id" = c."signer_id"
-WHERE c."tenant_id" = $1 AND r."contract_id" = $2 AND s."subject_id" = $3
+SELECT (
+  (SELECT COUNT(*)::int
+   FROM "otp_challenges" c
+   INNER JOIN "signature_requests" r ON r."id" = c."request_id"
+   INNER JOIN "signature_signers" s ON s."id" = c."signer_id"
+   WHERE c."tenant_id" = $1 AND r."contract_id" = $2 AND s."subject_id" = $3)
+  +
+  (SELECT COUNT(*)::int
+   FROM "email_deliveries" e
+   WHERE e."tenant_id" = $1 AND e."source_type" = 'ESIGN_LINK' AND e."source_id" LIKE $4)
+  +
+  (SELECT COUNT(*)::int
+   FROM "sms_deliveries" d
+   WHERE d."tenant_id" = $1 AND d."source_type" = 'ESIGN_LINK' AND d."source_id" LIKE $4)
+)::int AS sends
 `;
+
+export const VOID_OPEN_TICKETS_SQL = `
+UPDATE "signature_signers" s
+SET "jti_consumed_at" = now()
+FROM "signature_requests" r
+WHERE s."request_id" = r."id"
+  AND s."tenant_id" = $1
+  AND r."contract_id" = $2
+  AND s."subject_id" = $3
+  AND s."jti_consumed_at" IS NULL
+  AND s."status" <> 'SIGNED'
+RETURNING s."id", s."jti"
+`;
+
+export const LATEST_LINK_SQL = `
+SELECT e."created_at" AS created_at, e."status" AS status, e."source_id" AS source_id
+FROM "email_deliveries" e
+WHERE e."tenant_id" = $1 AND e."source_type" = 'ESIGN_LINK' AND e."source_id" LIKE $2
+UNION ALL
+SELECT d."created_at" AS created_at, d."status" AS status, d."source_id" AS source_id
+FROM "sms_deliveries" d
+WHERE d."tenant_id" = $1 AND d."source_type" = 'ESIGN_LINK' AND d."source_id" LIKE $2
+ORDER BY created_at DESC
+LIMIT 1
+`;
+
+export const ADVISORY_LOCK_SQL = `SELECT pg_advisory_lock(hashtext($1))`;
+export const ADVISORY_UNLOCK_SQL = `SELECT pg_advisory_unlock(hashtext($1))`;
 
 export function returnedRows(result: unknown): unknown[] {
   if (!Array.isArray(result)) return [];

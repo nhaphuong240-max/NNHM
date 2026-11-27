@@ -35,6 +35,7 @@ import { ZaloModule } from './modules/zalo/zalo.module';
 import { StreamModule } from './modules/stream/stream.module';
 import { CrmModule } from './modules/crm/crm.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
+import { EmailModule } from './modules/email/email.module';
 import { SmsModule } from './modules/sms/sms.module';
 import { MarketingModule } from './modules/marketing/marketing.module';
 import { DocumentsModule } from './modules/documents/documents.module';
@@ -85,6 +86,7 @@ import { ExceptionItemModule } from './modules/exception-item/exception-item.mod
     MetaModule,
     ZaloModule,
     SmsModule,
+    EmailModule,
     MarketingModule,
     DocumentsModule,
     AiScoringModule,

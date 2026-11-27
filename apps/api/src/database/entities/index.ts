@@ -96,3 +96,4 @@ export { SignatureRequestEntity } from './signature-request.entity';
 export { SignatureSignerEntity } from './signature-signer.entity';
 export { EsignOtpChallengeEntity } from './esign-otp-challenge.entity';
 export { SignatureEventEntity } from './signature-event.entity';
+export { EmailDeliveryEntity } from './email-delivery.entity';
