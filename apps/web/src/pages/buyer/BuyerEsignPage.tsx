@@ -3,7 +3,6 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { BuyerShell } from '../../components/BuyerShell';
 import {
   fetchContractSignSession,
-  issueContractSignToken,
   signContract,
   type ContractSignSession,
 } from '../../lib/api';
@@ -53,10 +52,13 @@ export function BuyerEsignPage() {
     setLoading(true);
     setError(null);
     try {
-      const token = presentedToken
-        ? presentedToken
-        : (await issueContractSignToken(contractId, tenantId)).data.token;
-      if (presentedToken && typeof window !== 'undefined') {
+      if (!presentedToken) {
+        setError('Thiếu link ký. Mở URL nhân viên thủ tục đã gửi (token nằm sau #).');
+        setLoading(false);
+        return;
+      }
+      const token = presentedToken;
+      if (typeof window !== 'undefined') {
         window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}`);
       }
       const res = await fetchContractSignSession(contractId, tenantId, token);

@@ -22,7 +22,11 @@ export class SignerChannelVerifications1758220000000 implements MigrationInterfa
         "status" varchar(16) NOT NULL DEFAULT 'PENDING',
         "expires_at" timestamptz NOT NULL,
         "attempt_count" int NOT NULL DEFAULT 0,
+        "locked_until" timestamptz,
+        "locked_indefinitely" boolean NOT NULL DEFAULT false,
         "verified_at" timestamptz,
+        "verified_by" varchar(64),
+        "method" varchar(32),
         "created_at" timestamptz NOT NULL DEFAULT now(),
         "updated_at" timestamptz NOT NULL DEFAULT now(),
         CONSTRAINT "PK_signer_channel_verifications" PRIMARY KEY ("id")

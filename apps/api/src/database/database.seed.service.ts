@@ -116,6 +116,12 @@ const DEMO_USERS = [
     role: 'FINANCE_ADMIN',
     password: 'Finance123!',
   },
+  {
+    id: 'usr_procedure_01',
+    email: 'procedure@sunrise-dev.vn',
+    role: 'PROCEDURE_STAFF',
+    password: 'Procedure123!',
+  },
 ] as const;
 
 const AGENCY_DEMO_USERS = [

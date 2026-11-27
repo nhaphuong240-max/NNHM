@@ -104,6 +104,10 @@ export class EsignLinkService {
     if (!baseUrl) {
       throw new UnprocessableEntityException({ detail: 'esign signing base url is not configured' });
     }
+    const nodeEnv = this.config.get<string>('NODE_ENV');
+    if (nodeEnv !== 'development' && nodeEnv !== 'test' && !baseUrl.toLowerCase().startsWith('https://')) {
+      throw new UnprocessableEntityException({ detail: 'esign signing base url must be https' });
+    }
     const dest = await this.resolveDest(input.tenantId, input.bookingId);
     await this.channels.assertVerified(input.tenantId, dest.channel, dest.value);
     const buyerId = await this.buyerSubjectFromBooking(input.tenantId, input.bookingId);

@@ -64,6 +64,7 @@ export const PERMISSION_MATRIX: Record<TenantRole, string[]> = {
     'audit.read',
     'disputes.manage',
     'analytics.read',
+    SEND_SIGN_LINK_PERMISSION,
   ],
   OPS_ADMIN: [
     'portal.read',

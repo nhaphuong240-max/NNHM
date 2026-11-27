@@ -1,4 +1,4 @@
-import { NotFoundException, UnprocessableEntityException } from '@nestjs/common';
+import { ForbiddenException, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
 import { EMAIL_TEMPLATE_COPY, EMAIL_TEMPLATES } from '../email/email.types';
 import { assertLiveEmailCredentials, LiveEmailSender, SandboxEmailSender } from '../email/email-sender';
 import { EmailService } from '../email/email.service';
@@ -346,12 +346,21 @@ describe('esign batch 2 send link', () => {
     );
     await expect(
       controller.sendSignLink({ userId: 'usr_a', role: 'SEEKER', tenantId: 'ten_b', email: 'a@x' }, 'ten_b', 'ctr_b', {}),
-    ).rejects.toBeInstanceOf(NotFoundException);
+    ).rejects.toBeInstanceOf(ForbiddenException);
     await expect(
       controller.sendSignLink({ userId: 'usr_agent', role: 'AGENT', tenantId: 'ten_b', email: 'a@x' }, 'ten_b', 'ctr_other', {}),
-    ).rejects.toBeInstanceOf(NotFoundException);
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(
+      controller.sendSignLink(
+        { userId: 'usr_fin', role: 'FINANCE_ADMIN', tenantId: 'ten_b', email: 'a@x' },
+        'ten_b',
+        'ctr_b',
+        {},
+      ),
+    ).rejects.toBeInstanceOf(ForbiddenException);
     expect(canSendSignLink('SEEKER')).toBe(false);
     expect(canSendSignLink('AGENT')).toBe(false);
+    expect(canSendSignLink('FINANCE_ADMIN')).toBe(false);
     expect(getContract).not.toHaveBeenCalled();
     expect(links.send).not.toHaveBeenCalled();
   });
@@ -373,6 +382,7 @@ describe('esign batch 2 send link', () => {
       {
         query,
         createQueryRunner: () => ({ connect: async () => undefined, release: async () => undefined, query }),
+        getRepository: () => ({ save: jest.fn(async (row: unknown) => row) }),
       } as never,
       undefined,
       links as never,
@@ -386,6 +396,27 @@ describe('esign batch 2 send link', () => {
     );
     expect(links.send).toHaveBeenCalledTimes(1);
     expect(result.data.deliveryId).toBe('sms_1');
+  });
+
+  it('404s send-link when the caller tenant does not match the contract', async () => {
+    const links = { send: jest.fn() };
+    const query = jest.fn(async () => [{ tenant_id: 'ten_b' }]);
+    const controller = new BookingContractController(
+      { getContract: jest.fn() } as never,
+      { get: () => SECRET } as never,
+      { query, createQueryRunner: () => ({ connect: async () => undefined, release: async () => undefined, query }) } as never,
+      undefined,
+      links as never,
+    );
+    await expect(
+      controller.sendSignLink(
+        { userId: 'usr_staff', role: 'PROCEDURE_STAFF', tenantId: 'ten_other', email: 'staff@x' },
+        'ten_b',
+        'ctr_b',
+        {},
+      ),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(links.send).not.toHaveBeenCalled();
   });
 
   it('refuses otp when the current destination hash does not match the ticket', async () => {

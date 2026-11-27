@@ -69,3 +69,8 @@ export const FINANCE = {
   email: 'finance@sunrise-dev.vn',
   password: 'Finance123!',
 } as const;
+
+export const PROCEDURE_STAFF = {
+  email: 'procedure@sunrise-dev.vn',
+  password: 'Procedure123!',
+} as const;

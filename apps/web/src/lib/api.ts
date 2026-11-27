@@ -4209,7 +4209,7 @@ export async function issueContractSignToken(contractId: string, tenantId: strin
     const body = (await res.json().catch(() => null)) as { detail?: string } | null;
     throw new Error(body?.detail ?? `Sign token failed (${res.status})`);
   }
-  return res.json() as Promise<{ data: { token: string; contractId: string; expiresInSeconds: number } }>;
+  return res.json() as Promise<{ data: { issued: boolean; contractId: string; expiresInSeconds: number } }>;
 }
 
 export async function fetchContractSignSession(contractId: string, tenantId: string, signToken: string) {

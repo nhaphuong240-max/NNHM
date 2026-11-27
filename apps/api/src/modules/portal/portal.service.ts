@@ -38,6 +38,7 @@ import type {
 } from './portal.types';
 import { phonesMatch } from '../crm/phone.util';
 import type { AuthUser } from '../identity/identity.types';
+import { canSendSignLink } from '../identity/role-catalog';
 import { resolveSeekerPhone } from './seeker-phone.util';
 import { BuyerDealNotifyService } from './buyer-deal-notify.service';
 import {
@@ -448,7 +449,7 @@ export class PortalService {
     if (!user?.userId?.trim()) {
       throw new ForbiddenException({ detail: 'Seeker OTP verification required' });
     }
-    const issued = await this.tickets.issueBuyerAccess({
+    await this.tickets.issueBuyerAccess({
       tenantId,
       contractId: loaded.data.id,
       buyerId: user.userId,
@@ -457,8 +458,8 @@ export class PortalService {
     });
     return {
       data: {
-        token: issued.token,
         contractId: loaded.data.id,
+        issued: true,
         expiresInSeconds: CONTRACT_SIGN_TOKEN_TTL_MS / 1000,
       },
     };
@@ -470,14 +471,13 @@ export class PortalService {
     user: AuthUser | undefined,
     resend = false,
   ) {
+    if (!canSendSignLink(user?.role)) {
+      throw new ForbiddenException({ detail: 'forbidden' });
+    }
     const loaded = await this.contracts.getContract(tenantId, contractId);
     const bookingId = loaded.data.attributes.bookingId?.trim() ?? '';
     if (!bookingId) {
       throw new NotFoundException({ detail: 'contract is not linked to a booking' });
-    }
-    await this.requireOwnedBuyerBooking(tenantId, bookingId, user);
-    if (!user?.userId?.trim()) {
-      throw new ForbiddenException({ detail: 'Seeker OTP verification required' });
     }
     const sent = await this.links.send({
       tenantId,
@@ -767,11 +767,11 @@ export class PortalService {
       bookingId,
     });
     const session = await this.contracts.getSignSession(tenantId, contract.id, issued.claims);
-    const signingUrl = session.data.signingUrl;
     return {
       data: {
         contractId: session.data.contractId,
-        signingUrl: signingUrl ?? `${process.env.WEB_BASE_URL ?? 'http://localhost:5174'}/buyer/contracts/${bookingId}`,
+        bookingId: session.data.bookingId,
+        otpSent: session.data.otpSent,
       },
       meta: { uc: ['UC-BK-07', 'UC-UX-02'], screen: 'SCR-BUYER-MOBILE' },
     };

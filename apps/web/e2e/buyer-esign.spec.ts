@@ -63,38 +63,12 @@ test('buyer-esign owning buyer gets a token and opens the sign session', async (
     },
   });
   expect(minted.ok).toBe(true);
-  const mintedBody = (await minted.json()) as { data?: { token?: string } };
-  const signToken = mintedBody.data?.token;
-  expect(signToken).toBeTruthy();
+  const mintedBody = (await minted.json()) as { data?: { token?: string; issued?: boolean } };
+  expect(mintedBody.data?.token).toBeUndefined();
+  expect(mintedBody.data?.issued).toBe(true);
 
-  const session = await fetch(`${API_BASE}/contracts/${CONTRACT_ID}/sign-session`, {
-    headers: {
-      'X-Tenant-Id': TENANT_ID,
-      'X-Contract-Sign-Token': signToken ?? '',
-    },
-  });
-  expect(session.status).not.toBe(401);
-  expect(session.ok).toBe(true);
-
-  const sessionResponse = page.waitForResponse(
-    (response) => response.url().includes(`/contracts/${CONTRACT_ID}/sign-session`),
-  );
-  await page.goto('/');
-  await page.evaluate(
-    ({ accessToken: token, userId, phone }) => {
-      window.localStorage.setItem(
-        'nnhn_seeker_session',
-        JSON.stringify({ accessToken: token, userId, phone, verifiedAt: new Date().toISOString() }),
-      );
-    },
-    { accessToken, userId: verifiedBody.data?.userId, phone: PHONE },
-  );
   await page.goto(`/buyer/esign?contractId=${CONTRACT_ID}&tenantId=${TENANT_ID}`);
-  const pageSession = await sessionResponse;
-  expect(pageSession.status()).not.toBe(401);
-  await expect(page.getByRole('heading', { name: 'Ký hợp đồng điện tử' })).toBeVisible();
-  await expect(page.getByText('Thu Trang')).toBeVisible();
-  await expect(page.getByText('contract sign token is missing, expired, or for another contract')).toHaveCount(0);
+  await expect(page.getByText('Thiếu link ký')).toBeVisible();
 });
 
 test('buyer-esign send link then open issues otp and signs', async ({ page }) => {
@@ -120,10 +94,28 @@ test('buyer-esign send link then open issues otp and signs', async ({ page }) =>
 
   await verifySignerChannel();
 
-  const sent = await fetch(`${API_BASE}/portal/buyer/contracts/${CONTRACT_ID}/sign-link`, {
+  const staffLogin = await fetch(`${API_BASE}/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      email: 'procedure@sunrise-dev.vn',
+      password: 'Procedure123!',
+      tenantId: TENANT_ID,
+    }),
+  });
+  const staffText = await staffLogin.text();
+  expect(staffLogin.ok, staffText.slice(0, 400)).toBe(true);
+  const staffBody = JSON.parse(staffText) as {
+    accessToken?: string;
+    data?: { accessToken?: string };
+  };
+  const staffToken = staffBody.accessToken ?? staffBody.data?.accessToken;
+  expect(staffToken).toBeTruthy();
+
+  const sent = await fetch(`${API_BASE}/contracts/${CONTRACT_ID}/sign-link`, {
     method: 'POST',
     headers: {
-      Authorization: `Bearer ${accessToken}`,
+      Authorization: `Bearer ${staffToken}`,
       'Content-Type': 'application/json',
       'X-Tenant-Id': TENANT_ID,
     },

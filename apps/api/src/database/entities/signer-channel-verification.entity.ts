@@ -7,7 +7,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 
-export type SignerChannelVerificationStatus = 'PENDING' | 'VERIFIED' | 'FAILED';
+export type SignerChannelVerificationStatus = 'PENDING' | 'VERIFIED' | 'REVOKED';
 
 @Entity({ name: 'signer_channel_verifications' })
 @Index(['tenantId', 'leadId'])
@@ -44,8 +44,20 @@ export class SignerChannelVerificationEntity {
   @Column({ name: 'attempt_count', type: 'int', default: 0 })
   attemptCount!: number;
 
+  @Column({ name: 'locked_until', type: 'timestamptz', nullable: true })
+  lockedUntil!: Date | null;
+
+  @Column({ name: 'locked_indefinitely', type: 'boolean', default: false })
+  lockedIndefinitely!: boolean;
+
   @Column({ name: 'verified_at', type: 'timestamptz', nullable: true })
   verifiedAt!: Date | null;
+
+  @Column({ name: 'verified_by', type: 'varchar', length: 64, nullable: true })
+  verifiedBy!: string | null;
+
+  @Column({ type: 'varchar', length: 32, nullable: true })
+  method!: string | null;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt!: Date;

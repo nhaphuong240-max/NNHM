@@ -1,6 +1,7 @@
-import { Body, Controller, Get, Headers, HttpCode, NotFoundException, Param, Post, Query, UnauthorizedException, UnprocessableEntityException } from '@nestjs/common';
+import { Body, Controller, ForbiddenException, Get, Headers, HttpCode, NotFoundException, Param, Post, Query, UnauthorizedException, UnprocessableEntityException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DataSource } from 'typeorm';
+import { AuditEventEntity } from '../../database/entities/audit-event.entity';
 import { oneLookedUpTenant } from '../../common/public-tenant-lookup';
 import { assertHeaderMatches, resolveTenantId } from '../../common/resolve-tenant-id';
 import { Public } from '../identity/decorators/public.decorator';
@@ -124,8 +125,8 @@ export class BookingContractController {
   }
 
   /**
-   * Staff send-on-behalf. Only PROCEDURE_STAFF (`contracts.send_sign_link`).
-   * Missing permission is 404 with no lookup. buyerId is resolved from the booking/lead.
+   * Staff send-on-behalf. `contracts.send_sign_link` only (PROCEDURE_STAFF, ADMIN).
+   * Missing permission is 403 with no lookup. buyerId is resolved from the booking/lead.
    */
   @Post(':contractId/sign-link')
   @HttpCode(200)
@@ -136,9 +137,12 @@ export class BookingContractController {
     @Body() body: { resend?: boolean },
   ) {
     if (!canSendSignLink(user?.role) || !this.links) {
-      throw new NotFoundException({ detail: 'not found' });
+      throw new ForbiddenException({ detail: 'forbidden' });
     }
     const tenantId = await this.contractTenant(contractId, tenantHeader);
+    if (user?.tenantId && user.tenantId !== tenantId) {
+      throw new NotFoundException({ detail: 'not found' });
+    }
     const loaded = await this.contracts.getContract(tenantId, contractId);
     const bookingId = loaded.data.attributes.bookingId?.trim() ?? '';
     if (!bookingId) {
@@ -150,6 +154,14 @@ export class BookingContractController {
       bookingId,
       buyerName: loaded.data.attributes.mergeContext.buyerName,
       resend: body.resend === true,
+    });
+    await this.dataSource.getRepository(AuditEventEntity).save({
+      tenantId,
+      entityType: 'contract',
+      entityId: loaded.data.id,
+      action: 'SIGN_LINK_SENT',
+      payload: { role: user?.role, channel: sent.channel, destMasked: sent.destMasked },
+      actorId: user?.userId ?? null,
     });
     return { data: sent, meta: { uc: ['UC-BK-07'] } };
   }

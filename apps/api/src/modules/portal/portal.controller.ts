@@ -1,4 +1,4 @@
-import { Body, Controller, ForbiddenException, Get, Headers, Param, Post, Query, UnprocessableEntityException } from '@nestjs/common';
+import { Body, Controller, ForbiddenException, Get, Headers, NotFoundException, Param, Post, Query, UnprocessableEntityException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DataSource } from 'typeorm';
 import { oneLookedUpTenant } from '../../common/public-tenant-lookup';
@@ -9,6 +9,7 @@ import { Public } from '../identity/decorators/public.decorator';
 import { CurrentUser } from '../identity/decorators/current-user.decorator';
 import type { AuthUser } from '../identity/identity.types';
 import { PortalService } from './portal.service';
+import { canSendSignLink } from '../identity/role-catalog';
 import { resolveSeekerPhone } from './seeker-phone.util';
 
 @Controller('portal')
@@ -162,10 +163,13 @@ export class PortalController {
     @Param('contractId') contractId: string,
     @Body() body: { resend?: boolean },
   ) {
+    if (!canSendSignLink(user?.role)) {
+      throw new ForbiddenException({ detail: 'forbidden' });
+    }
     const tenantId = await oneLookedUpTenant(this.dataSource, 'contract', contractId, 'not-found');
     assertHeaderMatches(tenantHeader, tenantId);
     if (!user?.tenantId || user.tenantId !== tenantId) {
-      throw new ForbiddenException({ detail: 'contract tenant does not match the signed-in buyer' });
+      throw new NotFoundException({ detail: 'not found' });
     }
     return this.portal.sendContractSignLink(tenantId, contractId, user, body.resend === true);
   }

@@ -276,6 +276,8 @@ jobs:
       # Unsigned test fixture so OTP plus sign-link on the shared demo contract can pass. Not a product limit.
       ESIGN_OTP_MAX_SENDS: '12'
       ESIGN_OTP_RESEND_COOLDOWN_SECONDS: '1'
+      # Unsigned test fixture so channel-verify confirm can lock after failed attempts. Not a product limit.
+      ESIGN_OTP_LOCKOUT_SECONDS: '60'
       EMAIL_SANDBOX: 'true'
       ESIGN_LINK_CHANNEL: SMS
       ESIGN_SIGNING_BASE_URL: http://127.0.0.1:4173/buyer/esign
