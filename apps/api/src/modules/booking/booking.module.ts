@@ -35,6 +35,7 @@ import { VnptEsignAdapter, EsignAdapterRegistry } from './vnpt-esign.adapter';
 import { BookingContractService } from './booking-contract.service';
 import { BookingEventsModule } from './booking-events.module';
 import { BookingExpiryJob } from './booking-expiry.job';
+import { EsignVaultRetryJob } from './esign-vault-retry.job';
 import { BookingWorkflowController } from './booking-workflow.controller';
 import { BookingWorkflowService } from './booking-workflow.service';
 import { BookingController } from './booking.controller';
@@ -87,6 +88,7 @@ import { BookingService } from './booking.service';
     VnptEsignAdapter,
     EsignAdapterRegistry,
     BookingExpiryJob,
+    EsignVaultRetryJob,
     BookingWorkflowService,
   ],
   exports: [BookingService, BookingContractService, SignatureTicketService],
