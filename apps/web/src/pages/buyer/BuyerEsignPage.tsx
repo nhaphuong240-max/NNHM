@@ -3,7 +3,6 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { BuyerShell } from '../../components/BuyerShell';
 import {
   fetchContractSignSession,
-  issueContractSignToken,
   signContract,
   type ContractSignSession,
 } from '../../lib/api';
@@ -21,6 +20,18 @@ export function BuyerEsignPage() {
     params.get('tenantId')?.trim() ||
     (contractId === PILOT_CONTRACT_ID ? PILOT_TENANT_ID : '');
 
+  const [linkToken] = useState(() => {
+    if (typeof window === 'undefined') return '';
+    const hash = window.location.hash.replace(/^#/, '');
+    const fromHash = new URLSearchParams(hash).get('signToken')?.trim() || '';
+    const fromQuery = new URLSearchParams(window.location.search).get('signToken')?.trim() || '';
+    const token = fromHash || fromQuery;
+    const url = new URL(window.location.href);
+    url.searchParams.delete('signToken');
+    url.hash = '';
+    window.history.replaceState(null, '', `${url.pathname}${url.search}`);
+    return token;
+  });
   const [session, setSession] = useState<ContractSignSession | null>(null);
   const [signToken, setSignToken] = useState<string | null>(null);
   const [signerName, setSignerName] = useState('');
@@ -46,9 +57,13 @@ export function BuyerEsignPage() {
     setLoading(true);
     setError(null);
     try {
-      const issued = await issueContractSignToken(contractId, tenantId);
-      const res = await fetchContractSignSession(contractId, tenantId, issued.data.token);
-      setSignToken(issued.data.token);
+      if (!linkToken) {
+        setError('Thiếu link ký. Mở URL nhân viên thủ tục đã gửi (token nằm sau #).');
+        setLoading(false);
+        return;
+      }
+      const res = await fetchContractSignSession(contractId, tenantId, linkToken);
+      setSignToken(linkToken);
       setSession(res.data);
       setSignerName(res.data.buyerName);
     } catch (e) {
@@ -56,7 +71,7 @@ export function BuyerEsignPage() {
     } finally {
       setLoading(false);
     }
-  }, [contractId, tenantId]);
+  }, [contractId, tenantId, linkToken]);
 
   useEffect(() => {
     void load();
@@ -191,7 +206,7 @@ export function BuyerEsignPage() {
                 required
               />
               <p className="text-xs mt-1" style={{ color: brand.muted }}>
-                OTP gửi qua SMS tới số đã đăng ký
+                OTP gửi trên cùng kênh đã đăng ký khi mở link ký
               </p>
             </div>
 

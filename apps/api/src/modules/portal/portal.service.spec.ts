@@ -15,6 +15,7 @@ import { ZaloZnsDeliveryEntity } from '../../database/entities/zalo-zns-delivery
 import { PaymentIntentEntity } from '../../database/entities/payment-intent.entity';
 import { MobileDeviceEntity } from '../../database/entities/mobile-device.entity';
 import { BookingContractService } from '../booking/booking-contract.service';
+import { EsignLinkService } from '../booking/esign-link.service';
 import { SignatureTicketService } from '../booking/signature-ticket.service';
 import { PaymentBnplService } from '../payment/payment-bnpl.service';
 import { PortalService } from './portal.service';
@@ -115,6 +116,7 @@ describe('PortalService', () => {
           provide: SignatureTicketService,
           useValue: { issueBuyerAccess: jest.fn(), assertUsable: jest.fn(), consume: jest.fn(), completeSign: jest.fn() },
         },
+        { provide: EsignLinkService, useValue: { send: jest.fn() } },
       ],
     }).compile();
 
@@ -178,6 +180,7 @@ describe('PortalService', () => {
           provide: SignatureTicketService,
           useValue: { issueBuyerAccess: jest.fn(), assertUsable: jest.fn(), consume: jest.fn(), completeSign: jest.fn() },
         },
+        { provide: EsignLinkService, useValue: { send: jest.fn() } },
         { provide: getRepositoryToken(MobileDeviceEntity), useValue: mockRepo(0) },
       ],
     }).compile();
@@ -296,6 +299,7 @@ describe('PortalService', () => {
           provide: SignatureTicketService,
           useValue: { issueBuyerAccess: jest.fn(), assertUsable: jest.fn(), consume: jest.fn(), completeSign: jest.fn() },
         },
+        { provide: EsignLinkService, useValue: { send: jest.fn() } },
       ],
     }).compile();
 

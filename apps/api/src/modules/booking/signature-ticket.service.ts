@@ -40,13 +40,21 @@ export class SignatureTicketService {
     secret: string;
     bookingId?: string;
     now?: number;
+    channel?: ContractSignClaims['channel'];
+    channelDestHash?: string | null;
+    channelDestMasked?: string | null;
+    recordLinkSent?: boolean;
+    manager?: EntityManager;
   }): Promise<{ token: string; claims: ContractSignClaims }> {
     const now = input.now ?? Date.now();
     const requestId = newId('sreq');
     const signerId = newId('ssgn');
     const jti = newId('jti');
-    const request = await this.requests.save(
-      this.requests.create({
+    const channel = input.channel ?? 'SMS';
+    const requests = input.manager?.getRepository(SignatureRequestEntity) ?? this.requests;
+    const signers = input.manager?.getRepository(SignatureSignerEntity) ?? this.signers;
+    const request = await requests.save(
+      requests.create({
         id: requestId,
         tenantId: input.tenantId,
         documentType: 'BOOKING_CONTRACT',
@@ -68,8 +76,8 @@ export class SignatureTicketService {
         reviewNotes: null,
       }),
     );
-    const signer = await this.signers.save(
-      this.signers.create({
+    const signer = await signers.save(
+      signers.create({
         id: signerId,
         requestId: request.id,
         tenantId: input.tenantId,
@@ -77,9 +85,9 @@ export class SignatureTicketService {
         subjectId: input.buyerId,
         displayName: null,
         title: null,
-        channel: 'SMS',
-        channelDestHash: null,
-        channelDestMasked: null,
+        channel,
+        channelDestHash: input.channelDestHash ?? null,
+        channelDestMasked: input.channelDestMasked ?? null,
         signOrder: 1,
         groupId: null,
         status: 'LINK_SENT',
@@ -97,12 +105,32 @@ export class SignatureTicketService {
       signerId: signer.id,
       requestId: request.id,
       jti: signer.jti,
-      channel: 'SMS',
+      channel,
       secret: input.secret,
       now,
     });
-    await this.record(input.tenantId, request.id, signer.id, 'REQUEST_CREATED', 'SMS', now);
-    await this.record(input.tenantId, request.id, signer.id, 'LINK_SENT', 'SMS', now);
+    if (input.manager) {
+      const events = input.manager.getRepository(SignatureEventEntity);
+      await events.save(
+        events.create({
+          id: newId('sev'),
+          tenantId: input.tenantId,
+          requestId: request.id,
+          signerId: signer.id,
+          action: 'REQUEST_CREATED',
+          ip: null,
+          userAgent: null,
+          occurredAt: new Date(now),
+          channel,
+          metadata: safeSignatureMetadata({}),
+        }),
+      );
+    } else {
+      await this.record(input.tenantId, request.id, signer.id, 'REQUEST_CREATED', channel, now);
+      if (input.recordLinkSent !== false) {
+        await this.record(input.tenantId, request.id, signer.id, 'LINK_SENT', channel, now);
+      }
+    }
     return {
       token,
       claims: {
@@ -112,7 +140,7 @@ export class SignatureTicketService {
         signerId: signer.id,
         requestId: request.id,
         jti: signer.jti,
-        channel: 'SMS',
+        channel,
         exp: now + CONTRACT_SIGN_TOKEN_TTL_MS,
       },
     };

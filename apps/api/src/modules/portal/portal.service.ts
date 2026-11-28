@@ -10,6 +10,7 @@ import { In, Repository } from 'typeorm';
 import { AnalyticsService } from '../analytics/analytics.service';
 import { BookingContractService } from '../booking/booking-contract.service';
 import { CONTRACT_SIGN_TOKEN_TTL_MS } from '../booking/contract-sign-token';
+import { EsignLinkService } from '../booking/esign-link.service';
 import { SignatureTicketService } from '../booking/signature-ticket.service';
 import { PaymentBnplService } from '../payment/payment-bnpl.service';
 import { AuditEventEntity } from '../../database/entities/audit-event.entity';
@@ -37,6 +38,7 @@ import type {
 } from './portal.types';
 import { phonesMatch } from '../crm/phone.util';
 import type { AuthUser } from '../identity/identity.types';
+import { canSendSignLink } from '../identity/role-catalog';
 import { resolveSeekerPhone } from './seeker-phone.util';
 import { BuyerDealNotifyService } from './buyer-deal-notify.service';
 import {
@@ -87,6 +89,7 @@ export class PortalService {
     @InjectRepository(MobileDeviceEntity)
     private readonly mobileDevices: Repository<MobileDeviceEntity>,
     private readonly tickets: SignatureTicketService,
+    private readonly links: EsignLinkService,
   ) {}
 
   status() {
@@ -446,7 +449,7 @@ export class PortalService {
     if (!user?.userId?.trim()) {
       throw new ForbiddenException({ detail: 'Seeker OTP verification required' });
     }
-    const issued = await this.tickets.issueBuyerAccess({
+    await this.tickets.issueBuyerAccess({
       tenantId,
       contractId: loaded.data.id,
       buyerId: user.userId,
@@ -455,11 +458,35 @@ export class PortalService {
     });
     return {
       data: {
-        token: issued.token,
         contractId: loaded.data.id,
+        issued: true,
         expiresInSeconds: CONTRACT_SIGN_TOKEN_TTL_MS / 1000,
       },
     };
+  }
+
+  async sendContractSignLink(
+    tenantId: string,
+    contractId: string,
+    user: AuthUser | undefined,
+    resend = false,
+  ) {
+    if (!canSendSignLink(user?.role)) {
+      throw new ForbiddenException({ detail: 'forbidden' });
+    }
+    const loaded = await this.contracts.getContract(tenantId, contractId);
+    const bookingId = loaded.data.attributes.bookingId?.trim() ?? '';
+    if (!bookingId) {
+      throw new NotFoundException({ detail: 'contract is not linked to a booking' });
+    }
+    const sent = await this.links.send({
+      tenantId,
+      contractId: loaded.data.id,
+      bookingId,
+      buyerName: loaded.data.attributes.mergeContext.buyerName,
+      resend,
+    });
+    return { data: sent, meta: { uc: ['UC-BK-07', 'UC-NW-03'] } };
   }
 
   /** Buyer routes that change or open a deal must match the seeker phone on the lead. */
@@ -740,11 +767,11 @@ export class PortalService {
       bookingId,
     });
     const session = await this.contracts.getSignSession(tenantId, contract.id, issued.claims);
-    const signingUrl = session.data.signingUrl;
     return {
       data: {
         contractId: session.data.contractId,
-        signingUrl: signingUrl ?? `${process.env.WEB_BASE_URL ?? 'http://localhost:5174'}/buyer/contracts/${bookingId}`,
+        bookingId: session.data.bookingId,
+        otpSent: session.data.otpSent,
       },
       meta: { uc: ['UC-BK-07', 'UC-UX-02'], screen: 'SCR-BUYER-MOBILE' },
     };

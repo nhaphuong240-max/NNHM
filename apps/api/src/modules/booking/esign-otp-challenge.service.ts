@@ -8,7 +8,6 @@ import { SignatureEventEntity } from '../../database/entities/signature-event.en
 import type { ContractSignClaims } from './contract-sign-token';
 import {
   CONSUME_OTP_SQL,
-  COUNT_SENDS_SQL,
   SELECT_SCOPED_CHALLENGES_SQL,
   SELECT_SIGNER_BUDGET_SQL,
   UPDATE_ATTEMPT_SQL,
@@ -24,7 +23,6 @@ import {
   safeSignatureMetadata,
   ESIGN_OTP_LOCKOUT_ENV,
   ESIGN_OTP_MAX_ATTEMPTS_ENV,
-  ESIGN_OTP_MAX_SENDS_ENV,
   ESIGN_OTP_RESEND_COOLDOWN_ENV,
   verifyStoredEsignOtp,
   type EsignOtpView,
@@ -62,17 +60,9 @@ export class EsignOtpChallengeService {
     }
   }
 
-  /** New sends share one budget per contract and signer. Empty configuration refuses the send. */
+  /** Owner 28/11: sends are not capped. Cooldown still gates resend. */
   async assertSendBudget(claims: ContractSignClaims): Promise<void> {
-    const maxSends = readConfiguredPositiveInt((key) => this.config.get<string>(key), ESIGN_OTP_MAX_SENDS_ENV);
-    if (maxSends === null || !this.dataSource) {
-      throw new UnprocessableEntityException({ detail: 'esign otp send limit is not configured' });
-    }
-    const rows = await this.dataSource.query(COUNT_SENDS_SQL, [claims.tenantId, claims.contractId, claims.buyerId]);
-    const count = Number((rows?.[0] as { sends?: number } | undefined)?.sends ?? 0);
-    if (count >= maxSends) {
-      throw new UnprocessableEntityException({ detail: 'esign otp send limit is exhausted' });
-    }
+    void claims;
   }
 
   findLatest(tenantId: string, jti: string): Promise<EsignOtpChallengeEntity | null> {
@@ -148,7 +138,15 @@ export class EsignOtpChallengeService {
       throw new UnprocessableEntityException({ detail: 'esign otp attempt limit is not configured' });
     }
     const nodeEnv = this.config.get<string>('NODE_ENV');
-    if (demoEsignOtpRejected({ otp, nodeEnv, smsSandbox: this.config.get<string>('SMS_SANDBOX') !== 'false' })) {
+    if (
+      demoEsignOtpRejected({
+        otp,
+        nodeEnv,
+        smsSandbox: (this.config.get<string>('SMS_SANDBOX') ?? '').trim() === 'true',
+        emailSandbox: this.config.get<string>('EMAIL_SANDBOX')?.trim() === 'true',
+        channel: claims.channel,
+      })
+    ) {
       throw new UnprocessableEntityException({ detail: 'demo otp is not accepted' });
     }
     const current = returnedRows(
@@ -202,6 +200,8 @@ export class EsignOtpChallengeService {
     jti: string;
     otp: string;
     smsSandbox: boolean;
+    emailSandbox?: boolean;
+    channel?: 'EMAIL' | 'SMS' | 'ZALO';
     now?: number;
   }): Promise<boolean> {
     const now = input.now ?? Date.now();
@@ -215,6 +215,8 @@ export class EsignOtpChallengeService {
       lockoutSeconds: readConfiguredPositiveInt((key) => this.config.get<string>(key), ESIGN_OTP_LOCKOUT_ENV),
       nodeEnv: this.config.get<string>('NODE_ENV'),
       smsSandbox: input.smsSandbox,
+      emailSandbox: input.emailSandbox,
+      channel: input.channel ?? (row?.channel as 'EMAIL' | 'SMS' | 'ZALO' | undefined),
       binding: input.jti,
     });
     if (

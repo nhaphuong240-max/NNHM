@@ -177,7 +177,6 @@ export class BookingContractService {
     );
 
     const provider = await this.esignProvider.resolve(tenantId);
-    let signingUrl: string | undefined;
     let envelopeId: string | undefined;
     let providerId = 'WEREAL_ESIGN_STUB';
 
@@ -189,7 +188,6 @@ export class BookingContractService {
         signerEmail: record.attributes.mergeContext.buyerEmail,
         documentText: record.attributes.mergedText,
       });
-      signingUrl = envelope.signingUrl;
       envelopeId = envelope.envelopeId;
       providerId = envelope.provider;
     }
@@ -205,7 +203,6 @@ export class BookingContractService {
         unitCode: record.attributes.mergeContext.unitCode,
         otpSent: otpResult.sent,
         deliveryId: otpResult.deliveryId,
-        signingUrl,
         envelopeId,
         provider: providerId,
         providerMode: provider ? 'legal-provider' : 'otp-stub',

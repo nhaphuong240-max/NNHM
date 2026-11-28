@@ -5,9 +5,12 @@ import { ESIGN_DEMO_OTP } from './booking-contract.util';
 /** Names only. Empty means refuse. None of these numbers are a signed business limit. */
 export const ESIGN_OTP_PEPPER_ENV = 'ESIGN_OTP_PEPPER';
 export const ESIGN_OTP_MAX_ATTEMPTS_ENV = 'ESIGN_OTP_MAX_ATTEMPTS';
+/** Owner 28/11: unlimited sends. Kept as a name only so leftover env keys are ignored. */
 export const ESIGN_OTP_MAX_SENDS_ENV = 'ESIGN_OTP_MAX_SENDS';
 export const ESIGN_OTP_RESEND_COOLDOWN_ENV = 'ESIGN_OTP_RESEND_COOLDOWN_SECONDS';
 export const ESIGN_OTP_LOCKOUT_ENV = 'ESIGN_OTP_LOCKOUT_SECONDS';
+/** Owner 28/11: attempts are counted on the current PENDING row only. */
+export const ESIGN_OTP_LEAD_MAX_ATTEMPTS_ENV = 'ESIGN_OTP_LEAD_MAX_ATTEMPTS';
 
 const BLOCKED_METADATA_KEYS = new Set([
   'otp',
@@ -72,9 +75,13 @@ export function demoEsignOtpRejected(input: {
   otp: string;
   nodeEnv: string | undefined;
   smsSandbox: boolean;
+  emailSandbox?: boolean;
+  channel?: 'EMAIL' | 'SMS' | 'ZALO';
 }): boolean {
   if (input.otp.trim() !== ESIGN_DEMO_OTP) return false;
-  return input.nodeEnv === 'production' || !input.smsSandbox;
+  if (input.nodeEnv === 'production') return true;
+  if (input.channel === 'EMAIL') return input.emailSandbox !== true;
+  return !input.smsSandbox;
 }
 
 export type EsignOtpView = {
@@ -99,6 +106,8 @@ export function verifyStoredEsignOtp(input: {
   lockoutSeconds: number | null;
   nodeEnv: string | undefined;
   smsSandbox: boolean;
+  emailSandbox?: boolean;
+  channel?: 'EMAIL' | 'SMS' | 'ZALO';
   binding?: string;
 }): EsignOtpVerifyResult {
   const binding = input.binding ?? 'jti_1';

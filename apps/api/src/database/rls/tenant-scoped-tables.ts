@@ -95,6 +95,12 @@ export const ESIGN_TENANT_TABLES = [
   'signature_events',
 ] as const;
 
+/** Email outbox from 1758210000000. Kept out of the earlier RLS lists. */
+export const ESIGN_LINK_TENANT_TABLES = ['email_deliveries'] as const;
+
+/** Channel verification from 1758220000000. Kept out of the earlier RLS lists. */
+export const ESIGN_CHANNEL_VERIFY_TABLES = ['signer_channel_verifications'] as const;
+
 /** Tables introduced by the spec-target migration. Compared for RLS with the two lists above. */
 export const SPEC_TENANT_TABLES = [
   'org_memberships',

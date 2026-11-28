@@ -149,11 +149,11 @@ describe('step 1 access checks', () => {
       ForbiddenException,
     );
     const minted = await service.issueContractSignToken('ten_b', 'ctr_a', owner, SECRET);
-    expect(readContractSignToken(minted.data.token, SECRET)).toMatchObject({
-      tenantId: 'ten_b',
-      contractId: 'ctr_a',
-      buyerId: 'usr_1',
-    });
+    expect(minted.data).toMatchObject({ contractId: 'ctr_a', issued: true });
+    expect(minted.data).not.toHaveProperty('token');
+    expect(tickets.issueBuyerAccess).toHaveBeenCalledWith(
+      expect.objectContaining({ tenantId: 'ten_b', contractId: 'ctr_a', buyerId: 'usr_1' }),
+    );
     const portal = { issueContractSignToken: jest.fn() };
     const config = { get: (key: string) => (key === 'CONTRACT_SIGN_SECRET' ? SECRET : undefined) };
     const dataSource = {

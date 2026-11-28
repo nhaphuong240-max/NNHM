@@ -73,12 +73,99 @@ RETURNING "id"
 `;
 
 export const COUNT_SENDS_SQL = `
-SELECT COUNT(*)::int AS sends
-FROM "otp_challenges" c
-INNER JOIN "signature_requests" r ON r."id" = c."request_id"
-INNER JOIN "signature_signers" s ON s."id" = c."signer_id"
-WHERE c."tenant_id" = $1 AND r."contract_id" = $2 AND s."subject_id" = $3
+SELECT (
+  (SELECT COUNT(*)::int
+   FROM "otp_challenges" c
+   INNER JOIN "signature_requests" r ON r."id" = c."request_id"
+   INNER JOIN "signature_signers" s ON s."id" = c."signer_id"
+   WHERE c."tenant_id" = $1 AND r."contract_id" = $2 AND s."subject_id" = $3)
+  +
+  (SELECT COUNT(*)::int
+   FROM "email_deliveries" e
+   WHERE e."tenant_id" = $1 AND e."source_type" = 'ESIGN_LINK'
+     AND (e."source_id" = $4 OR e."source_id" LIKE $5 ESCAPE '\\'))
+  +
+  (SELECT COUNT(*)::int
+   FROM "sms_deliveries" d
+   WHERE d."tenant_id" = $1 AND d."source_type" = 'ESIGN_LINK'
+     AND (d."source_id" = $4 OR d."source_id" LIKE $5 ESCAPE '\\'))
+)::int AS sends
 `;
+
+export const VOID_OPEN_TICKETS_SQL = `
+UPDATE "signature_signers" s
+SET "jti_consumed_at" = now()
+FROM "signature_requests" r
+WHERE s."request_id" = r."id"
+  AND s."tenant_id" = $1
+  AND r."contract_id" = $2
+  AND s."subject_id" = $3
+  AND s."jti_consumed_at" IS NULL
+  AND s."status" <> 'SIGNED'
+RETURNING s."id", s."jti"
+`;
+
+export const LATEST_LINK_SQL = `
+SELECT e."created_at" AS created_at, e."status" AS status, e."source_id" AS source_id, e."id" AS id, 'EMAIL' AS channel
+FROM "email_deliveries" e
+WHERE e."tenant_id" = $1 AND e."source_type" = 'ESIGN_LINK'
+  AND (e."source_id" = $2 OR e."source_id" LIKE $3 ESCAPE '\\')
+UNION ALL
+SELECT d."created_at" AS created_at, d."status" AS status, d."source_id" AS source_id, d."id" AS id, 'SMS' AS channel
+FROM "sms_deliveries" d
+WHERE d."tenant_id" = $1 AND d."source_type" = 'ESIGN_LINK'
+  AND (d."source_id" = $2 OR d."source_id" LIKE $3 ESCAPE '\\')
+ORDER BY created_at DESC
+LIMIT 1
+`;
+
+export const ADVISORY_LOCK_SQL = `SELECT pg_advisory_xact_lock(hashtext($1))`;
+
+export function channelVerifySendLockKey(tenantId: string, leadId: string): string {
+  return `esign-channel-verify:${tenantId}:${leadId}`;
+}
+
+export const CLAIM_CHANNEL_VERIFY_ATTEMPT_SQL = `
+UPDATE "signer_channel_verifications" AS v
+SET "attempt_count" = v."attempt_count" + 1,
+    "locked_until" = CASE
+      WHEN v."attempt_count" + 1 >= $3 THEN $4
+      ELSE v."locked_until"
+    END
+WHERE v."id" = $1 AND v."tenant_id" = $2
+  AND v."status" = 'PENDING'
+  AND v."locked_indefinitely" = false
+  AND (v."locked_until" IS NULL OR v."locked_until" <= now())
+  AND v."expires_at" > now()
+  AND v."attempt_count" < $3
+RETURNING v."id", v."attempt_count", v."code_hash", v."email_dest_masked", v."lead_id", v."locked_until"
+`;
+
+export function markQueuedDeliveryFailedSql(channel: string): string {
+  const table = channel === 'SMS' ? 'sms_deliveries' : 'email_deliveries';
+  return `UPDATE "${table}" SET "status" = 'FAILED' WHERE "id" = $1 AND "tenant_id" = $2 AND "status" = 'QUEUED'`;
+}
+
+export const SUM_CHANNEL_VERIFY_ATTEMPTS_SQL = `
+SELECT COALESCE(SUM("attempt_count"), 0)::int AS total
+FROM "signer_channel_verifications"
+WHERE "tenant_id" = $1 AND "lead_id" = $2
+`;
+
+export const VOID_TICKET_JTI_SQL = `
+UPDATE "signature_signers"
+SET "jti_consumed_at" = now()
+WHERE "jti" = $1 AND "tenant_id" = $2 AND "jti_consumed_at" IS NULL
+RETURNING "id"
+`;
+
+export function escapeLikePrefix(value: string): string {
+  return value.replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_');
+}
+
+export function esignLinkSourceArgs(prefix: string): [string, string] {
+  return [prefix, `${escapeLikePrefix(prefix)}:%`];
+}
 
 export function returnedRows(result: unknown): unknown[] {
   if (!Array.isArray(result)) return [];

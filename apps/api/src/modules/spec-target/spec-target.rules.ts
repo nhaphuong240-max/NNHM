@@ -20,6 +20,7 @@ const LEGACY_ROLE_MAP: Record<string, RoleCode> = {
   FINANCE_ADMIN: 'FINANCE_MAKER',
   AGENCY_ADMIN: 'AGENCY_ADMIN',
   SEEKER: 'BUYER',
+  PROCEDURE_STAFF: 'SUPPORT_AUDITOR',
 };
 
 export type Grant = {

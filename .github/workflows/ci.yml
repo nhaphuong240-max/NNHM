@@ -123,6 +123,11 @@ jobs:
       - name: Install the Postgres client used by the throwaway restore drill
         run: sudo apt-get update && sudo apt-get install -y postgresql-client
       - run: chmod +x scripts/t02-harness.sh && ./scripts/t02-harness.sh
+      - name: Advisory lock concurrency
+        working-directory: apps/api
+        env:
+          ESIGN_CONCURRENCY_PG: '1'
+        run: node node_modules/jest/bin/jest.js --testRegex pgtest.ts$ --testPathPattern esign-link-concurrency --forceExit --colors=false
       - name: Revert migrations until the baseline tables are gone
         working-directory: apps/api
         run: |
@@ -268,7 +273,16 @@ jobs:
       ESIGN_OTP_PEPPER: wereal-ci-esign-otp-pepper
       # Unsigned test fixture so one browser sign can pass the fail-closed gate. Not a product limit.
       ESIGN_OTP_MAX_ATTEMPTS: '4'
-      ESIGN_OTP_MAX_SENDS: '4'
+      ESIGN_OTP_RESEND_COOLDOWN_SECONDS: '1'
+      # Unsigned test fixture so channel-verify confirm can lock after failed attempts. Not a product limit.
+      ESIGN_OTP_LOCKOUT_SECONDS: '60'
+      EMAIL_SANDBOX: 'true'
+      # Unsigned test fixture so the SMS sign-link path can send. Empty SMS_SANDBOX is 422, not sandbox.
+      SMS_SANDBOX: 'true'
+      ESIGN_LINK_CHANNEL: SMS
+      ESIGN_SIGNING_BASE_URL: http://127.0.0.1:4173/buyer/esign
+      # Unsigned test fixture so e2e can read the sandbox outbox. Not a product flag.
+      ESIGN_SANDBOX_OUTBOX: 'true'
       NOTARY_WEBHOOK_SECRET: wereal-ci-notary-webhook-secret
       AUTH_LOGIN_RATE_LIMIT_PER_MIN: '1000'
       NODE_ENV: development
@@ -287,6 +301,11 @@ jobs:
           npm ci
           npm run build
           npm run migration:run
+      - name: Advisory lock concurrency
+        working-directory: apps/api
+        env:
+          ESIGN_CONCURRENCY_PG: '1'
+        run: node node_modules/jest/bin/jest.js --testRegex pgtest.ts$ --testPathPattern esign-link-concurrency --forceExit --colors=false
       - name: Start API
         working-directory: apps/api
         run: |

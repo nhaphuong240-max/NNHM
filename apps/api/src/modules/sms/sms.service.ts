@@ -1,13 +1,13 @@
-import { Injectable, Logger, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, UnauthorizedException, UnprocessableEntityException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { randomInt, randomUUID } from 'crypto';
-import { Repository } from 'typeorm';
+import { EntityManager, Repository } from 'typeorm';
 import { SmsBindingEntity } from '../../database/entities/sms-binding.entity';
 import { SmsDeliveryEntity } from '../../database/entities/sms-delivery.entity';
 import { AuditService } from '../audit/audit.service';
 import { SmsProviderClient } from './sms-provider.client';
-import { SMS_TEMPLATES, type SmsSendInput, type SmsSendResult } from './sms.types';
+import { SMS_TEMPLATE_COPY, SMS_TEMPLATES, type SmsSendInput, type SmsSendResult } from './sms.types';
 import { RailResolverService } from '../tenant-config/rail-resolver.service';
 
 function normalizePhone(phone: string): string {
@@ -119,6 +119,162 @@ export class SmsService {
     return typeof otp === 'string' ? otp : null;
   }
 
+  async isSandbox(tenantId: string): Promise<boolean> {
+    return this.provider.isSandboxMode(tenantId);
+  }
+
+  async findBySource(
+    tenantId: string,
+    source: NonNullable<SmsSendInput['source']>,
+    manager?: EntityManager,
+  ) {
+    const deliveries = manager ? manager.getRepository(SmsDeliveryEntity) : this.deliveries;
+    return deliveries.findOne({
+      where: { tenantId, sourceType: source.type, sourceId: source.id },
+    });
+  }
+
+  async enqueueEsignLink(
+    tenantId: string,
+    input: SmsSendInput,
+    manager: EntityManager,
+  ): Promise<SmsSendResult> {
+    this.assertSmsSandboxConfigured();
+    const existing = await this.findBySource(tenantId, input.source!, manager);
+    if (existing) {
+      return {
+        deliveryId: existing.id,
+        status: existing.status,
+        providerRef: existing.providerRef,
+        sandbox: await this.provider.isSandboxMode(tenantId),
+        graphMode: 'SANDBOX',
+        idempotentReplay: true,
+      };
+    }
+    const pepperPhone = input.phone;
+    const phone = normalizePhone(pepperPhone);
+    const storedPhone = input.maskStoredDest ? maskStoredPhone(phone) : phone;
+    const params = Object.fromEntries(
+      Object.entries(input.params ?? {}).filter(
+        ([key, value]) =>
+          !['token', 'signingUrl', 'email', 'to', 'otp'].includes(key) &&
+          !(typeof value === 'string' && value.includes('v1s.')),
+      ),
+    );
+    const row = manager.getRepository(SmsDeliveryEntity).create({
+      id: `sms_${randomUUID().replace(/-/g, '').slice(0, 8)}`,
+      tenantId,
+      templateId: input.templateId,
+      phone: storedPhone,
+      params,
+      status: 'QUEUED',
+      providerRef: null,
+      lastError: null,
+      sourceType: input.source?.type ?? null,
+      sourceId: input.source?.id ?? null,
+    });
+    await manager.getRepository(SmsDeliveryEntity).save(row);
+    return {
+      deliveryId: row.id,
+      status: row.status,
+      sandbox: await this.provider.isSandboxMode(tenantId),
+      graphMode: 'SANDBOX',
+    };
+  }
+
+  async completeEsignLink(tenantId: string, deliveryId: string, input: SmsSendInput): Promise<SmsSendResult> {
+    this.assertSmsSandboxConfigured();
+    const row = await this.deliveries.findOne({ where: { id: deliveryId, tenantId } });
+    if (!row) {
+      throw new UnprocessableEntityException({ detail: 'e-sign link was not sent' });
+    }
+    if (row.status === 'SENT' || row.status === 'DELIVERED') {
+      return {
+        deliveryId: row.id,
+        status: row.status,
+        providerRef: row.providerRef,
+        sandbox: await this.provider.isSandboxMode(tenantId),
+        graphMode: 'SANDBOX',
+        idempotentReplay: true,
+      };
+    }
+    try {
+      const sandbox = await this.provider.isSandboxMode(tenantId);
+      if (sandbox) {
+        row.status = 'SENT';
+        row.providerRef = `sandbox_${row.id}`;
+        row.lastError = null;
+        await this.deliveries.save(row);
+        return {
+          deliveryId: row.id,
+          status: row.status,
+          providerRef: row.providerRef,
+          sandbox: true,
+          graphMode: 'SANDBOX',
+        };
+      }
+      const binding = await this.bindings.findOne({ where: { tenantId, isActive: true } });
+      if (!binding) {
+        throw new UnprocessableEntityException({ detail: 'sms provider is not configured' });
+      }
+      const sent = await this.provider.sendTemplate({
+        tenantId,
+        phone: input.phone,
+        templateId: input.templateId,
+        params: input.params ?? {},
+        brandName: binding.brandName,
+        trackingId: row.id,
+      });
+      row.status = 'SENT';
+      row.providerRef = sent.providerRef;
+      row.lastError = null;
+      await this.deliveries.save(row);
+      return {
+        deliveryId: row.id,
+        status: row.status,
+        providerRef: row.providerRef,
+        sandbox: false,
+        graphMode: 'LIVE',
+      };
+    } catch (error) {
+      row.status = 'FAILED';
+      row.lastError = 'sms send failed';
+      await this.deliveries.save(row);
+      throw error;
+    }
+  }
+
+  async markFailed(tenantId: string, deliveryId: string): Promise<void> {
+    const row = await this.deliveries.findOne({ where: { id: deliveryId, tenantId } });
+    if (!row || row.status === 'SENT' || row.status === 'DELIVERED') return;
+    row.status = 'FAILED';
+    row.lastError = row.lastError ?? 'sms send failed';
+    await this.deliveries.save(row);
+  }
+
+  /** Empty SMS_SANDBOX → 422 on e-sign send only. Payment/seeker OTP uses sendSms without this gate. */
+  assertSmsSandboxConfigured(): string {
+    const flag = this.config.get<string>('SMS_SANDBOX')?.trim() ?? '';
+    if (!flag) {
+      throw new UnprocessableEntityException({ detail: 'sms sandbox is not configured' });
+    }
+    if (this.config.get<string>('NODE_ENV') === 'production' && flag === 'true') {
+      throw new UnprocessableEntityException({ detail: 'sms sandbox is not allowed in production' });
+    }
+    return flag;
+  }
+
+  async assertEsignReady(tenantId: string): Promise<void> {
+    const flag = this.assertSmsSandboxConfigured();
+    if (flag === 'true') return;
+    void tenantId;
+    const url = this.config.get<string>('SMS_PROVIDER_URL')?.trim();
+    const apiKey = this.config.get<string>('SMS_PROVIDER_API_KEY')?.trim();
+    if (!url || !apiKey) {
+      throw new UnprocessableEntityException({ detail: 'sms provider is not configured' });
+    }
+  }
+
   async sendSms(tenantId: string, input: SmsSendInput): Promise<SmsSendResult> {
     if (input.source) {
       const existing = await this.deliveries.findOne({
@@ -163,16 +319,21 @@ export class SmsService {
     }
     const revealOtp = typeof params.otp === 'string' ? params.otp : undefined;
     const persistOtp = input.persistOtp !== false;
-    const storedParams = persistOtp
-      ? params
-      : Object.fromEntries(Object.entries(params).filter(([key]) => key !== 'otp'));
+    const storedParams = Object.fromEntries(
+      Object.entries(persistOtp ? params : Object.fromEntries(Object.entries(params).filter(([key]) => key !== 'otp'))).filter(
+        ([key, value]) =>
+          !['token', 'signingUrl', 'email', 'to'].includes(key) &&
+          !(typeof value === 'string' && value.includes('v1s.')),
+      ),
+    );
+    const storedPhone = input.maskStoredDest ? maskStoredPhone(phone) : phone;
 
     if (sandbox) {
       const row = await this.deliveries.save({
         id: deliveryId,
         tenantId,
         templateId: input.templateId,
-        phone,
+        phone: storedPhone,
         params: storedParams,
         status: 'SENT',
         providerRef: `sandbox_${deliveryId}`,
@@ -188,7 +349,7 @@ export class SmsService {
         action: 'SMS_SENT',
         payload: {
           templateId: row.templateId,
-          phone: persistOtp ? row.phone : maskStoredPhone(row.phone),
+          phone: persistOtp && !input.maskStoredDest ? row.phone : maskStoredPhone(phone),
           sandbox: true,
           providerRef: row.providerRef,
           sourceType: row.sourceType,
@@ -197,7 +358,11 @@ export class SmsService {
         actorId: null,
       });
 
-      this.logger.log(persistOtp ? `UC-NW-03 SMS sandbox ${row.id} → ${phone}` : `UC-NW-03 SMS sandbox ${row.id}`);
+      this.logger.log(
+        persistOtp
+          ? `UC-NW-03 SMS sandbox ${row.id} → ${phone}`
+          : `UC-NW-03 SMS sandbox ${row.id} ${SMS_TEMPLATE_COPY[row.templateId] ?? ''}`.trim(),
+      );
 
       return {
         deliveryId: row.id,
@@ -212,8 +377,8 @@ export class SmsService {
     let row: SmsDeliveryEntity = await this.deliveries.save({
       id: deliveryId,
       tenantId,
-      templateId: input.templateId,
-        phone,
+        templateId: input.templateId,
+        phone: storedPhone,
         params: storedParams,
       status: 'QUEUED',
       providerRef: null,
@@ -242,7 +407,7 @@ export class SmsService {
         action: 'SMS_SENT',
         payload: {
           templateId: row.templateId,
-          phone: persistOtp ? row.phone : maskStoredPhone(row.phone),
+          phone: persistOtp && !input.maskStoredDest ? row.phone : maskStoredPhone(phone),
           providerRef: row.providerRef,
         },
         actorId: null,
@@ -257,9 +422,8 @@ export class SmsService {
         otp: persistOtp ? undefined : revealOtp,
       };
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
       row.status = 'FAILED';
-      row.lastError = message;
+      row.lastError = 'sms send failed';
       await this.deliveries.save(row);
       throw err;
     }

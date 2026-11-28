@@ -1,6 +1,7 @@
-import { Body, Controller, Get, Headers, HttpCode, Param, Post, Query, UnauthorizedException, UnprocessableEntityException } from '@nestjs/common';
+import { Body, Controller, ForbiddenException, Get, Headers, HttpCode, NotFoundException, Param, Post, Query, UnauthorizedException, UnprocessableEntityException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DataSource } from 'typeorm';
+import { AuditEventEntity } from '../../database/entities/audit-event.entity';
 import { oneLookedUpTenant } from '../../common/public-tenant-lookup';
 import { assertHeaderMatches, resolveTenantId } from '../../common/resolve-tenant-id';
 import { Public } from '../identity/decorators/public.decorator';
@@ -9,8 +10,10 @@ import { contractSignSecret, readContractSignToken, type ContractSignClaims } fr
 import { SignatureTicketService } from './signature-ticket.service';
 import { CurrentUser } from '../identity/decorators/current-user.decorator';
 import type { AuthUser } from '../identity/identity.types';
+import { canSendSignLink } from '../identity/role-catalog';
 import { BookingContractService } from './booking-contract.service';
 import type { ContractPreviewInput, ContractSignInput, CreateContractInput } from './booking-contract.types';
+import { EsignLinkService } from './esign-link.service';
 
 @Controller('contracts')
 export class BookingContractController {
@@ -19,6 +22,7 @@ export class BookingContractController {
     private readonly config: ConfigService,
     private readonly dataSource: DataSource,
     private readonly tickets?: SignatureTicketService,
+    private readonly links?: EsignLinkService,
   ) {}
 
   private signSecret(): string {
@@ -118,6 +122,53 @@ export class BookingContractController {
       JSON.stringify(body),
       signature,
     );
+  }
+
+  /**
+   * Staff send-on-behalf. `contracts.send_sign_link` only (PROCEDURE_STAFF, ADMIN).
+   * Missing permission is 403 with no lookup. buyerId is resolved from the booking/lead.
+   */
+  @Post(':contractId/sign-link')
+  @HttpCode(200)
+  async sendSignLink(
+    @CurrentUser() user: AuthUser | undefined,
+    @Headers('x-tenant-id') tenantHeader: string | undefined,
+    @Param('contractId') contractId: string,
+    @Body() body: { resend?: boolean },
+  ) {
+    if (!canSendSignLink(user?.role) || !this.links) {
+      throw new ForbiddenException({ detail: 'forbidden' });
+    }
+    if (!user?.tenantId?.trim()) {
+      throw new NotFoundException({ detail: 'not found' });
+    }
+    const tenantId = await this.contractTenant(contractId, tenantHeader);
+    if (user.tenantId !== tenantId) {
+      throw new NotFoundException({ detail: 'not found' });
+    }
+    const loaded = await this.contracts.getContract(tenantId, contractId);
+    const bookingId = loaded.data.attributes.bookingId?.trim() ?? '';
+    if (!bookingId) {
+      throw new NotFoundException({ detail: 'not found' });
+    }
+    const sent = await this.links.send({
+      tenantId,
+      contractId: loaded.data.id,
+      bookingId,
+      buyerName: loaded.data.attributes.mergeContext.buyerName,
+      resend: body.resend === true,
+      actor: { userId: user.userId, role: user.role },
+    });
+    const actuallySent = sent.sent && !sent.idempotentReplay && !sent.sending;
+    await this.dataSource.getRepository(AuditEventEntity).save({
+      tenantId,
+      entityType: 'contract',
+      entityId: loaded.data.id,
+      action: actuallySent ? 'SIGN_LINK_SENT' : 'SIGN_LINK_PENDING',
+      payload: { role: user?.role, channel: sent.channel, destMasked: sent.destMasked },
+      actorId: user?.userId ?? null,
+    });
+    return { data: sent, meta: { uc: ['UC-BK-07'] } };
   }
 
   /** UC-BK-07 — buyer sign session. Requires a short-lived token for this contract. */

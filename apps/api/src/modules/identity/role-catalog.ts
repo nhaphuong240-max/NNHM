@@ -5,7 +5,10 @@ export const TENANT_ROLES = [
   'DEVELOPER_ADMIN',
   'AGENT',
   'FINANCE_ADMIN',
+  'PROCEDURE_STAFF',
 ] as const;
+
+export const SEND_SIGN_LINK_PERMISSION = 'contracts.send_sign_link';
 
 export type TenantRole = (typeof TENANT_ROLES)[number];
 
@@ -44,6 +47,12 @@ export const PERMISSION_CATALOG: PermissionDefinition[] = [
   { id: 'audit.read', label: 'Audit explorer', group: 'Ops' },
   { id: 'disputes.manage', label: 'Quản lý tranh chấp', group: 'Ops' },
   { id: 'analytics.read', label: 'Analytics / KPI', group: 'Analytics' },
+  {
+    id: SEND_SIGN_LINK_PERMISSION,
+    label: 'Gửi link ký hộ buyer',
+    group: 'Contracts',
+    description: 'Gửi URL ký trên kênh đã VERIFIED. Không phải quyền duyệt hợp đồng.',
+  },
 ];
 
 export const PERMISSION_MATRIX: Record<TenantRole, string[]> = {
@@ -55,6 +64,7 @@ export const PERMISSION_MATRIX: Record<TenantRole, string[]> = {
     'audit.read',
     'disputes.manage',
     'analytics.read',
+    SEND_SIGN_LINK_PERMISSION,
   ],
   OPS_ADMIN: [
     'portal.read',
@@ -87,6 +97,7 @@ export const PERMISSION_MATRIX: Record<TenantRole, string[]> = {
     'refunds.write',
     'commission.export',
   ],
+  PROCEDURE_STAFF: ['portal.read', SEND_SIGN_LINK_PERMISSION],
 };
 
 export function permissionCatalog(): PermissionDefinition[] {
@@ -121,12 +132,17 @@ export function isValidTenantRole(role: string): role is TenantRole {
   return (TENANT_ROLES as readonly string[]).includes(role);
 }
 
+export function canSendSignLink(role: string | undefined): boolean {
+  return Boolean(role && permissionsForTenantRole(role).includes(SEND_SIGN_LINK_PERMISSION));
+}
+
 const ROLE_LABELS: Record<TenantRole, string> = {
   ADMIN: 'Quản trị viên',
   OPS_ADMIN: 'Vận hành (Ops)',
   DEVELOPER_ADMIN: 'Chủ đầu tư (CĐT)',
   AGENT: 'Môi giới / Sales',
   FINANCE_ADMIN: 'Tài chính',
+  PROCEDURE_STAFF: 'Nhân viên thủ tục',
 };
 
 const ROLE_DESCRIPTIONS: Record<TenantRole, string> = {
@@ -135,4 +151,5 @@ const ROLE_DESCRIPTIONS: Record<TenantRole, string> = {
   DEVELOPER_ADMIN: 'Golden Record · dự án · hoa hồng · analytics',
   AGENT: 'Listing · giữ chỗ · CRM pipeline',
   FINANCE_ADMIN: 'Sổ cái · đối soát · hoàn tiền · xuất commission',
+  PROCEDURE_STAFF: 'Gửi link ký trên kênh buyer đã xác minh',
 };

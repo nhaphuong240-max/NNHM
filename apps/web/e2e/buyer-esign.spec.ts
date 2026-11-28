@@ -6,6 +6,56 @@ const CONTRACT_ID = 'ctr_esign_demo01';
 const TENANT_ID = 'ten_dev_01';
 const PHONE = '0901234567';
 
+async function staffAccessToken(): Promise<string> {
+  const staffLogin = await fetch(`${API_BASE}/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      email: 'procedure@sunrise-dev.vn',
+      password: 'Procedure123!',
+      tenantId: TENANT_ID,
+    }),
+  });
+  const staffText = await staffLogin.text();
+  expect(staffLogin.ok, staffText.slice(0, 400)).toBe(true);
+  const staffBody = JSON.parse(staffText) as {
+    accessToken?: string;
+    data?: { accessToken?: string };
+  };
+  const staffToken = staffBody.accessToken ?? staffBody.data?.accessToken;
+  expect(staffToken).toBeTruthy();
+  return staffToken!;
+}
+
+async function verifySignerChannel() {
+  const staffToken = await staffAccessToken();
+  const started = await fetch(`${API_BASE}/esign/channel-verifications`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${staffToken}`,
+      'Content-Type': 'application/json',
+      'X-Tenant-Id': TENANT_ID,
+    },
+    body: JSON.stringify({ phone: PHONE }),
+  });
+  const startedText = await started.text();
+  expect(started.ok, startedText.slice(0, 400)).toBe(true);
+  const startedBody = JSON.parse(startedText) as { data?: { id?: string } };
+  const verificationId = startedBody.data?.id;
+  expect(verificationId).toBeTruthy();
+  const confirmed = await fetch(`${API_BASE}/esign/channel-verifications/${verificationId}/confirm`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${staffToken}`,
+      'Content-Type': 'application/json',
+      'X-Tenant-Id': TENANT_ID,
+    },
+    body: JSON.stringify({ code: '123456' }),
+  });
+  const confirmedText = await confirmed.text();
+  expect(confirmed.ok, confirmedText.slice(0, 400)).toBe(true);
+}
+
 test('buyer-esign rejects sign-session when the contract sign token is missing', async () => {
   const response = await fetch(`${API_BASE}/contracts/${CONTRACT_ID}/sign-session`, {
     headers: { 'X-Tenant-Id': TENANT_ID },
@@ -33,6 +83,7 @@ test('buyer-esign owning buyer gets a token and opens the sign session', async (
   const verifiedBody = (await verified.json()) as { data?: { accessToken?: string; userId?: string } };
   const accessToken = verifiedBody.data?.accessToken;
   expect(accessToken).toBeTruthy();
+  await verifySignerChannel();
 
   const minted = await fetch(`${API_BASE}/portal/buyer/contracts/${CONTRACT_ID}/sign-token`, {
     method: 'POST',
@@ -42,41 +93,15 @@ test('buyer-esign owning buyer gets a token and opens the sign session', async (
     },
   });
   expect(minted.ok).toBe(true);
-  const mintedBody = (await minted.json()) as { data?: { token?: string } };
-  const signToken = mintedBody.data?.token;
-  expect(signToken).toBeTruthy();
+  const mintedBody = (await minted.json()) as { data?: { token?: string; issued?: boolean } };
+  expect(mintedBody.data?.token).toBeUndefined();
+  expect(mintedBody.data?.issued).toBe(true);
 
-  const session = await fetch(`${API_BASE}/contracts/${CONTRACT_ID}/sign-session`, {
-    headers: {
-      'X-Tenant-Id': TENANT_ID,
-      'X-Contract-Sign-Token': signToken ?? '',
-    },
-  });
-  expect(session.status).not.toBe(401);
-  expect(session.ok).toBe(true);
-
-  const sessionResponse = page.waitForResponse(
-    (response) => response.url().includes(`/contracts/${CONTRACT_ID}/sign-session`),
-  );
-  await page.goto('/');
-  await page.evaluate(
-    ({ accessToken: token, userId, phone }) => {
-      window.localStorage.setItem(
-        'nnhn_seeker_session',
-        JSON.stringify({ accessToken: token, userId, phone, verifiedAt: new Date().toISOString() }),
-      );
-    },
-    { accessToken, userId: verifiedBody.data?.userId, phone: PHONE },
-  );
   await page.goto(`/buyer/esign?contractId=${CONTRACT_ID}&tenantId=${TENANT_ID}`);
-  const pageSession = await sessionResponse;
-  expect(pageSession.status()).not.toBe(401);
-  await expect(page.getByRole('heading', { name: 'Ký hợp đồng điện tử' })).toBeVisible();
-  await expect(page.getByText('Thu Trang')).toBeVisible();
-  await expect(page.getByText('contract sign token is missing, expired, or for another contract')).toHaveCount(0);
+  await expect(page.getByText('Thiếu link ký')).toBeVisible();
 });
 
-test('buyer-esign owning buyer enters the otp and signs the contract', async ({ page }) => {
+test('buyer-esign send link then open issues otp and signs', async ({ page }) => {
   const requested = await fetch(`${API_BASE}/auth/seeker/otp/request`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -97,17 +122,39 @@ test('buyer-esign owning buyer enters the otp and signs the contract', async ({ 
   const accessToken = verifiedBody.data?.accessToken;
   expect(accessToken).toBeTruthy();
 
-  await page.goto('/');
-  await page.evaluate(
-    ({ accessToken: token, userId, phone }) => {
-      window.localStorage.setItem(
-        'nnhn_seeker_session',
-        JSON.stringify({ accessToken: token, userId, phone, verifiedAt: new Date().toISOString() }),
-      );
+  await verifySignerChannel();
+
+  const staffToken = await staffAccessToken();
+
+  const sent = await fetch(`${API_BASE}/contracts/${CONTRACT_ID}/sign-link`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${staffToken}`,
+      'Content-Type': 'application/json',
+      'X-Tenant-Id': TENANT_ID,
     },
-    { accessToken, userId: verifiedBody.data?.userId, phone: PHONE },
-  );
-  await page.goto(`/buyer/esign?contractId=${CONTRACT_ID}&tenantId=${TENANT_ID}`);
+    body: JSON.stringify({}),
+  });
+  const sentText = await sent.text();
+  expect(sent.ok, sentText.slice(0, 400)).toBe(true);
+  const sentBody = JSON.parse(sentText) as { data?: { deliveryId?: string; signingUrl?: string } };
+  expect(sentBody.data?.signingUrl).toBeUndefined();
+  expect(sentText).not.toMatch(/v1s\./);
+  expect(sentText).not.toContain(PHONE);
+  const deliveryId = sentBody.data?.deliveryId;
+  expect(deliveryId).toBeTruthy();
+
+  const outbox = await fetch(`${API_BASE}/esign-sandbox/deliveries/${deliveryId}`);
+  const outboxText = await outbox.text();
+  expect(outbox.ok, outboxText.slice(0, 400)).toBe(true);
+  const outboxBody = JSON.parse(outboxText) as { data?: { signingUrl?: string } };
+  const signingUrl = outboxBody.data?.signingUrl ?? '';
+  expect(signingUrl).toContain('#signToken=');
+
+  await page.goto('/');
+  await page.evaluate(() => window.localStorage.removeItem('nnhn_seeker_session'));
+  const parsed = new URL(signingUrl);
+  await page.goto(`${parsed.pathname}${parsed.search}${parsed.hash}`);
   await expect(page.getByRole('heading', { name: 'Ký hợp đồng điện tử' })).toBeVisible();
   await expect(page.getByText('Thu Trang')).toBeVisible();
   await page.getByPlaceholder('Mã OTP từ SMS').fill('123456');

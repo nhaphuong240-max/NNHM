@@ -174,6 +174,7 @@ describe('BookingContractService', () => {
     const result = await service.getSignSession('ten_dev_01', 'ctr_demo01');
     expect(result.data.contractId).toBe('ctr_demo01');
     expect(result.data.mergedText).toContain('Thu Trang');
+    expect(result.data).not.toHaveProperty('signingUrl');
   });
 
   it('signs contract with demo OTP', async () => {
