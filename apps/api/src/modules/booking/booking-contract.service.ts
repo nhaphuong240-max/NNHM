@@ -53,8 +53,8 @@ import { EsignLinkService } from './esign-link.service';
 import { hashChannelDest, readEsignOtpPepper } from './esign-otp-policy';
 import {
   allSignersSigned,
-  ESIGN_COMPLETION_COPY_CHANNEL_ENV,
   hashDocumentText,
+  readCompletionCopyChannel,
   signerTurn,
   type SigningMode,
 } from './esign-multi-party';
@@ -79,6 +79,8 @@ export type PreparedContractSignature = {
   auditId: string;
   ip?: string | null;
   userAgent?: string | null;
+  /** Set by finishSignedVault when the completion copy must wait until the caller commits. */
+  completionCopyDocumentId?: string | null;
 };
 
 @Injectable()
@@ -480,10 +482,11 @@ export class BookingContractService {
         };
         await audits.save(row);
       }
+      prepared.completionCopyDocumentId = completePackage ? documentId : null;
       if (owned) await active.commitTransaction();
       const response = this.signedResponse(prepared, documentId);
-      if (completePackage) {
-        await this.maybeSendCompletionCopy(prepared, documentId);
+      if (owned && completePackage) {
+        await this.sendCompletionCopyAfterCommit(prepared, documentId);
       }
       return response;
     } catch (error) {
@@ -494,12 +497,10 @@ export class BookingContractService {
     }
   }
 
-  private async maybeSendCompletionCopy(prepared: PreparedContractSignature, documentId: string): Promise<void> {
+  async sendCompletionCopyAfterCommit(prepared: PreparedContractSignature, documentId: string): Promise<void> {
     try {
-      const channel = this.config?.get<string>(ESIGN_COMPLETION_COPY_CHANNEL_ENV)?.trim().toUpperCase();
-      if (!channel || !this.links) return;
-      const destChannel = channel === 'EMAIL' ? 'EMAIL' : channel === 'SMS' ? 'SMS' : null;
-      if (!destChannel) return;
+      const destChannel = readCompletionCopyChannel((key) => this.config?.get<string>(key));
+      if (!destChannel || !this.links) return;
       const downloadUrl = this.signedCopyUrl(documentId);
       if (!downloadUrl) return;
       const tenantId = prepared.tenantId;

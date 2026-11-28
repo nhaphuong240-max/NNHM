@@ -90,6 +90,23 @@ describe('esign batch 3', () => {
     expect(svc.completionCopyChannel()).toBe('EMAIL');
   });
 
+  it('does not treat an unsigned completion channel as a send path', () => {
+    const svc = new SignaturePartyService(
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      { get: (key: string) => (key === ESIGN_COMPLETION_COPY_CHANNEL_ENV ? 'ZALO' : undefined) } as never,
+    );
+    expect(svc.completionCopyChannel()).toBeNull();
+  });
+
   it('lets signer 2 open a session after signer 1 has signed', async () => {
     const mergedText = 'body';
     const roster = [

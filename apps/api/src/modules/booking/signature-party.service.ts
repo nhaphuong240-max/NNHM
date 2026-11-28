@@ -19,7 +19,7 @@ import { buildSigningUrl, ESIGN_SIGNING_BASE_URL_ENV } from './esign-link.policy
 import { VOID_TICKET_JTI_SQL } from './esign-otp-atomic';
 import { EsignLinkService } from './esign-link.service';
 import {
-  ESIGN_COMPLETION_COPY_CHANNEL_ENV,
+  readCompletionCopyChannel,
   hashDocumentText,
   isPartyType,
   signerTurn,
@@ -238,9 +238,8 @@ export class SignaturePartyService {
     }
   }
 
-  completionCopyChannel(): string | null {
-    const raw = this.config.get<string>(ESIGN_COMPLETION_COPY_CHANNEL_ENV)?.trim() ?? '';
-    return raw ? raw.toUpperCase() : null;
+  completionCopyChannel(): 'EMAIL' | 'SMS' | null {
+    return readCompletionCopyChannel((key) => this.config.get<string>(key));
   }
 
   async view(requestId: string, tenantId: string) {

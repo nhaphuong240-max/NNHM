@@ -42,3 +42,9 @@ export function allSignersSigned(roster: SignerTurnRow[]): boolean {
 }
 
 export const ESIGN_COMPLETION_COPY_CHANNEL_ENV = 'ESIGN_COMPLETION_COPY_CHANNEL';
+
+/** Empty or any other value: do not send. Not a signed product default. */
+export function readCompletionCopyChannel(read: (key: string) => string | undefined): 'EMAIL' | 'SMS' | null {
+  const raw = (read(ESIGN_COMPLETION_COPY_CHANNEL_ENV) ?? '').trim().toUpperCase();
+  return raw === 'EMAIL' || raw === 'SMS' ? raw : null;
+}

@@ -155,6 +155,42 @@ describe('esign vault retry', () => {
     expect(vault.documents).toHaveLength(0);
   });
 
+  it('sends the completion copy only after the vault-retry transaction commits', async () => {
+    const order: string[] = [];
+    const { repo } = eventRepo();
+    const prepared = {
+      contractId: 'ctr_b',
+      bookingId: 'bk_1',
+      signerId: 'ssgn_1',
+      requestId: 'sreq_1',
+      tenantId: 'ten_b',
+      buffer: Buffer.from('signed'),
+      fileName: 'ctr_b_ssgn_1_signed.txt',
+    } as PreparedContractSignature;
+    await retryMissingVaultUploads({
+      limits: { maxAttempts: 3, intervalSeconds: 1 },
+      pending: [pending],
+      events: repo as never,
+      contracts: {
+        rebuildPendingSignature: jest.fn(async () => prepared),
+        finishSignedVault: jest.fn(async (row) => {
+          order.push('vault');
+          row.completionCopyDocumentId = 'doc_1';
+        }),
+        sendCompletionCopyAfterCommit: jest.fn(async () => {
+          order.push('copy');
+        }),
+      },
+      lockRequest: async (_row, work) => {
+        order.push('begin');
+        await work({} as never);
+        order.push('commit');
+        return 'ok';
+      },
+    });
+    expect(order).toEqual(['begin', 'vault', 'commit', 'copy']);
+  });
+
   it('does not retry inside the cooldown or after the attempt limit', () => {
     expect(
       decideVaultRetry({ attempts: 1, lastAttemptMs: 1_000, now: 1_500, limits: { maxAttempts: 3, intervalSeconds: 1 } }),
