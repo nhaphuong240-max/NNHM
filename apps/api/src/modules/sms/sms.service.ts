@@ -139,6 +139,7 @@ export class SmsService {
     input: SmsSendInput,
     manager: EntityManager,
   ): Promise<SmsSendResult> {
+    this.assertSmsSandboxConfigured();
     const existing = await this.findBySource(tenantId, input.source!, manager);
     if (existing) {
       return {
@@ -182,6 +183,7 @@ export class SmsService {
   }
 
   async completeEsignLink(tenantId: string, deliveryId: string, input: SmsSendInput): Promise<SmsSendResult> {
+    this.assertSmsSandboxConfigured();
     const row = await this.deliveries.findOne({ where: { id: deliveryId, tenantId } });
     if (!row) {
       throw new UnprocessableEntityException({ detail: 'e-sign link was not sent' });
@@ -250,14 +252,19 @@ export class SmsService {
     await this.deliveries.save(row);
   }
 
-  async assertEsignReady(tenantId: string): Promise<void> {
-    const flag = this.config.get<string>('SMS_SANDBOX')?.trim();
+  assertSmsSandboxConfigured(): string {
+    const flag = this.config.get<string>('SMS_SANDBOX')?.trim() ?? '';
     if (!flag) {
       throw new UnprocessableEntityException({ detail: 'sms sandbox is not configured' });
     }
     if (this.config.get<string>('NODE_ENV') === 'production' && flag === 'true') {
       throw new UnprocessableEntityException({ detail: 'sms sandbox is not allowed in production' });
     }
+    return flag;
+  }
+
+  async assertEsignReady(tenantId: string): Promise<void> {
+    const flag = this.assertSmsSandboxConfigured();
     if (flag === 'true') return;
     void tenantId;
     const url = this.config.get<string>('SMS_PROVIDER_URL')?.trim();
@@ -268,6 +275,7 @@ export class SmsService {
   }
 
   async sendSms(tenantId: string, input: SmsSendInput): Promise<SmsSendResult> {
+    this.assertSmsSandboxConfigured();
     if (input.source) {
       const existing = await this.deliveries.findOne({
         where: {

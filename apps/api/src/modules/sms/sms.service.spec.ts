@@ -1,3 +1,4 @@
+import { UnprocessableEntityException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { ConfigService } from '@nestjs/config';
@@ -127,5 +128,12 @@ describe('SmsService', () => {
   it('rejects demo OTP 123456 when tenant smsSandbox=false (OPS-S4-04)', async () => {
     railsResolve.mockResolvedValueOnce({ smsSandbox: false });
     await expect(service.assertNotDemoOtp(TENANT, '123456')).rejects.toThrow();
+  });
+
+  it('refuses every send when SMS_SANDBOX is empty', async () => {
+    (service as unknown as { config: { get: jest.Mock } }).config.get.mockImplementation(() => '');
+    await expect(
+      service.sendSms(TENANT, { templateId: SMS_TEMPLATES.OTP, phone: '+84901234567' }),
+    ).rejects.toBeInstanceOf(UnprocessableEntityException);
   });
 });

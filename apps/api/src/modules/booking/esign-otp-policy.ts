@@ -8,6 +8,8 @@ export const ESIGN_OTP_MAX_ATTEMPTS_ENV = 'ESIGN_OTP_MAX_ATTEMPTS';
 export const ESIGN_OTP_MAX_SENDS_ENV = 'ESIGN_OTP_MAX_SENDS';
 export const ESIGN_OTP_RESEND_COOLDOWN_ENV = 'ESIGN_OTP_RESEND_COOLDOWN_SECONDS';
 export const ESIGN_OTP_LOCKOUT_ENV = 'ESIGN_OTP_LOCKOUT_SECONDS';
+/** Failed-attempt cap per lead. Empty → 422. VERIFIED rows are excluded. No reset until the owner signs one. */
+export const ESIGN_OTP_LEAD_MAX_ATTEMPTS_ENV = 'ESIGN_OTP_LEAD_MAX_ATTEMPTS';
 
 const BLOCKED_METADATA_KEYS = new Set([
   'otp',

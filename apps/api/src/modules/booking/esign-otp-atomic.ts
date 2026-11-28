@@ -138,7 +138,8 @@ WHERE v."id" = $1 AND v."tenant_id" = $2
     SELECT COALESCE(SUM(c."attempt_count"), 0)
     FROM "signer_channel_verifications" c
     WHERE c."tenant_id" = v."tenant_id" AND c."lead_id" = v."lead_id"
-  ) < $3
+      AND c."status" <> 'VERIFIED'
+  ) < $5
 RETURNING v."id", v."attempt_count", v."code_hash", v."email_dest_masked", v."lead_id", v."locked_until"
 `;
 

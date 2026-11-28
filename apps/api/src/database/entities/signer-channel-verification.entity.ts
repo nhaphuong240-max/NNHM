@@ -41,6 +41,12 @@ export class SignerChannelVerificationEntity {
   @Column({ name: 'expires_at', type: 'timestamptz' })
   expiresAt!: Date;
 
+  @Column({ name: 'last_sent_at', type: 'timestamptz', nullable: true })
+  lastSentAt!: Date | null;
+
+  @Column({ name: 'send_count', type: 'int', default: 0 })
+  sendCount!: number;
+
   @Column({ name: 'attempt_count', type: 'int', default: 0 })
   attemptCount!: number;
 

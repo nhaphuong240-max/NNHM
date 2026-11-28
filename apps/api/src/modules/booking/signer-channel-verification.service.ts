@@ -23,6 +23,7 @@ import {
   maskChannelDest,
   readConfiguredPositiveInt,
   readEsignOtpPepper,
+  ESIGN_OTP_LEAD_MAX_ATTEMPTS_ENV,
   ESIGN_OTP_LOCKOUT_ENV,
   ESIGN_OTP_MAX_ATTEMPTS_ENV,
   ESIGN_OTP_MAX_SENDS_ENV,
@@ -113,15 +114,16 @@ export class SignerChannelVerificationService {
       await this.revokeRow(row);
     }
     const pending = latest.find((row) => row.status === 'PENDING' && row.expiresAt.getTime() > Date.now());
-    if (pending) {
-      if (Date.now() < pending.createdAt.getTime() + cooldown * 1000) {
-        throw new UnprocessableEntityException({ detail: 'esign otp cooldown is active' });
-      }
-      return this.dispatchCode(pending, lead.email.trim(), pepper, false);
+    const lastSent = pending?.lastSentAt ?? pending?.createdAt;
+    if (pending && lastSent && Date.now() < lastSent.getTime() + cooldown * 1000) {
+      throw new UnprocessableEntityException({ detail: CLOSED_DEST });
     }
-    const sendCount = latest.filter((row) => row.status !== 'REVOKED').length;
-    if (sendCount >= maxSends) {
+    const sentTotal = latest.reduce((sum, row) => sum + Number(row.sendCount ?? 0), 0);
+    if (sentTotal >= maxSends) {
       throw new UnprocessableEntityException({ detail: 'esign otp send limit is exhausted' });
+    }
+    if (pending) {
+      return this.dispatchCode(pending, lead.email.trim(), pepper, false);
     }
     const id = `scv_${randomBytes(8).toString('hex')}`;
     const created = this.rows.create({
@@ -134,6 +136,8 @@ export class SignerChannelVerificationService {
       codeHash: null,
       status: 'PENDING',
       expiresAt: esignOtpExpiresAt(Date.now()),
+      lastSentAt: null,
+      sendCount: 0,
       attemptCount: 0,
       lockedUntil: null,
       lockedIndefinitely: false,
@@ -152,6 +156,13 @@ export class SignerChannelVerificationService {
     const lockoutSeconds = readConfiguredPositiveInt((key) => this.config.get<string>(key), ESIGN_OTP_LOCKOUT_ENV);
     if (maxAttempts === null) {
       throw new UnprocessableEntityException({ detail: 'esign otp attempt limit is not configured' });
+    }
+    const leadMaxAttempts = readConfiguredPositiveInt(
+      (key) => this.config.get<string>(key),
+      ESIGN_OTP_LEAD_MAX_ATTEMPTS_ENV,
+    );
+    if (leadMaxAttempts === null) {
+      throw new UnprocessableEntityException({ detail: 'esign otp lead attempt cap is not configured' });
     }
     if (lockoutSeconds === null) {
       throw new UnprocessableEntityException({ detail: 'esign otp lockout is not configured' });
@@ -182,7 +193,13 @@ export class SignerChannelVerificationService {
     }
     const lockedUntil = new Date(Date.now() + lockoutSeconds * 1000);
     const claimed = returnedRows(
-      await this.rows.manager.query(CLAIM_CHANNEL_VERIFY_ATTEMPT_SQL, [id, tenantId, maxAttempts, lockedUntil]),
+      await this.rows.manager.query(CLAIM_CHANNEL_VERIFY_ATTEMPT_SQL, [
+        id,
+        tenantId,
+        maxAttempts,
+        lockedUntil,
+        leadMaxAttempts,
+      ]),
     )[0] as
       | {
           id: string;
@@ -243,6 +260,8 @@ export class SignerChannelVerificationService {
     }
     row.codeHash = hashEsignOtp(code, pepper, row.id);
     row.expiresAt = esignOtpExpiresAt(Date.now());
+    row.lastSentAt = new Date();
+    row.sendCount = Number(row.sendCount ?? 0) + 1;
     await this.rows.save(row);
     void created;
     return { id: row.id, destMasked: row.emailDestMasked, sent: true };
@@ -266,7 +285,7 @@ export class SignerChannelVerificationService {
     if (!variants.length) return null;
     const matches = await this.leads.find({ where: { tenantId, phone: In(variants) } });
     if (matches.length > 1) {
-      throw new UnprocessableEntityException({ detail: 'signer channel destination is ambiguous' });
+      throw new UnprocessableEntityException({ detail: CLOSED_DEST });
     }
     return matches[0] ?? null;
   }

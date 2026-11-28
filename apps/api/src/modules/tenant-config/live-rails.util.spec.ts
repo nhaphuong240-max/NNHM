@@ -12,6 +12,13 @@ describe('live-rails.util', () => {
     expect(rails.simulateEndpoints).toBe(true);
     expect(rails.escrowEnabled).toBe(false);
     expect(rails.bnplEnabled).toBe(false);
+    expect(rails.smsSandbox).toBe(false);
+  });
+
+  it('does not treat an empty SMS_SANDBOX as sandbox', () => {
+    expect(liveRailsFromEnv(env()).smsSandbox).toBe(false);
+    expect(liveRailsFromEnv(env({ SMS_SANDBOX: '' })).smsSandbox).toBe(false);
+    expect(liveRailsFromEnv(env({ SMS_SANDBOX: 'true' })).smsSandbox).toBe(true);
   });
 
   it('disables simulate in production env', () => {

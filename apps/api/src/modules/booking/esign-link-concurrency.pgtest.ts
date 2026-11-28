@@ -1,10 +1,16 @@
 import { Client } from 'pg';
 import { DataSource } from 'typeorm';
+import { SignatureEventEntity } from '../../database/entities/signature-event.entity';
+import { SignatureRequestEntity } from '../../database/entities/signature-request.entity';
+import { SignatureSignerEntity } from '../../database/entities/signature-signer.entity';
+import { SmsDeliveryEntity } from '../../database/entities/sms-delivery.entity';
 import { ADVISORY_LOCK_SQL } from './esign-otp-atomic';
 import { EsignLinkService } from './esign-link.service';
 import { ESIGN_OTP_MAX_SENDS_ENV, ESIGN_OTP_PEPPER_ENV, ESIGN_OTP_RESEND_COOLDOWN_ENV } from './esign-otp-policy';
 import { ESIGN_LINK_CHANNEL_ENV, ESIGN_SIGNING_BASE_URL_ENV } from './esign-link.policy';
 import { SandboxEsignOutbox } from './sandbox-esign-outbox';
+import { SignatureTicketService } from './signature-ticket.service';
+import { SmsService } from '../sms/sms.service';
 
 const url = process.env.DATABASE_URL ?? '';
 
@@ -44,90 +50,79 @@ describe('esign link advisory lock on postgres', () => {
     if (!url) {
       throw new Error('DATABASE_URL is required for the advisory lock proof');
     }
-    const ds = new DataSource({ type: 'postgres', url, extra: { max: 4 } });
+    const stamp = `${Date.now().toString(36)}${Math.floor(Math.random() * 1e4).toString(36)}`;
+    const tenantId = `ten_${stamp}`.slice(0, 32);
+    const contractId = `ctr_${stamp}`.slice(0, 32);
+    const bookingId = `bkg_${stamp}`.slice(0, 32);
+    const buyerId = `usr_${stamp}`.slice(0, 32);
+    const ds = new DataSource({
+      type: 'postgres',
+      url,
+      entities: [SmsDeliveryEntity, SignatureRequestEntity, SignatureSignerEntity, SignatureEventEntity],
+      extra: { max: 4 },
+    });
     await ds.initialize();
-    const deliveries: Array<{ id: string; status: string; source_id: string; created_at: Date }> = [];
-    let tickets = 0;
-    const enqueue = jest.fn(async () => {
-      const id = `sms_${tickets || 1}`;
-      deliveries.push({ id, status: 'SENT', source_id: 'ctr_conc:usr_buyer', created_at: new Date() });
-      return { status: 'QUEUED', deliveryId: id, sandbox: true };
-    });
-    const complete = jest.fn(async (_tenant: string, deliveryId: string) => ({
-      status: 'SENT',
-      deliveryId,
-      sandbox: true,
-    }));
-    const issueBuyerAccess = jest.fn(async () => {
-      tickets += 1;
-      return {
-        token: 'v1s.test.token',
-        claims: {
-          tenantId: 'ten_conc',
-          contractId: 'ctr_conc',
-          buyerId: 'usr_buyer',
-          signerId: 'ssgn_1',
-          requestId: 'sreq_1',
-          jti: `jti_${tickets}`,
-          channel: 'SMS',
-        },
-      };
-    });
+    await ds.query(`SELECT set_config('app.is_platform_admin', 'true', false)`);
+    const config = {
+      get: (key: string) =>
+        ({
+          CONTRACT_SIGN_SECRET: 'contract-sign-test-secret',
+          [ESIGN_OTP_PEPPER_ENV]: 'esign-otp-pepper-16',
+          [ESIGN_OTP_MAX_SENDS_ENV]: '4',
+          [ESIGN_OTP_RESEND_COOLDOWN_ENV]: '30',
+          [ESIGN_LINK_CHANNEL_ENV]: 'SMS',
+          [ESIGN_SIGNING_BASE_URL_ENV]: 'https://app.example.test/buyer/esign',
+          EMAIL_SANDBOX: 'true',
+          SMS_SANDBOX: 'true',
+          NODE_ENV: 'test',
+        })[key],
+    };
+    const tickets = new SignatureTicketService(
+      ds.getRepository(SignatureRequestEntity),
+      ds.getRepository(SignatureSignerEntity),
+      ds.getRepository(SignatureEventEntity),
+      ds,
+    );
+    const sms = new SmsService(
+      ds.getRepository(SmsDeliveryEntity),
+      { findOne: jest.fn(async () => ({ id: 'smb', isActive: true, apiKey: 'k' })) } as never,
+      { isSandboxMode: jest.fn(async () => true), graphMode: jest.fn(async () => 'SANDBOX') } as never,
+      { append: jest.fn(async () => ({})) } as never,
+      config as never,
+      { resolve: jest.fn(async () => ({ smsSandbox: true })) } as never,
+    );
     const service = new EsignLinkService(
-      { findOne: jest.fn(async () => ({ id: 'bkg', leadId: 'ld' })) } as never,
+      { findOne: jest.fn(async () => ({ id: bookingId, leadId: 'ld_conc' })) } as never,
       { findOne: jest.fn(async () => ({ phone: '+84901234567', email: 'a@b.c', channelMeta: {} })) } as never,
-      { findOne: jest.fn(async () => ({ id: 'usr_buyer' })) } as never,
-      {
-        query: async () => [],
-        createQueryRunner: () => {
-          const runner = ds.createQueryRunner();
-          const orig = runner.query.bind(runner);
-          runner.query = (async (sql: string, params?: unknown[]) => {
-            if (String(sql).includes('pg_advisory')) return orig(sql, params);
-            if (String(sql).includes('UNION')) {
-              return deliveries.slice().sort((a, b) => b.created_at.getTime() - a.created_at.getTime()).slice(0, 1);
-            }
-            return [];
-          }) as typeof runner.query;
-          return runner;
-        },
-        getRepository: () => ({ save: async (row: unknown) => row }),
-      } as never,
-      {
-        get: (key: string) =>
-          ({
-            CONTRACT_SIGN_SECRET: 'contract-sign-test-secret',
-            [ESIGN_OTP_PEPPER_ENV]: 'esign-otp-pepper-16',
-            [ESIGN_OTP_MAX_SENDS_ENV]: '4',
-            [ESIGN_OTP_RESEND_COOLDOWN_ENV]: '30',
-            [ESIGN_LINK_CHANNEL_ENV]: 'SMS',
-            [ESIGN_SIGNING_BASE_URL_ENV]: 'https://app.example.test/buyer/esign',
-            EMAIL_SANDBOX: 'true',
-            SMS_SANDBOX: 'true',
-            NODE_ENV: 'test',
-          })[key],
-      } as never,
-      { issueBuyerAccess } as never,
+      { findOne: jest.fn(async () => ({ id: buyerId })) } as never,
+      ds,
+      config as never,
+      tickets,
       { assertSendBudget: jest.fn(async () => undefined) } as never,
       { markFailed: jest.fn(), assertReady: jest.fn(), isSandbox: jest.fn(() => true) } as never,
-      {
-        enqueueEsignLink: enqueue,
-        completeEsignLink: complete,
-        markFailed: jest.fn(),
-        assertEsignReady: jest.fn(async () => undefined),
-        isSandbox: jest.fn(async () => true),
-      } as never,
+      sms,
       new SandboxEsignOutbox({ get: () => 'test' } as never),
       { assertVerified: jest.fn(async () => undefined) } as never,
     );
     try {
-      const input = { tenantId: 'ten_conc', contractId: 'ctr_conc', bookingId: 'bkg', buyerName: 'Thu' };
+      const input = { tenantId, contractId, bookingId, buyerName: 'Thu' };
       const [a, b] = await Promise.all([service.send(input), service.send(input)]);
       expect(new Set([a.deliveryId, b.deliveryId]).size).toBe(1);
-      expect(tickets).toBe(1);
-      expect(enqueue).toHaveBeenCalledTimes(1);
       expect([a.idempotentReplay, b.idempotentReplay].filter(Boolean)).toHaveLength(1);
+      const deliveries = (await ds.query(
+        `SELECT id FROM sms_deliveries WHERE tenant_id = $1 AND source_type = 'ESIGN_LINK'`,
+        [tenantId],
+      )) as Array<{ id: string }>;
+      const signers = (await ds.query(`SELECT id FROM signature_signers WHERE tenant_id = $1`, [tenantId])) as Array<{
+        id: string;
+      }>;
+      expect(deliveries).toHaveLength(1);
+      expect(signers).toHaveLength(1);
     } finally {
+      await ds.query(`DELETE FROM signature_events WHERE tenant_id = $1`, [tenantId]);
+      await ds.query(`DELETE FROM signature_signers WHERE tenant_id = $1`, [tenantId]);
+      await ds.query(`DELETE FROM signature_requests WHERE tenant_id = $1`, [tenantId]);
+      await ds.query(`DELETE FROM sms_deliveries WHERE tenant_id = $1`, [tenantId]);
       await ds.destroy();
     }
   }, 20_000);
