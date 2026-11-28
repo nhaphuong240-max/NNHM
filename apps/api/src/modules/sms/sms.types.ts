@@ -1,6 +1,7 @@
 export const SMS_TEMPLATES = {
   OTP: 'sms_otp_v1',
   SIGN_LINK: 'sms_esign_link_v1',
+  COMPLETION: 'sms_esign_completion_v1',
   BOOKING_CONFIRM: 'sms_booking_confirm_v1',
   TRANSACTION_NOTIFY: 'sms_txn_notify_v1',
 } as const;
@@ -9,6 +10,7 @@ export const SMS_TEMPLATES = {
 export const SMS_TEMPLATE_COPY: Record<string, string> = {
   sms_otp_v1: 'Ma OTP ky hop dong: {{otp}}',
   sms_esign_link_v1: 'Mo link ky hop dong WEREAL. Khong chia se link nay.',
+  sms_esign_completion_v1: 'Xin chao {{buyer_name}}. Hop dong da hoan tat ky. Tai: {{documentUrl}}',
   sms_booking_confirm_v1: 'Dat cho thanh cong.',
   sms_txn_notify_v1: 'Thong bao giao dich.',
 };
@@ -23,7 +25,7 @@ export interface SmsSendInput {
   params?: Record<string, unknown>;
   persistOtp?: boolean;
   maskStoredDest?: boolean;
-  source?: { type: 'MANUAL' | 'PAYMENT_OTP' | 'PAYMENT_SUCCESS' | 'ESIGN_OTP' | 'ESIGN_LINK'; id: string };
+  source?: { type: 'MANUAL' | 'PAYMENT_OTP' | 'PAYMENT_SUCCESS' | 'ESIGN_OTP' | 'ESIGN_LINK' | 'ESIGN_COMPLETION'; id: string };
 }
 
 export interface SmsSendResult {

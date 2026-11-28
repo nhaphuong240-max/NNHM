@@ -20,6 +20,7 @@ const BLOCKED_METADATA_KEYS = new Set([
   'secret',
   'pepper',
   'password',
+  'documentUrl',
 ]);
 
 export function readEsignOtpPepper(read: (key: string) => string | undefined): string | null {

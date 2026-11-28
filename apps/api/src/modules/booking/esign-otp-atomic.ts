@@ -45,9 +45,20 @@ RETURNING "id"
 `;
 
 export const MARK_REQUEST_SIGNED_SQL = `
-UPDATE "signature_requests"
+UPDATE "signature_requests" r
 SET "status" = 'SIGNED'
-WHERE "id" = $1 AND "tenant_id" = $2 AND "status" <> 'SIGNED'
+WHERE r."id" = $1 AND r."tenant_id" = $2 AND r."status" <> 'SIGNED'
+  AND NOT EXISTS (
+    SELECT 1 FROM "signature_signers" s
+    WHERE s."request_id" = r."id" AND s."tenant_id" = r."tenant_id" AND s."status" <> 'SIGNED'
+  )
+RETURNING r."id"
+`;
+
+export const SET_REQUEST_CERTIFICATE_SQL = `
+UPDATE "signature_requests"
+SET "certificate_document_id" = $3
+WHERE "id" = $1 AND "tenant_id" = $2 AND "certificate_document_id" IS NULL
 RETURNING "id"
 `;
 

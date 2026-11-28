@@ -68,6 +68,7 @@ export const TENANT_LOOKUP_SQL = {
   area_slug: 'SELECT DISTINCT tenant_id FROM geo_areas WHERE slug = $1',
   unit: 'SELECT DISTINCT tenant_id FROM units WHERE id = $1',
   contract: `SELECT DISTINCT tenant_id FROM audit_events WHERE entity_type = 'contract' AND entity_id = $1`,
+  signature_request: `SELECT DISTINCT tenant_id FROM signature_requests WHERE id = $1`,
   sso_provider: `
     SELECT DISTINCT tenant_id FROM tenant_config_versions
     WHERE domain = 'SSO_PROVIDER' AND entity_id = $1

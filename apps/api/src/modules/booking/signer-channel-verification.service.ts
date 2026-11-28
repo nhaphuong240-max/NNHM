@@ -73,6 +73,17 @@ export class SignerChannelVerificationService {
     }
   }
 
+  async verifiedSmsPhone(tenantId: string, destHash: string): Promise<string | null> {
+    if (!destHash) return null;
+    const verified = await this.rows.findOne({ where: { tenantId, status: 'VERIFIED', smsDestHash: destHash } });
+    if (!verified) return null;
+    const lead = await this.leads.findOne({ where: { id: verified.leadId, tenantId } });
+    const phone = lead?.phone?.trim() ?? '';
+    if (!phone) return null;
+    if (hashChannelDest(phone, this.pepper()) !== destHash) return null;
+    return phone;
+  }
+
   async start(
     tenantId: string,
     phone: string,

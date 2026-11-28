@@ -69,6 +69,7 @@ export async function retryMissingVaultUploads(input: {
   contracts: {
     rebuildPendingSignature: (claims: ContractSignClaims) => Promise<PreparedContractSignature>;
     finishSignedVault: (prepared: PreparedContractSignature, runner?: QueryRunner) => Promise<unknown>;
+    sendCompletionCopyAfterCommit?: (prepared: PreparedContractSignature, documentId: string) => Promise<void>;
   };
   lockRequest?: (row: PendingVaultRow, work: (runner: QueryRunner) => Promise<void>) => Promise<'ok' | 'busy'>;
   onRow?: () => Promise<boolean>;
@@ -91,8 +92,9 @@ export async function retryMissingVaultUploads(input: {
     if (decision !== 'run') continue;
     attempted += 1;
     try {
+      let prepared: PreparedContractSignature | undefined;
       const work = async (runner?: QueryRunner) => {
-        const prepared = await input.contracts.rebuildPendingSignature({
+        prepared = await input.contracts.rebuildPendingSignature({
           tenantId: row.tenant_id,
           contractId: row.contract_id,
           buyerId: row.subject_id ?? '',
@@ -111,6 +113,10 @@ export async function retryMissingVaultUploads(input: {
       }
       stored += 1;
       await recordRetry(input.events, row, now, true);
+      const copyId = prepared?.completionCopyDocumentId;
+      if (input.lockRequest && copyId) {
+        await input.contracts.sendCompletionCopyAfterCommit?.(prepared!, copyId);
+      }
     } catch {
       await recordRetry(input.events, row, now, false);
     }

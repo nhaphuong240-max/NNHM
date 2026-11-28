@@ -28,6 +28,7 @@ const RLS_TABLES = new Set([
   ...readTableArray(rlsSource, 'ESIGN_TENANT_TABLES'),
   ...readTableArray(rlsSource, 'ESIGN_LINK_TENANT_TABLES'),
   ...readTableArray(rlsSource, 'ESIGN_CHANNEL_VERIFY_TABLES'),
+  ...readTableArray(rlsSource, 'ESIGN_DOWNLOAD_TICKET_TABLES'),
   'tenants',
   'agency_applications',
 ]);

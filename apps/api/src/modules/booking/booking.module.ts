@@ -11,6 +11,7 @@ import { ProjectEntity } from '../../database/entities/project.entity';
 import { SignatureEventEntity } from '../../database/entities/signature-event.entity';
 import { SignatureRequestEntity } from '../../database/entities/signature-request.entity';
 import { SignatureSignerEntity } from '../../database/entities/signature-signer.entity';
+import { EsignDownloadTicketEntity } from '../../database/entities/esign-download-ticket.entity';
 import { SignerChannelVerificationEntity } from '../../database/entities/signer-channel-verification.entity';
 import { UnitEntity } from '../../database/entities/unit.entity';
 import { UserEntity } from '../../database/entities/user.entity';
@@ -28,6 +29,8 @@ import { NotifyModule } from '../notify/notify.module';
 import { BookingContractController } from './booking-contract.controller';
 import { EsignSandboxController } from './esign-sandbox.controller';
 import { EsignChannelVerificationController } from './esign-channel-verification.controller';
+import { SignaturePartyController } from './signature-party.controller';
+import { SignaturePartyService } from './signature-party.service';
 import { SignerChannelVerificationService } from './signer-channel-verification.service';
 import { LeadChannelRevokeSubscriber } from './lead-channel-revoke.subscriber';
 import { SandboxEsignOutbox } from './sandbox-esign-outbox';
@@ -37,6 +40,8 @@ import { HandoverChecklistController } from './handover-checklist.controller';
 import { HandoverChecklistService } from './handover-checklist.service';
 import { BookingContractEsignProviderService } from './booking-contract-esign-provider.service';
 import { BookingContractEsignSmsService } from './booking-contract-esign-sms.service';
+import { EsignDownloadController } from './esign-download.controller';
+import { EsignDownloadTicketService } from './esign-download-ticket.service';
 import { EsignLinkService } from './esign-link.service';
 import { EsignOtpChallengeService } from './esign-otp-challenge.service';
 import { SignatureTicketService } from './signature-ticket.service';
@@ -61,6 +66,7 @@ import { BookingService } from './booking.service';
       SignatureRequestEntity,
       SignatureSignerEntity,
       SignerChannelVerificationEntity,
+      EsignDownloadTicketEntity,
       UnitEntity,
       PaymentIntentEntity,
       LeadEntity,
@@ -89,6 +95,8 @@ import { BookingService } from './booking.service';
     HandoverChecklistController,
     EsignSandboxController,
     EsignChannelVerificationController,
+    SignaturePartyController,
+    EsignDownloadController,
   ],
   providers: [
     BookingService,
@@ -98,7 +106,9 @@ import { BookingService } from './booking.service';
     BookingContractEsignSmsService,
     EsignLinkService,
     SignerChannelVerificationService,
+    EsignDownloadTicketService,
     LeadChannelRevokeSubscriber,
+    SignaturePartyService,
     SandboxEsignOutbox,
     EsignOtpChallengeService,
     SignatureTicketService,

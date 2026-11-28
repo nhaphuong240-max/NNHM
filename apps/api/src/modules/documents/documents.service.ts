@@ -311,6 +311,53 @@ export class DocumentsService {
     return { id: row.id };
   }
 
+  async putPdfCopy(
+    manager: EntityManager,
+    input: {
+      tenantId: string;
+      bookingId: string;
+      contractId: string;
+      kind: 'signed' | 'certificate';
+      buffer: Buffer;
+      fileName: string;
+    },
+  ): Promise<{ id: string }> {
+    if (input.buffer.length > MAX_BYTES) {
+      throw new UnprocessableEntityException({ detail: `File exceeds ${MAX_BYTES} bytes pilot limit` });
+    }
+    const storageKey = `booking/${input.bookingId}/esign/${input.contractId}/${input.kind}.pdf`;
+    const documents = manager.getRepository(DocumentEntity);
+    const existing = await documents.findOne({ where: { tenantId: input.tenantId, storageKey } });
+    if (existing) return { id: existing.id };
+    const stored = await this.storage.putObject({
+      tenantId: input.tenantId,
+      storageKey,
+      buffer: input.buffer,
+      mimeType: 'application/pdf',
+    });
+    const documentId = `doc_${randomUUID().replace(/-/g, '').slice(0, 10)}`;
+    const row = await documents.save({
+      id: documentId,
+      tenantId: input.tenantId,
+      entityType: 'BOOKING',
+      entityId: input.bookingId.trim(),
+      folder: 'CONTRACT',
+      docType: input.kind === 'certificate' ? 'ESIGN_CERTIFICATE' : 'SIGNED_CONTRACT',
+      fileName: sanitizeFileName(input.fileName),
+      mimeType: 'application/pdf',
+      sizeBytes: stored.sizeBytes,
+      contentHash: createHash('sha256').update(input.buffer).digest('hex'),
+      storageKey: stored.storageKey,
+      storageProvider: stored.provider,
+      watermarkEnabled: true,
+      scanStatus: 'CLEAN',
+      retentionClass: '10Y',
+      version: 1,
+      createdBy: null,
+    });
+    return { id: row.id };
+  }
+
   async openDownloadStream(
     tenantId: string,
     documentId: string,

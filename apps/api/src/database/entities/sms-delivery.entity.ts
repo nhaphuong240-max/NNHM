@@ -8,7 +8,7 @@ import {
 } from 'typeorm';
 
 export type SmsDeliveryStatus = 'QUEUED' | 'SENT' | 'DELIVERED' | 'FAILED';
-export type SmsSourceType = 'MANUAL' | 'PAYMENT_OTP' | 'PAYMENT_SUCCESS' | 'ESIGN_OTP' | 'ESIGN_LINK';
+export type SmsSourceType = 'MANUAL' | 'PAYMENT_OTP' | 'PAYMENT_SUCCESS' | 'ESIGN_OTP' | 'ESIGN_LINK' | 'ESIGN_COMPLETION';
 
 @Entity({ name: 'sms_deliveries' })
 @Index(['tenantId', 'sourceType', 'sourceId'], { unique: true, where: '"source_id" IS NOT NULL' })

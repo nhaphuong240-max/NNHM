@@ -13,14 +13,14 @@ export type EmailDispatchInput = {
   to: string;
   templateId: string;
   params?: Record<string, unknown>;
-  source?: { type: 'ESIGN_LINK' | 'ESIGN_OTP' | 'CHANNEL_VERIFY'; id: string };
+  source?: { type: 'ESIGN_LINK' | 'ESIGN_OTP' | 'CHANNEL_VERIFY' | 'ESIGN_COMPLETION'; id: string };
   persistOtp?: boolean;
 };
 
 function storedParams(params: Record<string, unknown>): Record<string, unknown> {
   const safe: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(params)) {
-    if (['otp', 'token', 'to', 'email', 'signingUrl', 'phone'].includes(key)) continue;
+    if (['otp', 'token', 'to', 'email', 'signingUrl', 'phone', 'documentUrl'].includes(key)) continue;
     if (typeof value === 'string' && (value.includes('v1s.') || value.includes('@'))) continue;
     safe[key] = value;
   }
@@ -64,7 +64,7 @@ export class EmailService {
 
   async findBySource(
     tenantId: string,
-    source: { type: 'ESIGN_LINK' | 'ESIGN_OTP' | 'CHANNEL_VERIFY'; id: string },
+    source: { type: 'ESIGN_LINK' | 'ESIGN_OTP' | 'CHANNEL_VERIFY' | 'ESIGN_COMPLETION'; id: string },
     manager?: EntityManager,
   ) {
     const deliveries = manager ? manager.getRepository(EmailDeliveryEntity) : this.deliveries;
