@@ -125,14 +125,21 @@ describe('esign batch 4 approve and kyc', () => {
     }
   });
 
-  it('advances CONTRACTED on last signature when admin review is not required', () => {
+  it('does not auto-advance CONTRACTED until review is APPROVED (Q7 unsigned)', () => {
     const signed = [{ id: 's1', signOrder: 1, groupId: null, status: 'SIGNED' }];
     expect(
       canAdvanceBookingToContracted({ requiresAdminReview: false, reviewDecision: null, roster: signed }),
-    ).toBe(true);
+    ).toBe(false);
     expect(
       canAdvanceBookingToContracted({ requiresAdminReview: true, reviewDecision: null, roster: signed }),
     ).toBe(false);
+    expect(
+      canAdvanceBookingToContracted({
+        requiresAdminReview: false,
+        reviewDecision: 'APPROVED',
+        roster: signed,
+      }),
+    ).toBe(true);
     expect(
       canAdvanceBookingToContracted({
         requiresAdminReview: true,

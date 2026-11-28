@@ -9,6 +9,7 @@ export const TENANT_ROLES = [
 ] as const;
 
 export const SEND_SIGN_LINK_PERMISSION = 'contracts.send_sign_link';
+/** Catalog only. Not assigned to any TENANT_ROLES entry (fail-closed until the owner signs 9.1). */
 export const CONTRACTS_APPROVE_PERMISSION = 'contracts.approve';
 export const KYC_APPROVE_PERMISSION = 'kyc.approve';
 

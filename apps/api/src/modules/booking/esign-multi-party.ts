@@ -47,8 +47,10 @@ export function canAdvanceBookingToContracted(input: {
   roster: SignerTurnRow[];
 }): boolean {
   if (!allSignersSigned(input.roster)) return false;
-  if (input.requiresAdminReview && input.reviewDecision !== 'APPROVED') return false;
-  return true;
+  // Q7 is unsigned: do not auto-advance when requires_admin_review=false.
+  // CONTRACTED only after review APPROVED. contracts.approve / kyc.approve stay unassigned (fail-closed).
+  void input.requiresAdminReview;
+  return input.reviewDecision === 'APPROVED';
 }
 
 export const ESIGN_COMPLETION_COPY_CHANNEL_ENV = 'ESIGN_COMPLETION_COPY_CHANNEL';

@@ -54,7 +54,6 @@ import { EsignLinkService } from './esign-link.service';
 import { hashChannelDest, readEsignOtpPepper } from './esign-otp-policy';
 import {
   allSignersSigned,
-  canAdvanceBookingToContracted,
   hashDocumentText,
   readCompletionCopyChannel,
   signerTurn,
@@ -349,28 +348,6 @@ export class BookingContractService {
       throw new UnprocessableEntityException({ detail: 'signer already has a signed record' });
     }
     await manager.query(MARK_REQUEST_SIGNED_SQL, [access.requestId, tenantId]);
-    const rosterAfter = await manager.getRepository(SignatureSignerEntity).find({
-      where: { requestId: access.requestId, tenantId },
-    });
-    const requestAfter = await manager.getRepository(SignatureRequestEntity).findOne({
-      where: { id: access.requestId, tenantId },
-    });
-    if (
-      requestAfter &&
-      canAdvanceBookingToContracted({
-        requiresAdminReview: requestAfter.requiresAdminReview,
-        reviewDecision: requestAfter.reviewDecision,
-        roster: rosterAfter,
-      })
-    ) {
-      const booking = await manager.getRepository(BookingEntity).findOne({
-        where: { id: record.attributes.bookingId, tenantId },
-      });
-      if (booking?.status === 'DEPOSITED') {
-        booking.status = 'CONTRACTED';
-        await manager.getRepository(BookingEntity).save(booking);
-      }
-    }
     try {
       await manager.getRepository(SignatureEventEntity).save({
         id: `sev_${randomUUID().replace(/-/g, '').slice(0, 16)}`,
