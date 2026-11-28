@@ -157,7 +157,7 @@ export class SmsService {
     const params = Object.fromEntries(
       Object.entries(input.params ?? {}).filter(
         ([key, value]) =>
-          !['token', 'signingUrl', 'email', 'to', 'otp'].includes(key) &&
+          !['token', 'signingUrl', 'email', 'to', 'otp', 'documentUrl'].includes(key) &&
           !(typeof value === 'string' && value.includes('v1s.')),
       ),
     );
@@ -322,7 +322,7 @@ export class SmsService {
     const storedParams = Object.fromEntries(
       Object.entries(persistOtp ? params : Object.fromEntries(Object.entries(params).filter(([key]) => key !== 'otp'))).filter(
         ([key, value]) =>
-          !['token', 'signingUrl', 'email', 'to'].includes(key) &&
+          !['token', 'signingUrl', 'email', 'to', 'documentUrl'].includes(key) &&
           !(typeof value === 'string' && value.includes('v1s.')),
       ),
     );

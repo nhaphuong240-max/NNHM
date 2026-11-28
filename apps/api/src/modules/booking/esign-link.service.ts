@@ -291,6 +291,7 @@ export class EsignLinkService {
     contractId: string;
     documentId: string;
     signerId: string;
+    documentUrl?: string;
   }): Promise<void> {
     const sourceId = `ESIGN_COMPLETION:${input.contractId}:${input.signerId}`;
     const templateId = input.dest.channel === 'EMAIL' ? EMAIL_TEMPLATES.COMPLETION : SMS_TEMPLATES.COMPLETION;
@@ -300,6 +301,7 @@ export class EsignLinkService {
     let deliveryId = '';
     try {
       await this.assertChannelReady(input.tenantId, input.dest.channel, templateId);
+      const extraParams = input.documentUrl ? { documentUrl: input.documentUrl } : undefined;
       const queued = await this.enqueueLink({
         tenantId: input.tenantId,
         dest: input.dest,
@@ -309,6 +311,7 @@ export class EsignLinkService {
         manager: runner.manager,
         templateId,
         sourceType: 'ESIGN_COMPLETION',
+        extraParams,
       });
       deliveryId = queued.deliveryId;
       await runner.commitTransaction();
@@ -336,6 +339,7 @@ export class EsignLinkService {
         signingUrl: '',
         templateId,
         sourceType: 'ESIGN_COMPLETION',
+        extraParams: input.documentUrl ? { documentUrl: input.documentUrl } : undefined,
       });
     } catch {
       if (input.dest.channel === 'SMS') await this.sms.markFailed(input.tenantId, deliveryId);

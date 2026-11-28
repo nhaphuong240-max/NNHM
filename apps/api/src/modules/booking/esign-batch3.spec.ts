@@ -143,11 +143,11 @@ describe('esign batch 3', () => {
     });
   });
 
-  it('keeps a completion template without otp, token, or documentUrl copy', () => {
+  it('keeps a completion template with documentUrl and without otp or token', () => {
     expect(EMAIL_TEMPLATE_COPY[EMAIL_TEMPLATES.COMPLETION]).not.toMatch(/\{\{otp\}\}/);
     expect(SMS_TEMPLATE_COPY[SMS_TEMPLATES.COMPLETION]).not.toMatch(/\{\{otp\}\}/);
-    expect(EMAIL_TEMPLATE_COPY[EMAIL_TEMPLATES.COMPLETION]).not.toMatch(/\{\{documentUrl\}\}/);
-    expect(SMS_TEMPLATE_COPY[SMS_TEMPLATES.COMPLETION]).not.toMatch(/\{\{documentUrl\}\}/);
+    expect(EMAIL_TEMPLATE_COPY[EMAIL_TEMPLATES.COMPLETION]).toMatch(/\{\{documentUrl\}\}/);
+    expect(SMS_TEMPLATE_COPY[SMS_TEMPLATES.COMPLETION]).toMatch(/\{\{documentUrl\}\}/);
     expect(EMAIL_TEMPLATE_COPY[EMAIL_TEMPLATES.COMPLETION]).toMatch(/\{\{buyer_name\}\}/);
   });
 
@@ -302,6 +302,52 @@ describe('esign batch 3', () => {
     expect(JSON.stringify(deliver.mock.calls)).not.toContain('/documents/');
     expect(JSON.stringify(deliver.mock.calls)).not.toContain('documentUrl');
     expect(JSON.stringify(deliver.mock.calls)).not.toContain('v1s.');
+  });
+
+  it('attaches a per-signer download URL when TTL is configured', async () => {
+    const deliver = jest.fn(async () => undefined);
+    const issuePublicUrl = jest.fn(async (input: { signerId: string }) => `https://app.example.test/api/v1/esign-downloads/ticket_${input.signerId}`);
+    const roster = [
+      { id: 'ssgn_1', partyType: 'BUYER', displayName: 'Thu', channel: 'EMAIL', channelDestHash: null, subjectId: 'usr_1' },
+    ];
+    const contracts = new BookingContractService(
+      { findOne: jest.fn(async () => ({ leadId: 'ld_1' })) } as never,
+      {} as never,
+      {} as never,
+      { findOne: jest.fn(async () => ({ email: 'thu@example.com', phone: '+84901234567' })) } as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {
+        getRepository: (entity: unknown) => {
+          if (entity === SignatureRequestEntity) {
+            return { findOne: async () => ({ id: 'sreq_1', sourceEntityId: 'bk_1' }) };
+          }
+          if (entity === SignatureSignerEntity) {
+            return { find: async () => roster };
+          }
+          return {};
+        },
+      } as never,
+      { get: (key: string) => (key === ESIGN_COMPLETION_COPY_CHANNEL_ENV ? 'EMAIL' : undefined) } as never,
+      { deliverCompletionCopy: deliver } as never,
+      { issuePublicUrl } as never,
+    );
+    await contracts.sendCompletionCopyAfterCommit(
+      { tenantId: 'ten_b', requestId: 'sreq_1', signerId: 'ssgn_1', signerName: 'Thu', contractId: 'ctr_b' } as never,
+      'doc_1',
+    );
+    expect(issuePublicUrl).toHaveBeenCalledWith({
+      tenantId: 'ten_b',
+      documentId: 'doc_1',
+      signerId: 'ssgn_1',
+      contractId: 'ctr_b',
+    });
+    const sent = (deliver.mock.calls as unknown as Array<[{ documentUrl?: string }]>)[0]?.[0];
+    expect(sent?.documentUrl).toContain('/esign-downloads/');
   });
 
   it('greets a party without displayName neutrally and keeps sending after one failure', async () => {

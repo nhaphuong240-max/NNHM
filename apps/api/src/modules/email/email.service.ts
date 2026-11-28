@@ -20,7 +20,7 @@ export type EmailDispatchInput = {
 function storedParams(params: Record<string, unknown>): Record<string, unknown> {
   const safe: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(params)) {
-    if (['otp', 'token', 'to', 'email', 'signingUrl', 'phone'].includes(key)) continue;
+    if (['otp', 'token', 'to', 'email', 'signingUrl', 'phone', 'documentUrl'].includes(key)) continue;
     if (typeof value === 'string' && (value.includes('v1s.') || value.includes('@'))) continue;
     safe[key] = value;
   }

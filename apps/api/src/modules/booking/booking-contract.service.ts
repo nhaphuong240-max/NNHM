@@ -49,6 +49,7 @@ import {
   returnedRows,
 } from './esign-otp-atomic';
 import { buildPlainPdf } from './esign-completion-pdf';
+import { EsignDownloadTicketService } from './esign-download-ticket.service';
 import { EsignLinkService } from './esign-link.service';
 import { hashChannelDest, readEsignOtpPepper } from './esign-otp-policy';
 import {
@@ -109,6 +110,7 @@ export class BookingContractService {
     private readonly dataSource: DataSource,
     @Optional() private readonly config?: ConfigService,
     @Optional() private readonly links?: EsignLinkService,
+    @Optional() private readonly downloads?: EsignDownloadTicketService,
   ) {}
 
   listTemplates() {
@@ -505,8 +507,6 @@ export class BookingContractService {
     try {
       const destChannel = readCompletionCopyChannel((key) => this.config?.get<string>(key));
       if (!destChannel || !this.links) return;
-      // Download tickets are unsigned: completion copy is a notice only, no documentUrl.
-      void documentId;
       const tenantId = prepared.tenantId;
       const request = await this.dataSource.getRepository(SignatureRequestEntity).findOne({
         where: { id: prepared.requestId, tenantId },
@@ -524,6 +524,13 @@ export class BookingContractService {
             this.logger.warn(`esign completion copy skipped signer=${signer.id} reason=dest`);
             continue;
           }
+          const documentUrl =
+            (await this.downloads?.issuePublicUrl({
+              tenantId,
+              documentId,
+              signerId: signer.id,
+              contractId: prepared.contractId,
+            })) ?? '';
           await this.links.deliverCompletionCopy({
             tenantId,
             dest: { channel: destChannel, value },
@@ -531,6 +538,7 @@ export class BookingContractService {
             contractId: prepared.contractId,
             documentId,
             signerId: signer.id,
+            documentUrl: documentUrl || undefined,
           });
         } catch {
           this.logger.warn(`esign completion copy failed signer=${signer.id}`);

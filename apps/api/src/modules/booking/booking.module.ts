@@ -11,6 +11,7 @@ import { ProjectEntity } from '../../database/entities/project.entity';
 import { SignatureEventEntity } from '../../database/entities/signature-event.entity';
 import { SignatureRequestEntity } from '../../database/entities/signature-request.entity';
 import { SignatureSignerEntity } from '../../database/entities/signature-signer.entity';
+import { EsignDownloadTicketEntity } from '../../database/entities/esign-download-ticket.entity';
 import { SignerChannelVerificationEntity } from '../../database/entities/signer-channel-verification.entity';
 import { UnitEntity } from '../../database/entities/unit.entity';
 import { UserEntity } from '../../database/entities/user.entity';
@@ -39,6 +40,8 @@ import { HandoverChecklistController } from './handover-checklist.controller';
 import { HandoverChecklistService } from './handover-checklist.service';
 import { BookingContractEsignProviderService } from './booking-contract-esign-provider.service';
 import { BookingContractEsignSmsService } from './booking-contract-esign-sms.service';
+import { EsignDownloadController } from './esign-download.controller';
+import { EsignDownloadTicketService } from './esign-download-ticket.service';
 import { EsignLinkService } from './esign-link.service';
 import { EsignOtpChallengeService } from './esign-otp-challenge.service';
 import { SignatureTicketService } from './signature-ticket.service';
@@ -63,6 +66,7 @@ import { BookingService } from './booking.service';
       SignatureRequestEntity,
       SignatureSignerEntity,
       SignerChannelVerificationEntity,
+      EsignDownloadTicketEntity,
       UnitEntity,
       PaymentIntentEntity,
       LeadEntity,
@@ -92,6 +96,7 @@ import { BookingService } from './booking.service';
     EsignSandboxController,
     EsignChannelVerificationController,
     SignaturePartyController,
+    EsignDownloadController,
   ],
   providers: [
     BookingService,
@@ -101,6 +106,7 @@ import { BookingService } from './booking.service';
     BookingContractEsignSmsService,
     EsignLinkService,
     SignerChannelVerificationService,
+    EsignDownloadTicketService,
     LeadChannelRevokeSubscriber,
     SignaturePartyService,
     SandboxEsignOutbox,

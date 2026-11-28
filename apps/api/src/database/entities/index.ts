@@ -98,3 +98,4 @@ export { EsignOtpChallengeEntity } from './esign-otp-challenge.entity';
 export { SignatureEventEntity } from './signature-event.entity';
 export { EmailDeliveryEntity } from './email-delivery.entity';
 export { SignerChannelVerificationEntity } from './signer-channel-verification.entity';
+export { EsignDownloadTicketEntity } from './esign-download-ticket.entity';
