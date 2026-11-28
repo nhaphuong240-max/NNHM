@@ -1,13 +1,19 @@
-import { ForbiddenException, UnprocessableEntityException } from '@nestjs/common';
+import { ForbiddenException, Logger, UnprocessableEntityException } from '@nestjs/common';
 import { SignatureRequestEntity } from '../../database/entities/signature-request.entity';
 import { SignatureSignerEntity } from '../../database/entities/signature-signer.entity';
+import { UserEntity } from '../../database/entities/user.entity';
 import { EMAIL_TEMPLATE_COPY, EMAIL_TEMPLATES } from '../email/email.types';
 import { SMS_TEMPLATE_COPY, SMS_TEMPLATES } from '../sms/sms.types';
 import { BookingContractService } from './booking-contract.service';
 import { ContractArtifactService } from './contract-artifact.service';
 import { buildPlainPdf } from './esign-completion-pdf';
 import { EsignLinkService } from './esign-link.service';
-import { ESIGN_COMPLETION_COPY_CHANNEL_ENV, hashDocumentText, signerTurn } from './esign-multi-party';
+import {
+  ESIGN_COMPLETION_COPY_CHANNEL_ENV,
+  hashDocumentText,
+  readCompletionCopyChannel,
+  signerTurn,
+} from './esign-multi-party';
 import { ESIGN_OTP_PEPPER_ENV } from './esign-otp-policy';
 import { SignaturePartyController } from './signature-party.controller';
 import { SignaturePartyService } from './signature-party.service';
@@ -57,54 +63,17 @@ describe('esign batch 3', () => {
   });
 
   it('does not send a completion copy when the channel env is empty', () => {
-    const svc = new SignaturePartyService(
-      {} as never,
-      {} as never,
-      {} as never,
-      {} as never,
-      {} as never,
-      {} as never,
-      {} as never,
-      {} as never,
-      {} as never,
-      {} as never,
-      { get: () => undefined } as never,
-    );
-    expect(svc.completionCopyChannel()).toBeNull();
+    expect(readCompletionCopyChannel(() => undefined)).toBeNull();
   });
 
   it('reads ESIGN_COMPLETION_COPY_CHANNEL when set', () => {
-    const svc = new SignaturePartyService(
-      {} as never,
-      {} as never,
-      {} as never,
-      {} as never,
-      {} as never,
-      {} as never,
-      {} as never,
-      {} as never,
-      {} as never,
-      {} as never,
-      { get: (key: string) => (key === ESIGN_COMPLETION_COPY_CHANNEL_ENV ? 'EMAIL' : undefined) } as never,
+    expect(readCompletionCopyChannel((key) => (key === ESIGN_COMPLETION_COPY_CHANNEL_ENV ? 'EMAIL' : undefined))).toBe(
+      'EMAIL',
     );
-    expect(svc.completionCopyChannel()).toBe('EMAIL');
   });
 
   it('does not treat an unsigned completion channel as a send path', () => {
-    const svc = new SignaturePartyService(
-      {} as never,
-      {} as never,
-      {} as never,
-      {} as never,
-      {} as never,
-      {} as never,
-      {} as never,
-      {} as never,
-      {} as never,
-      {} as never,
-      { get: (key: string) => (key === ESIGN_COMPLETION_COPY_CHANNEL_ENV ? 'ZALO' : undefined) } as never,
-    );
-    expect(svc.completionCopyChannel()).toBeNull();
+    expect(readCompletionCopyChannel((key) => (key === ESIGN_COMPLETION_COPY_CHANNEL_ENV ? 'ZALO' : undefined))).toBeNull();
   });
 
   it('lets signer 2 open a session after signer 1 has signed', async () => {
@@ -173,9 +142,12 @@ describe('esign batch 3', () => {
     });
   });
 
-  it('keeps a completion template without otp or token copy', () => {
+  it('keeps a completion template without otp, token, or documentUrl copy', () => {
     expect(EMAIL_TEMPLATE_COPY[EMAIL_TEMPLATES.COMPLETION]).not.toMatch(/\{\{otp\}\}/);
     expect(SMS_TEMPLATE_COPY[SMS_TEMPLATES.COMPLETION]).not.toMatch(/\{\{otp\}\}/);
+    expect(EMAIL_TEMPLATE_COPY[EMAIL_TEMPLATES.COMPLETION]).not.toMatch(/\{\{documentUrl\}\}/);
+    expect(SMS_TEMPLATE_COPY[SMS_TEMPLATES.COMPLETION]).not.toMatch(/\{\{documentUrl\}\}/);
+    expect(EMAIL_TEMPLATE_COPY[EMAIL_TEMPLATES.COMPLETION]).toMatch(/\{\{buyer_name\}\}/);
   });
 
   it('does not infer a non-buyer SMS dest from a seeker+ email', async () => {
@@ -233,6 +205,7 @@ describe('esign batch 3', () => {
 
   it('does not throw when a completion copy send fails', async () => {
     const markFailed = jest.fn();
+    const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
     const links = new EsignLinkService(
       {} as never,
       {} as never,
@@ -270,8 +243,115 @@ describe('esign batch 3', () => {
         contractId: 'ctr_b',
         documentId: 'doc_1',
         signerId: 'ssgn_1',
-        downloadUrl: 'https://app.example.test/documents/doc_1',
       }),
     ).resolves.toBeUndefined();
+    expect(JSON.stringify(warn.mock.calls)).toContain('ssgn_1');
+    expect(JSON.stringify(warn.mock.calls)).not.toContain('a@b.c');
+    expect(JSON.stringify(warn.mock.calls)).not.toContain('http');
+    warn.mockRestore();
+  });
+
+  it('sends one completion notice per signer after commit without a document URL', async () => {
+    const deliver = jest.fn(async (input: { buyerName: string; signerId: string }) => input);
+    const roster = [
+      { id: 'ssgn_1', partyType: 'BUYER', displayName: 'Thu', channel: 'EMAIL', channelDestHash: null, subjectId: 'usr_1' },
+      { id: 'ssgn_2', partyType: 'SALES', displayName: 'An', channel: 'EMAIL', channelDestHash: null, subjectId: 'usr_2' },
+    ];
+    const contracts = new BookingContractService(
+      { findOne: jest.fn(async () => ({ leadId: 'ld_1' })) } as never,
+      {} as never,
+      {} as never,
+      { findOne: jest.fn(async () => ({ email: 'thu@example.com', phone: '+84901234567' })) } as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {
+        getRepository: (entity: unknown) => {
+          if (entity === SignatureRequestEntity) {
+            return { findOne: async () => ({ id: 'sreq_1', sourceEntityId: 'bk_1' }) };
+          }
+          if (entity === SignatureSignerEntity) {
+            return { find: async () => roster };
+          }
+          if (entity === UserEntity) {
+            return { findOne: async ({ where }: { where: { id: string } }) => ({ email: `${where.id}@example.com` }) };
+          }
+          return {};
+        },
+      } as never,
+      { get: (key: string) => (key === ESIGN_COMPLETION_COPY_CHANNEL_ENV ? 'EMAIL' : undefined) } as never,
+      { deliverCompletionCopy: deliver } as never,
+    );
+    await contracts.sendCompletionCopyAfterCommit(
+      {
+        tenantId: 'ten_b',
+        requestId: 'sreq_1',
+        signerId: 'ssgn_2',
+        signerName: 'Last Signer',
+        contractId: 'ctr_b',
+      } as never,
+      'doc_1',
+    );
+    expect(deliver).toHaveBeenCalledTimes(2);
+    expect(deliver.mock.calls.map((call) => call[0].buyerName).sort()).toEqual(['An', 'Thu']);
+    expect(JSON.stringify(deliver.mock.calls)).not.toContain('Last Signer');
+    expect(JSON.stringify(deliver.mock.calls)).not.toContain('/documents/');
+    expect(JSON.stringify(deliver.mock.calls)).not.toContain('documentUrl');
+    expect(JSON.stringify(deliver.mock.calls)).not.toContain('v1s.');
+  });
+
+  it('keeps completion enqueue params free of a download URL and signing token', async () => {
+    const captured: Array<Record<string, unknown>> = [];
+    const links = new EsignLinkService(
+      {} as never,
+      {} as never,
+      {} as never,
+      {
+        createQueryRunner: () => ({
+          connect: async () => undefined,
+          startTransaction: async () => undefined,
+          commitTransaction: async () => undefined,
+          rollbackTransaction: async () => undefined,
+          release: async () => undefined,
+          isTransactionActive: true,
+          manager: {},
+        }),
+      } as never,
+      { get: () => 'test' } as never,
+      {} as never,
+      {} as never,
+      {
+        assertReady: jest.fn(),
+        isSandbox: () => true,
+        send: jest.fn(async (_tenant: string, input: { params: Record<string, unknown> }) => {
+          captured.push(input.params);
+          return { status: 'SENT', deliveryId: 'eml_1', sandbox: true };
+        }),
+        completeQueued: jest.fn(async (_tenant: string, _id: string, input: { params: Record<string, unknown> }) => {
+          captured.push(input.params);
+          return { status: 'SENT', deliveryId: 'eml_1', sandbox: true };
+        }),
+        markFailed: jest.fn(),
+      } as never,
+      { markFailed: jest.fn(), assertEsignReady: jest.fn() } as never,
+      {} as never,
+      {} as never,
+    );
+    await links.deliverCompletionCopy({
+      tenantId: 'ten_b',
+      dest: { channel: 'EMAIL', value: 'a@b.c' },
+      buyerName: 'Thu',
+      contractId: 'ctr_b',
+      documentId: 'doc_1',
+      signerId: 'ssgn_1',
+    });
+    expect(captured.length).toBeGreaterThan(0);
+    expect(JSON.stringify(captured)).toContain('Thu');
+    expect(JSON.stringify(captured)).not.toContain('documentUrl');
+    expect(JSON.stringify(captured)).not.toContain('/documents/');
+    expect(JSON.stringify(captured)).not.toContain('v1s.');
   });
 });

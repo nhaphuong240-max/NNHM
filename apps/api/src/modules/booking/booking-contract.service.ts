@@ -48,7 +48,6 @@ import {
   returnedRows,
 } from './esign-otp-atomic';
 import { buildPlainPdf } from './esign-completion-pdf';
-import { ESIGN_SIGNING_BASE_URL_ENV } from './esign-link.policy';
 import { EsignLinkService } from './esign-link.service';
 import { hashChannelDest, readEsignOtpPepper } from './esign-otp-policy';
 import {
@@ -501,8 +500,8 @@ export class BookingContractService {
     try {
       const destChannel = readCompletionCopyChannel((key) => this.config?.get<string>(key));
       if (!destChannel || !this.links) return;
-      const downloadUrl = this.signedCopyUrl(documentId);
-      if (!downloadUrl) return;
+      // Download tickets are unsigned: completion copy is a notice only, no documentUrl.
+      void documentId;
       const tenantId = prepared.tenantId;
       const request = await this.dataSource.getRepository(SignatureRequestEntity).findOne({
         where: { id: prepared.requestId, tenantId },
@@ -510,18 +509,19 @@ export class BookingContractService {
       const roster = request
         ? await this.dataSource.getRepository(SignatureSignerEntity).find({ where: { requestId: request.id, tenantId } })
         : [];
-      const parties = roster.length ? roster : [{ id: prepared.signerId, partyType: 'BUYER', channel: destChannel, channelDestHash: null, subjectId: null }];
+      const parties = roster.length
+        ? roster
+        : [{ id: prepared.signerId, partyType: 'BUYER', channel: destChannel, channelDestHash: null, subjectId: null, displayName: null }];
       for (const signer of parties) {
         const value = await this.completionDest(tenantId, request, signer, destChannel);
         if (!value) continue;
         await this.links.deliverCompletionCopy({
           tenantId,
           dest: { channel: destChannel, value },
-          buyerName: prepared.signerName,
+          buyerName: signer.displayName?.trim() || signer.partyType,
           contractId: prepared.contractId,
           documentId,
           signerId: signer.id,
-          downloadUrl,
         });
       }
     } catch {
@@ -529,23 +529,17 @@ export class BookingContractService {
     }
   }
 
-  private signedCopyUrl(documentId: string): string {
-    const base = this.config?.get<string>(ESIGN_SIGNING_BASE_URL_ENV)?.trim() ?? '';
-    try {
-      const url = new URL(base);
-      url.pathname = `/documents/${encodeURIComponent(documentId)}`;
-      url.search = '';
-      url.hash = '';
-      return url.toString();
-    } catch {
-      return '';
-    }
-  }
-
   private async completionDest(
     tenantId: string,
     request: SignatureRequestEntity | null,
-    signer: { id: string; partyType: string; channel: string; channelDestHash: string | null; subjectId: string | null },
+    signer: {
+      id: string;
+      partyType: string;
+      channel: string;
+      channelDestHash: string | null;
+      subjectId: string | null;
+      displayName?: string | null;
+    },
     destChannel: 'EMAIL' | 'SMS',
   ): Promise<string> {
     if (signer.partyType === 'BUYER') {

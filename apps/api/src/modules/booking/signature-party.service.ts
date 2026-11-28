@@ -19,7 +19,6 @@ import { buildSigningUrl, ESIGN_SIGNING_BASE_URL_ENV } from './esign-link.policy
 import { VOID_TICKET_JTI_SQL } from './esign-otp-atomic';
 import { EsignLinkService } from './esign-link.service';
 import {
-  readCompletionCopyChannel,
   hashDocumentText,
   isPartyType,
   signerTurn,
@@ -236,10 +235,6 @@ export class SignaturePartyService {
     if (turn !== 'ok') {
       throw new UnprocessableEntityException({ detail: 'signer is not next in the signing order' });
     }
-  }
-
-  completionCopyChannel(): 'EMAIL' | 'SMS' | null {
-    return readCompletionCopyChannel((key) => this.config.get<string>(key));
   }
 
   async view(requestId: string, tenantId: string) {

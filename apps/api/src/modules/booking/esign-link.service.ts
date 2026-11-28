@@ -1,4 +1,4 @@
-import { Injectable, UnprocessableEntityException } from '@nestjs/common';
+import { Injectable, Logger, UnprocessableEntityException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { randomBytes } from 'crypto';
@@ -84,6 +84,8 @@ type LatestLink = {
 
 @Injectable()
 export class EsignLinkService {
+  private readonly logger = new Logger(EsignLinkService.name);
+
   constructor(
     @InjectRepository(BookingEntity)
     private readonly bookings: Repository<BookingEntity>,
@@ -289,7 +291,6 @@ export class EsignLinkService {
     contractId: string;
     documentId: string;
     signerId: string;
-    downloadUrl: string;
   }): Promise<void> {
     const sourceId = `ESIGN_COMPLETION:${input.contractId}:${input.signerId}`;
     const templateId = input.dest.channel === 'EMAIL' ? EMAIL_TEMPLATES.COMPLETION : SMS_TEMPLATES.COMPLETION;
@@ -308,7 +309,6 @@ export class EsignLinkService {
         manager: runner.manager,
         templateId,
         sourceType: 'ESIGN_COMPLETION',
-        extraParams: { documentUrl: input.downloadUrl },
       });
       deliveryId = queued.deliveryId;
       await runner.commitTransaction();
@@ -318,6 +318,9 @@ export class EsignLinkService {
         if (input.dest.channel === 'SMS') await this.sms.markFailed(input.tenantId, deliveryId);
         else await this.email.markFailed(input.tenantId, deliveryId);
       }
+      this.logger.warn(
+        `esign completion copy failed contract=${input.contractId} signer=${input.signerId} channel=${input.dest.channel}`,
+      );
       return;
     } finally {
       await runner.release();
@@ -330,14 +333,16 @@ export class EsignLinkService {
         contractId: input.contractId,
         sourceId,
         deliveryId,
-        signingUrl: input.downloadUrl,
+        signingUrl: '',
         templateId,
         sourceType: 'ESIGN_COMPLETION',
-        extraParams: { documentUrl: input.downloadUrl },
       });
     } catch {
       if (input.dest.channel === 'SMS') await this.sms.markFailed(input.tenantId, deliveryId);
       else await this.email.markFailed(input.tenantId, deliveryId);
+      this.logger.warn(
+        `esign completion copy failed contract=${input.contractId} signer=${input.signerId} channel=${input.dest.channel}`,
+      );
     }
   }
 

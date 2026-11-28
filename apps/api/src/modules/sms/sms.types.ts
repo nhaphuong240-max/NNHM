@@ -10,7 +10,7 @@ export const SMS_TEMPLATES = {
 export const SMS_TEMPLATE_COPY: Record<string, string> = {
   sms_otp_v1: 'Ma OTP ky hop dong: {{otp}}',
   sms_esign_link_v1: 'Mo link ky hop dong WEREAL. Khong chia se link nay.',
-  sms_esign_completion_v1: 'Tai ban hop dong da ky. Khong chia se OTP hay token.',
+  sms_esign_completion_v1: 'Xin chao {{buyer_name}}. Hop dong da hoan tat ky. Khong kem link tai, OTP hay token.',
   sms_booking_confirm_v1: 'Dat cho thanh cong.',
   sms_txn_notify_v1: 'Thong bao giao dich.',
 };
