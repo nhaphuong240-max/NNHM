@@ -15,6 +15,7 @@ import {
   signerTurn,
 } from './esign-multi-party';
 import { ESIGN_OTP_PEPPER_ENV } from './esign-otp-policy';
+import { retryMissingVaultUploads } from './esign-vault-retry';
 import { SignaturePartyController } from './signature-party.controller';
 import { SignaturePartyService } from './signature-party.service';
 import { CONTRACT_TEMPLATES } from './booking-contract.util';
@@ -301,6 +302,89 @@ describe('esign batch 3', () => {
     expect(JSON.stringify(deliver.mock.calls)).not.toContain('/documents/');
     expect(JSON.stringify(deliver.mock.calls)).not.toContain('documentUrl');
     expect(JSON.stringify(deliver.mock.calls)).not.toContain('v1s.');
+  });
+
+  it('sends one completion notice per signer after a vault-retry commit', async () => {
+    const deliver = jest.fn(async (input: { buyerName: string; signerId: string }) => input);
+    const roster = [
+      { id: 'ssgn_1', partyType: 'BUYER', displayName: 'Thu', channel: 'EMAIL', channelDestHash: null, subjectId: 'usr_1' },
+      { id: 'ssgn_2', partyType: 'SALES', displayName: 'An', channel: 'EMAIL', channelDestHash: null, subjectId: 'usr_2' },
+    ];
+    const contracts = new BookingContractService(
+      { findOne: jest.fn(async () => ({ leadId: 'ld_1' })) } as never,
+      {} as never,
+      {} as never,
+      { findOne: jest.fn(async () => ({ email: 'thu@example.com', phone: '+84901234567' })) } as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {
+        getRepository: (entity: unknown) => {
+          if (entity === SignatureRequestEntity) {
+            return { findOne: async () => ({ id: 'sreq_1', sourceEntityId: 'bk_1' }) };
+          }
+          if (entity === SignatureSignerEntity) {
+            return { find: async () => roster };
+          }
+          if (entity === UserEntity) {
+            return { findOne: async ({ where }: { where: { id: string } }) => ({ email: `${where.id}@example.com` }) };
+          }
+          return {};
+        },
+      } as never,
+      { get: (key: string) => (key === ESIGN_COMPLETION_COPY_CHANNEL_ENV ? 'EMAIL' : undefined) } as never,
+      { deliverCompletionCopy: deliver } as never,
+    );
+    const prepared = {
+      tenantId: 'ten_b',
+      requestId: 'sreq_1',
+      signerId: 'ssgn_2',
+      signerName: 'Last Signer',
+      contractId: 'ctr_b',
+      bookingId: 'bk_1',
+      buffer: Buffer.from('signed'),
+      fileName: 'ctr_b_ssgn_2_signed.txt',
+    };
+    const order: string[] = [];
+    await retryMissingVaultUploads({
+      limits: { maxAttempts: 3, intervalSeconds: 1 },
+      pending: [
+        {
+          signer_id: 'ssgn_2',
+          tenant_id: 'ten_b',
+          jti: 'jti_1',
+          channel: 'SMS',
+          subject_id: 'usr_buyer',
+          request_id: 'sreq_1',
+          contract_id: 'ctr_b',
+        },
+      ],
+      events: { find: jest.fn(async () => []), create: (row: unknown) => row, save: jest.fn(async (row: unknown) => row) } as never,
+      contracts: {
+        rebuildPendingSignature: jest.fn(async () => prepared as never),
+        finishSignedVault: jest.fn(async (row) => {
+          order.push('vault');
+          row.completionCopyDocumentId = 'doc_1';
+        }),
+        sendCompletionCopyAfterCommit: async (row, documentId) => {
+          order.push('copy');
+          await contracts.sendCompletionCopyAfterCommit(row, documentId);
+        },
+      },
+      lockRequest: async (_row, work) => {
+        order.push('begin');
+        await work({} as never);
+        order.push('commit');
+        return 'ok';
+      },
+    });
+    expect(order).toEqual(['begin', 'vault', 'commit', 'copy']);
+    expect(deliver).toHaveBeenCalledTimes(2);
+    expect(deliver.mock.calls.map((call) => call[0].buyerName).sort()).toEqual(['An', 'Thu']);
+    expect(JSON.stringify(deliver.mock.calls)).not.toContain('Last Signer');
   });
 
   it('keeps completion enqueue params free of a download URL and signing token', async () => {
