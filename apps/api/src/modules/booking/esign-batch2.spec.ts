@@ -280,16 +280,16 @@ describe('esign batch 2 send link', () => {
     expect(enqueue).toHaveBeenCalledTimes(1);
   });
 
-  it('fails a stuck QUEUED row without reading a token from memory', async () => {
+  it('replays an in-flight QUEUED row without reading a token from memory', async () => {
     const { service, issueBuyerAccess, complete, ticketsVoided } = harness({
       latest: { created_at: new Date(), status: 'QUEUED', source_id: PREFIX, id: 'sms_q' },
     });
-    await expect(service.send(sendInput)).rejects.toMatchObject({
-      response: { detail: 'esign link already exists; resend is required' },
-    });
+    const result = await service.send(sendInput);
+    expect(result.deliveryId).toBe('sms_q');
+    expect(result.idempotentReplay).toBe(true);
     expect(issueBuyerAccess).not.toHaveBeenCalled();
     expect(complete).not.toHaveBeenCalled();
-    expect(ticketsVoided.length).toBeGreaterThan(0);
+    expect(ticketsVoided).toHaveLength(0);
   });
 
   it('reads an existing unique row instead of sending again without a url', async () => {
