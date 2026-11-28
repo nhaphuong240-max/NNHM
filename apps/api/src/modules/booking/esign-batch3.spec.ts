@@ -304,6 +304,98 @@ describe('esign batch 3', () => {
     expect(JSON.stringify(deliver.mock.calls)).not.toContain('v1s.');
   });
 
+  it('greets a party without displayName neutrally and keeps sending after one failure', async () => {
+    const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+    const deliver = jest.fn(async (input: { signerId: string; buyerName: string }) => {
+      if (input.signerId === 'ssgn_1') throw new Error('send');
+    });
+    const roster = [
+      { id: 'ssgn_1', partyType: 'BUYER', displayName: 'Thu', channel: 'EMAIL', channelDestHash: null, subjectId: 'usr_1' },
+      { id: 'ssgn_2', partyType: 'SALES', displayName: null, channel: 'EMAIL', channelDestHash: null, subjectId: 'usr_2' },
+    ];
+    const contracts = new BookingContractService(
+      { findOne: jest.fn(async () => ({ leadId: 'ld_1' })) } as never,
+      {} as never,
+      {} as never,
+      { findOne: jest.fn(async () => ({ email: 'thu@example.com', phone: '+84901234567' })) } as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {
+        getRepository: (entity: unknown) => {
+          if (entity === SignatureRequestEntity) {
+            return { findOne: async () => ({ id: 'sreq_1', sourceEntityId: 'bk_1' }) };
+          }
+          if (entity === SignatureSignerEntity) {
+            return { find: async () => roster };
+          }
+          if (entity === UserEntity) {
+            return { findOne: async ({ where }: { where: { id: string } }) => ({ email: `${where.id}@example.com` }) };
+          }
+          return {};
+        },
+      } as never,
+      { get: (key: string) => (key === ESIGN_COMPLETION_COPY_CHANNEL_ENV ? 'EMAIL' : undefined) } as never,
+      { deliverCompletionCopy: deliver } as never,
+    );
+    await contracts.sendCompletionCopyAfterCommit(
+      { tenantId: 'ten_b', requestId: 'sreq_1', signerId: 'ssgn_2', signerName: 'Last Signer', contractId: 'ctr_b' } as never,
+      'doc_1',
+    );
+    expect(deliver).toHaveBeenCalledTimes(2);
+    expect(deliver.mock.calls[1]?.[0]?.buyerName).toBe('Quý khách');
+    expect(JSON.stringify(deliver.mock.calls)).not.toContain('SALES');
+    expect(JSON.stringify(warn.mock.calls)).toContain('ssgn_1');
+    expect(JSON.stringify(warn.mock.calls)).not.toContain('example.com');
+    expect(JSON.stringify(warn.mock.calls)).not.toContain('http');
+    warn.mockRestore();
+  });
+
+  it('logs when a party has no dest without leaking PII', async () => {
+    const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+    const deliver = jest.fn();
+    const contracts = new BookingContractService(
+      { findOne: jest.fn(async () => ({ leadId: 'ld_1' })) } as never,
+      {} as never,
+      {} as never,
+      { findOne: jest.fn(async () => ({ email: '', phone: '' })) } as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {
+        getRepository: (entity: unknown) => {
+          if (entity === SignatureRequestEntity) {
+            return { findOne: async () => ({ id: 'sreq_1', sourceEntityId: 'bk_1' }) };
+          }
+          if (entity === SignatureSignerEntity) {
+            return {
+              find: async () => [
+                { id: 'ssgn_1', partyType: 'BUYER', displayName: 'Thu', channel: 'EMAIL', channelDestHash: null, subjectId: 'usr_1' },
+              ],
+            };
+          }
+          return {};
+        },
+      } as never,
+      { get: (key: string) => (key === ESIGN_COMPLETION_COPY_CHANNEL_ENV ? 'EMAIL' : undefined) } as never,
+      { deliverCompletionCopy: deliver } as never,
+    );
+    await contracts.sendCompletionCopyAfterCommit(
+      { tenantId: 'ten_b', requestId: 'sreq_1', signerId: 'ssgn_1', signerName: 'Thu', contractId: 'ctr_b' } as never,
+      'doc_1',
+    );
+    expect(deliver).not.toHaveBeenCalled();
+    expect(JSON.stringify(warn.mock.calls)).toContain('reason=dest');
+    expect(JSON.stringify(warn.mock.calls)).toContain('ssgn_1');
+    warn.mockRestore();
+  });
+
   it('sends one completion notice per signer after a vault-retry commit', async () => {
     const deliver = jest.fn(async (input: { buyerName: string; signerId: string }) => input);
     const roster = [

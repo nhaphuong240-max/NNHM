@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   Injectable,
+  Logger,
   NotFoundException,
   Optional,
   UnauthorizedException,
@@ -82,8 +83,12 @@ export type PreparedContractSignature = {
   completionCopyDocumentId?: string | null;
 };
 
+const COMPLETION_PARTY_GREETING = 'Quý khách';
+
 @Injectable()
 export class BookingContractService {
+  private readonly logger = new Logger(BookingContractService.name);
+
   constructor(
     @InjectRepository(BookingEntity)
     private readonly bookings: Repository<BookingEntity>,
@@ -513,18 +518,26 @@ export class BookingContractService {
         ? roster
         : [{ id: prepared.signerId, partyType: 'BUYER', channel: destChannel, channelDestHash: null, subjectId: null, displayName: null }];
       for (const signer of parties) {
-        const value = await this.completionDest(tenantId, request, signer, destChannel);
-        if (!value) continue;
-        await this.links.deliverCompletionCopy({
-          tenantId,
-          dest: { channel: destChannel, value },
-          buyerName: signer.displayName?.trim() || signer.partyType,
-          contractId: prepared.contractId,
-          documentId,
-          signerId: signer.id,
-        });
+        try {
+          const value = await this.completionDest(tenantId, request, signer, destChannel);
+          if (!value) {
+            this.logger.warn(`esign completion copy skipped signer=${signer.id} reason=dest`);
+            continue;
+          }
+          await this.links.deliverCompletionCopy({
+            tenantId,
+            dest: { channel: destChannel, value },
+            buyerName: signer.displayName?.trim() || COMPLETION_PARTY_GREETING,
+            contractId: prepared.contractId,
+            documentId,
+            signerId: signer.id,
+          });
+        } catch {
+          this.logger.warn(`esign completion copy failed signer=${signer.id}`);
+        }
       }
     } catch {
+      this.logger.warn(`esign completion copy failed request=${prepared.requestId}`);
       return;
     }
   }
