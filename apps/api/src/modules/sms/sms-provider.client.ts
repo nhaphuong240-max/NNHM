@@ -77,8 +77,7 @@ export class SmsProviderClient {
     });
 
     if (!res.ok) {
-      const body = await res.text().catch(() => '');
-      throw new Error(`SMS provider failed (${res.status}): ${body.slice(0, 200)}`);
+      throw new Error('SMS provider failed');
     }
 
     const json = (await res.json().catch(() => ({}))) as { providerRef?: string; messageId?: string };

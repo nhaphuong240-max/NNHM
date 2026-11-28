@@ -251,7 +251,15 @@ export class SmsService {
   }
 
   async assertEsignReady(tenantId: string): Promise<void> {
-    if (await this.provider.isSandboxMode(tenantId)) return;
+    const flag = this.config.get<string>('SMS_SANDBOX')?.trim();
+    if (!flag) {
+      throw new UnprocessableEntityException({ detail: 'sms sandbox is not configured' });
+    }
+    if (this.config.get<string>('NODE_ENV') === 'production' && flag === 'true') {
+      throw new UnprocessableEntityException({ detail: 'sms sandbox is not allowed in production' });
+    }
+    if (flag === 'true') return;
+    void tenantId;
     const url = this.config.get<string>('SMS_PROVIDER_URL')?.trim();
     const apiKey = this.config.get<string>('SMS_PROVIDER_API_KEY')?.trim();
     if (!url || !apiKey) {
@@ -406,9 +414,8 @@ export class SmsService {
         otp: persistOtp ? undefined : revealOtp,
       };
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
       row.status = 'FAILED';
-      row.lastError = message;
+      row.lastError = 'sms send failed';
       await this.deliveries.save(row);
       throw err;
     }

@@ -1283,7 +1283,7 @@ Ngày lập: 29/07/2026
     const count = await this.leads.count({ where: { tenantId: SEED_TENANT_ID } });
     if (count > 0) {
       const ld01 = await this.leads.findOne({ where: { id: 'ld_01', tenantId: SEED_TENANT_ID } });
-      if (ld01 && !ld01.email) {
+      if (ld01 && !ld01.email && this.config.get<string>('NODE_ENV') === 'development') {
         ld01.email = 'trang@example.com';
         await this.leads.save(ld01);
       }

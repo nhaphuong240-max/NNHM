@@ -56,6 +56,7 @@ export type SendSignLinkInput = {
   bookingId: string;
   buyerName: string;
   resend?: boolean;
+  actor?: { userId: string; role: string };
 };
 
 export type SendSignLinkResult = {
@@ -109,7 +110,8 @@ export class EsignLinkService {
       throw new UnprocessableEntityException({ detail: 'esign signing base url must be https' });
     }
     const dest = await this.resolveDest(input.tenantId, input.bookingId);
-    await this.channels.assertVerified(input.tenantId, dest.channel, dest.value);
+    const booking = await this.bookings.findOne({ where: { id: input.bookingId, tenantId: input.tenantId } });
+    await this.channels.assertVerified(input.tenantId, dest.channel, dest.value, booking?.leadId ?? undefined);
     const buyerId = await this.buyerSubjectFromBooking(input.tenantId, input.bookingId);
     await this.assertChannelReady(input.tenantId, dest.channel);
     const prefix = `${input.contractId}:${buyerId}`;
@@ -140,30 +142,11 @@ export class EsignLinkService {
         };
       }
       if (!input.resend && latest?.status === 'QUEUED') {
-        const storedUrl = this.outbox.peek(latest.id);
+        if (dest.channel === 'SMS') await this.sms.markFailed(input.tenantId, latest.id);
+        else await this.email.markFailed(input.tenantId, latest.id);
+        await runner.query(VOID_OPEN_TICKETS_SQL, [input.tenantId, input.contractId, buyerId]);
         await runner.commitTransaction();
-        if (!storedUrl) {
-          if (dest.channel === 'SMS') await this.sms.markFailed(input.tenantId, latest.id);
-          else await this.email.markFailed(input.tenantId, latest.id);
-          throw new UnprocessableEntityException({ detail: 'esign link already exists; resend is required' });
-        }
-        const delivery = await this.completeLink({
-          tenantId: input.tenantId,
-          dest,
-          buyerName: input.buyerName,
-          contractId: input.contractId,
-          sourceId: latest.source_id,
-          deliveryId: latest.id,
-          signingUrl: storedUrl,
-        });
-        return {
-          sent: true,
-          channel: dest.channel,
-          destMasked: maskChannelDest(dest.value),
-          deliveryId: delivery.deliveryId,
-          sandbox: delivery.sandbox,
-          idempotentReplay: delivery.idempotentReplay,
-        };
+        throw new UnprocessableEntityException({ detail: 'esign link already exists; resend is required' });
       }
       if (!input.resend && latest) {
         throw new UnprocessableEntityException({ detail: 'esign link already exists; resend is required' });
@@ -232,7 +215,8 @@ export class EsignLinkService {
         this.outbox.put(delivery.deliveryId, signingUrl);
         await this.note(minted.claims, input.resend ? 'LINK_RESENT' : 'LINK_SENT', {
           deliveryId: delivery.deliveryId,
-          jti: minted.claims.jti,
+          actorId: input.actor?.userId,
+          role: input.actor?.role,
         });
         return {
           sent: true,
@@ -243,7 +227,10 @@ export class EsignLinkService {
         };
       } catch (error) {
         await this.dataSource.query(VOID_TICKET_JTI_SQL, [minted.claims.jti, input.tenantId]);
-        await this.note(minted.claims, 'LINK_FAILED', { jti: minted.claims.jti });
+        await this.note(minted.claims, 'LINK_FAILED', {
+          actorId: input.actor?.userId,
+          role: input.actor?.role,
+        });
         if (error instanceof UnprocessableEntityException) throw error;
         throw new UnprocessableEntityException({ detail: 'e-sign link send failed' });
       }

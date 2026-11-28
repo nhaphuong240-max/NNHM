@@ -29,6 +29,7 @@ import { BookingContractController } from './booking-contract.controller';
 import { EsignSandboxController } from './esign-sandbox.controller';
 import { EsignChannelVerificationController } from './esign-channel-verification.controller';
 import { SignerChannelVerificationService } from './signer-channel-verification.service';
+import { LeadChannelRevokeSubscriber } from './lead-channel-revoke.subscriber';
 import { SandboxEsignOutbox } from './sandbox-esign-outbox';
 import { ContractArtifactController } from './contract-artifact.controller';
 import { ContractArtifactService } from './contract-artifact.service';
@@ -97,6 +98,7 @@ import { BookingService } from './booking.service';
     BookingContractEsignSmsService,
     EsignLinkService,
     SignerChannelVerificationService,
+    LeadChannelRevokeSubscriber,
     SandboxEsignOutbox,
     EsignOtpChallengeService,
     SignatureTicketService,

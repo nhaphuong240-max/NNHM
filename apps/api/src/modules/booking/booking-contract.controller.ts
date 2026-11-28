@@ -139,8 +139,11 @@ export class BookingContractController {
     if (!canSendSignLink(user?.role) || !this.links) {
       throw new ForbiddenException({ detail: 'forbidden' });
     }
+    if (!user?.tenantId?.trim()) {
+      throw new NotFoundException({ detail: 'not found' });
+    }
     const tenantId = await this.contractTenant(contractId, tenantHeader);
-    if (user?.tenantId && user.tenantId !== tenantId) {
+    if (user.tenantId !== tenantId) {
       throw new NotFoundException({ detail: 'not found' });
     }
     const loaded = await this.contracts.getContract(tenantId, contractId);
@@ -154,6 +157,7 @@ export class BookingContractController {
       bookingId,
       buyerName: loaded.data.attributes.mergeContext.buyerName,
       resend: body.resend === true,
+      actor: { userId: user.userId, role: user.role },
     });
     await this.dataSource.getRepository(AuditEventEntity).save({
       tenantId,

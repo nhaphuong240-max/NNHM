@@ -67,5 +67,6 @@ export function buildSigningUrl(baseUrl: string, input: { contractId: string; te
 }
 
 export function sandboxOutboxEnabled(nodeEnv: string | undefined, flag: string | undefined): boolean {
+  if (nodeEnv === 'production') return false;
   return nodeEnv === 'test' || flag?.trim() === 'true';
 }

@@ -121,6 +121,33 @@ LIMIT 1
 
 export const ADVISORY_LOCK_SQL = `SELECT pg_advisory_xact_lock(hashtext($1))`;
 
+export const CLAIM_CHANNEL_VERIFY_ATTEMPT_SQL = `
+UPDATE "signer_channel_verifications" AS v
+SET "attempt_count" = v."attempt_count" + 1,
+    "locked_until" = CASE
+      WHEN v."attempt_count" + 1 >= $3 THEN $4
+      ELSE v."locked_until"
+    END
+WHERE v."id" = $1 AND v."tenant_id" = $2
+  AND v."status" = 'PENDING'
+  AND v."locked_indefinitely" = false
+  AND (v."locked_until" IS NULL OR v."locked_until" <= now())
+  AND v."expires_at" > now()
+  AND v."attempt_count" < $3
+  AND (
+    SELECT COALESCE(SUM(c."attempt_count"), 0)
+    FROM "signer_channel_verifications" c
+    WHERE c."tenant_id" = v."tenant_id" AND c."lead_id" = v."lead_id"
+  ) < $3
+RETURNING v."id", v."attempt_count", v."code_hash", v."email_dest_masked", v."lead_id", v."locked_until"
+`;
+
+export const SUM_CHANNEL_VERIFY_ATTEMPTS_SQL = `
+SELECT COALESCE(SUM("attempt_count"), 0)::int AS total
+FROM "signer_channel_verifications"
+WHERE "tenant_id" = $1 AND "lead_id" = $2
+`;
+
 export const VOID_TICKET_JTI_SQL = `
 UPDATE "signature_signers"
 SET "jti_consumed_at" = now()

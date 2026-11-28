@@ -6,10 +6,36 @@ const CONTRACT_ID = 'ctr_esign_demo01';
 const TENANT_ID = 'ten_dev_01';
 const PHONE = '0901234567';
 
+async function staffAccessToken(): Promise<string> {
+  const staffLogin = await fetch(`${API_BASE}/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      email: 'procedure@sunrise-dev.vn',
+      password: 'Procedure123!',
+      tenantId: TENANT_ID,
+    }),
+  });
+  const staffText = await staffLogin.text();
+  expect(staffLogin.ok, staffText.slice(0, 400)).toBe(true);
+  const staffBody = JSON.parse(staffText) as {
+    accessToken?: string;
+    data?: { accessToken?: string };
+  };
+  const staffToken = staffBody.accessToken ?? staffBody.data?.accessToken;
+  expect(staffToken).toBeTruthy();
+  return staffToken!;
+}
+
 async function verifySignerChannel() {
+  const staffToken = await staffAccessToken();
   const started = await fetch(`${API_BASE}/esign/channel-verifications`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-Tenant-Id': TENANT_ID },
+    headers: {
+      Authorization: `Bearer ${staffToken}`,
+      'Content-Type': 'application/json',
+      'X-Tenant-Id': TENANT_ID,
+    },
     body: JSON.stringify({ phone: PHONE }),
   });
   const startedText = await started.text();
@@ -19,7 +45,11 @@ async function verifySignerChannel() {
   expect(verificationId).toBeTruthy();
   const confirmed = await fetch(`${API_BASE}/esign/channel-verifications/${verificationId}/confirm`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-Tenant-Id': TENANT_ID },
+    headers: {
+      Authorization: `Bearer ${staffToken}`,
+      'Content-Type': 'application/json',
+      'X-Tenant-Id': TENANT_ID,
+    },
     body: JSON.stringify({ code: '123456' }),
   });
   const confirmedText = await confirmed.text();
@@ -94,23 +124,7 @@ test('buyer-esign send link then open issues otp and signs', async ({ page }) =>
 
   await verifySignerChannel();
 
-  const staffLogin = await fetch(`${API_BASE}/auth/login`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      email: 'procedure@sunrise-dev.vn',
-      password: 'Procedure123!',
-      tenantId: TENANT_ID,
-    }),
-  });
-  const staffText = await staffLogin.text();
-  expect(staffLogin.ok, staffText.slice(0, 400)).toBe(true);
-  const staffBody = JSON.parse(staffText) as {
-    accessToken?: string;
-    data?: { accessToken?: string };
-  };
-  const staffToken = staffBody.accessToken ?? staffBody.data?.accessToken;
-  expect(staffToken).toBeTruthy();
+  const staffToken = await staffAccessToken();
 
   const sent = await fetch(`${API_BASE}/contracts/${CONTRACT_ID}/sign-link`, {
     method: 'POST',

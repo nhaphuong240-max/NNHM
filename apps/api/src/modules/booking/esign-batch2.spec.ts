@@ -280,15 +280,16 @@ describe('esign batch 2 send link', () => {
     expect(enqueue).toHaveBeenCalledTimes(1);
   });
 
-  it('retries a stuck QUEUED row without minting a new ticket', async () => {
-    const { service, issueBuyerAccess, complete, outbox } = harness({
+  it('fails a stuck QUEUED row without reading a token from memory', async () => {
+    const { service, issueBuyerAccess, complete, ticketsVoided } = harness({
       latest: { created_at: new Date(), status: 'QUEUED', source_id: PREFIX, id: 'sms_q' },
     });
-    outbox.put('sms_q', 'https://app.example.test/buyer/esign#signToken=v1s.test.token');
-    const result = await service.send(sendInput);
+    await expect(service.send(sendInput)).rejects.toMatchObject({
+      response: { detail: 'esign link already exists; resend is required' },
+    });
     expect(issueBuyerAccess).not.toHaveBeenCalled();
-    expect(complete).toHaveBeenCalledTimes(1);
-    expect(result.deliveryId).toBe('sms_link_1');
+    expect(complete).not.toHaveBeenCalled();
+    expect(ticketsVoided.length).toBeGreaterThan(0);
   });
 
   it('reads an existing unique row instead of sending again without a url', async () => {
@@ -396,6 +397,26 @@ describe('esign batch 2 send link', () => {
     );
     expect(links.send).toHaveBeenCalledTimes(1);
     expect(result.data.deliveryId).toBe('sms_1');
+  });
+
+  it('404s send-link when the caller has no tenant', async () => {
+    const links = { send: jest.fn() };
+    const controller = new BookingContractController(
+      { getContract: jest.fn() } as never,
+      { get: () => SECRET } as never,
+      { query: jest.fn() } as never,
+      undefined,
+      links as never,
+    );
+    await expect(
+      controller.sendSignLink(
+        { userId: 'usr_staff', role: 'PROCEDURE_STAFF', tenantId: '', email: 'staff@x' },
+        'ten_b',
+        'ctr_b',
+        {},
+      ),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(links.send).not.toHaveBeenCalled();
   });
 
   it('404s send-link when the caller tenant does not match the contract', async () => {

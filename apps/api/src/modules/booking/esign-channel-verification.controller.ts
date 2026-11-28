@@ -1,36 +1,63 @@
-import { Body, Controller, Headers, Param, Post, UnprocessableEntityException } from '@nestjs/common';
-import { Public } from '../identity/decorators/public.decorator';
+import {
+  Body,
+  Controller,
+  ForbiddenException,
+  NotFoundException,
+  Param,
+  Post,
+  UnprocessableEntityException,
+} from '@nestjs/common';
+import { CurrentUser } from '../identity/decorators/current-user.decorator';
+import type { AuthUser } from '../identity/identity.types';
+import { canSendSignLink } from '../identity/role-catalog';
+import { resolveSeekerPhone } from '../portal/seeker-phone.util';
 import { SignerChannelVerificationService } from './signer-channel-verification.service';
 
 @Controller('esign/channel-verifications')
 export class EsignChannelVerificationController {
   constructor(private readonly verifications: SignerChannelVerificationService) {}
 
-  @Public()
   @Post()
-  async start(
-    @Headers('x-tenant-id') tenantHeader: string | undefined,
-    @Body() body: { phone?: string },
-  ) {
-    const tenantId = tenantHeader?.trim() ?? '';
+  async start(@CurrentUser() user: AuthUser | undefined, @Body() body: { phone?: string }) {
+    const tenantId = this.callerTenant(user);
+    this.assertCanVerify(user);
     const phone = body.phone?.trim() ?? '';
-    if (!tenantId || !phone) {
-      throw new UnprocessableEntityException({ detail: 'tenant and phone are required' });
+    if (!phone) {
+      throw new UnprocessableEntityException({ detail: 'phone is required' });
     }
-    return { data: await this.verifications.start(tenantId, phone) };
+    return {
+      data: await this.verifications.start(tenantId, phone, {
+        actorId: user!.userId,
+        role: user!.role,
+        seekerPhone: resolveSeekerPhone(user),
+      }),
+    };
   }
 
-  @Public()
   @Post(':id/confirm')
   async confirm(
-    @Headers('x-tenant-id') tenantHeader: string | undefined,
+    @CurrentUser() user: AuthUser | undefined,
     @Param('id') id: string,
     @Body() body: { code?: string },
   ) {
-    const tenantId = tenantHeader?.trim() ?? '';
-    if (!tenantId || !body.code?.trim()) {
-      throw new UnprocessableEntityException({ detail: 'tenant and code are required' });
+    const tenantId = this.callerTenant(user);
+    this.assertCanVerify(user);
+    if (!body.code?.trim()) {
+      throw new UnprocessableEntityException({ detail: 'code is required' });
     }
     return { data: await this.verifications.confirm(tenantId, id, body.code.trim()) };
+  }
+
+  private callerTenant(user: AuthUser | undefined): string {
+    const tenantId = user?.tenantId?.trim() ?? '';
+    if (!tenantId) {
+      throw new NotFoundException({ detail: 'not found' });
+    }
+    return tenantId;
+  }
+
+  private assertCanVerify(user: AuthUser | undefined): void {
+    if (canSendSignLink(user?.role) || user?.role === 'SEEKER') return;
+    throw new ForbiddenException({ detail: 'forbidden' });
   }
 }
