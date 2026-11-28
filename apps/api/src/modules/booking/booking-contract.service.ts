@@ -54,6 +54,7 @@ import { EsignLinkService } from './esign-link.service';
 import { hashChannelDest, readEsignOtpPepper } from './esign-otp-policy';
 import {
   allSignersSigned,
+  canAdvanceBookingToContracted,
   hashDocumentText,
   readCompletionCopyChannel,
   signerTurn,
@@ -489,6 +490,27 @@ export class BookingContractService {
         await audits.save(row);
       }
       prepared.completionCopyDocumentId = completePackage ? documentId : null;
+      if (allSignersSigned(roster)) {
+        const request = await active.manager.getRepository(SignatureRequestEntity).findOne({
+          where: { id: prepared.requestId, tenantId: prepared.tenantId },
+        });
+        if (
+          request &&
+          canAdvanceBookingToContracted({
+            requiresAdminReview: request.requiresAdminReview,
+            reviewDecision: request.reviewDecision,
+            roster,
+          })
+        ) {
+          const booking = await active.manager.getRepository(BookingEntity).findOne({
+            where: { id: prepared.bookingId, tenantId: prepared.tenantId },
+          });
+          if (booking?.status === 'DEPOSITED') {
+            booking.status = 'CONTRACTED';
+            await active.manager.getRepository(BookingEntity).save(booking);
+          }
+        }
+      }
       if (owned) await active.commitTransaction();
       const response = this.signedResponse(prepared, documentId);
       if (owned && completePackage) {

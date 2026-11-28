@@ -8,7 +8,8 @@ import { LeadEntity } from '../../database/entities/lead.entity';
 import { SignatureRequestEntity } from '../../database/entities/signature-request.entity';
 import { SignatureSignerEntity } from '../../database/entities/signature-signer.entity';
 import { UserEntity } from '../../database/entities/user.entity';
-import { canSendSignLink } from '../identity/role-catalog';
+import { AuditEventEntity } from '../../database/entities/audit-event.entity';
+import { canApproveContract, canSendSignLink } from '../identity/role-catalog';
 import { BookingContractService } from './booking-contract.service';
 import {
   CONTRACT_SIGN_TOKEN_TTL_MS,
@@ -19,6 +20,7 @@ import { buildSigningUrl, ESIGN_SIGNING_BASE_URL_ENV } from './esign-link.policy
 import { VOID_TICKET_JTI_SQL } from './esign-otp-atomic';
 import { EsignLinkService } from './esign-link.service';
 import {
+  canAdvanceBookingToContracted,
   hashDocumentText,
   isPartyType,
   signerTurn,
@@ -235,6 +237,50 @@ export class SignaturePartyService {
     if (turn !== 'ok') {
       throw new UnprocessableEntityException({ detail: 'signer is not next in the signing order' });
     }
+  }
+
+  async review(
+    tenantId: string,
+    requestId: string,
+    actor: { userId?: string; role?: string },
+    decision: 'APPROVED' | 'REJECTED',
+    notes?: string,
+  ) {
+    if (!canApproveContract(actor.role)) {
+      throw new ForbiddenException({ detail: 'forbidden' });
+    }
+    const request = await this.requests.findOne({ where: { id: requestId, tenantId } });
+    if (!request) throw new NotFoundException({ detail: 'not found' });
+    const roster = await this.signers.find({ where: { requestId, tenantId } });
+    request.reviewedBy = actor.userId ?? null;
+    request.reviewedAt = new Date();
+    request.reviewDecision = decision;
+    request.reviewNotes = notes?.trim() || null;
+    await this.requests.save(request);
+    await this.dataSource.getRepository(AuditEventEntity).save({
+      tenantId,
+      entityType: 'signature_request',
+      entityId: request.id,
+      action: decision === 'APPROVED' ? 'REVIEW_APPROVED' : 'REVIEW_REJECTED',
+      payload: { role: actor.role, notes: request.reviewNotes },
+      actorId: actor.userId ?? null,
+    });
+    let bookingStatus: string | null = null;
+    if (
+      canAdvanceBookingToContracted({
+        requiresAdminReview: request.requiresAdminReview,
+        reviewDecision: request.reviewDecision,
+        roster,
+      })
+    ) {
+      const booking = await this.bookings.findOne({ where: { id: request.sourceEntityId, tenantId } });
+      if (booking?.status === 'DEPOSITED') {
+        booking.status = 'CONTRACTED';
+        await this.bookings.save(booking);
+        bookingStatus = booking.status;
+      }
+    }
+    return { data: { requestId: request.id, decision, bookingStatus } };
   }
 
   async view(requestId: string, tenantId: string) {

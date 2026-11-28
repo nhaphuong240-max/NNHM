@@ -18,6 +18,11 @@ describe('RoleService', () => {
     expect(result.data.some((r) => r.id === 'PROCEDURE_STAFF')).toBe(true);
     expect(result.data.find((r) => r.id === 'PROCEDURE_STAFF')?.permissions).toContain('contracts.send_sign_link');
     expect(result.data.find((r) => r.id === 'AGENT')?.permissions).not.toContain('contracts.send_sign_link');
+    expect(result.data.find((r) => r.id === 'SALES_DIRECTOR')?.permissions).toContain('contracts.approve');
+    expect(result.data.find((r) => r.id === 'SALES_DIRECTOR')?.label).toContain('Giám đốc kinh doanh');
+    expect(result.data.find((r) => r.id === 'FINANCE_ADMIN')?.permissions).toContain('kyc.approve');
+    expect(result.data.find((r) => r.id === 'ADMIN')?.permissions).not.toContain('contracts.approve');
+    expect(result.data.find((r) => r.id === 'ADMIN')?.permissions).not.toContain('kyc.approve');
   });
 
   it('updates tenant project scope policy', () => {

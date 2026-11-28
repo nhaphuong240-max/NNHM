@@ -8,7 +8,7 @@ export interface CreateBookingInput {
   notes?: string;
 }
 
-export type BookingStatus = 'RESERVED' | 'DEPOSITED' | 'EXPIRED' | 'CANCELLED' | 'REFUNDED';
+export type BookingStatus = 'RESERVED' | 'DEPOSITED' | 'EXPIRED' | 'CANCELLED' | 'REFUNDED' | 'CONTRACTED';
 
 export interface BookingAttributes {
   status: BookingStatus;

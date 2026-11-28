@@ -6,9 +6,12 @@ export const TENANT_ROLES = [
   'AGENT',
   'FINANCE_ADMIN',
   'PROCEDURE_STAFF',
+  'SALES_DIRECTOR',
 ] as const;
 
 export const SEND_SIGN_LINK_PERMISSION = 'contracts.send_sign_link';
+export const CONTRACTS_APPROVE_PERMISSION = 'contracts.approve';
+export const KYC_APPROVE_PERMISSION = 'kyc.approve';
 
 export type TenantRole = (typeof TENANT_ROLES)[number];
 
@@ -53,6 +56,18 @@ export const PERMISSION_CATALOG: PermissionDefinition[] = [
     group: 'Contracts',
     description: 'Gửi URL ký trên kênh đã VERIFIED. Không phải quyền duyệt hợp đồng.',
   },
+  {
+    id: CONTRACTS_APPROVE_PERMISSION,
+    label: 'Duyệt yêu cầu chữ ký',
+    group: 'Contracts',
+    description: 'Gán Giám đốc kinh doanh (SALES_DIRECTOR / GDKD).',
+  },
+  {
+    id: KYC_APPROVE_PERMISSION,
+    label: 'Duyệt KYC',
+    group: 'KYC',
+    description: 'Gán FINANCE_ADMIN.',
+  },
 ];
 
 export const PERMISSION_MATRIX: Record<TenantRole, string[]> = {
@@ -96,8 +111,10 @@ export const PERMISSION_MATRIX: Record<TenantRole, string[]> = {
     'reconciliation.run',
     'refunds.write',
     'commission.export',
+    KYC_APPROVE_PERMISSION,
   ],
   PROCEDURE_STAFF: ['portal.read', SEND_SIGN_LINK_PERMISSION],
+  SALES_DIRECTOR: ['portal.read', CONTRACTS_APPROVE_PERMISSION],
 };
 
 export function permissionCatalog(): PermissionDefinition[] {
@@ -136,6 +153,14 @@ export function canSendSignLink(role: string | undefined): boolean {
   return Boolean(role && permissionsForTenantRole(role).includes(SEND_SIGN_LINK_PERMISSION));
 }
 
+export function canApproveContract(role: string | undefined): boolean {
+  return Boolean(role && permissionsForTenantRole(role).includes(CONTRACTS_APPROVE_PERMISSION));
+}
+
+export function canApproveKyc(role: string | undefined): boolean {
+  return Boolean(role && permissionsForTenantRole(role).includes(KYC_APPROVE_PERMISSION));
+}
+
 const ROLE_LABELS: Record<TenantRole, string> = {
   ADMIN: 'Quản trị viên',
   OPS_ADMIN: 'Vận hành (Ops)',
@@ -143,6 +168,7 @@ const ROLE_LABELS: Record<TenantRole, string> = {
   AGENT: 'Môi giới / Sales',
   FINANCE_ADMIN: 'Tài chính',
   PROCEDURE_STAFF: 'Nhân viên thủ tục',
+  SALES_DIRECTOR: 'Giám đốc kinh doanh (GDKD)',
 };
 
 const ROLE_DESCRIPTIONS: Record<TenantRole, string> = {
@@ -150,6 +176,7 @@ const ROLE_DESCRIPTIONS: Record<TenantRole, string> = {
   OPS_ADMIN: 'Moderation · tranh chấp · replay booking',
   DEVELOPER_ADMIN: 'Golden Record · dự án · hoa hồng · analytics',
   AGENT: 'Listing · giữ chỗ · CRM pipeline',
-  FINANCE_ADMIN: 'Sổ cái · đối soát · hoàn tiền · xuất commission',
+  FINANCE_ADMIN: 'Sổ cái · đối soát · hoàn tiền · xuất commission · duyệt KYC',
   PROCEDURE_STAFF: 'Gửi link ký trên kênh buyer đã xác minh',
+  SALES_DIRECTOR: 'Duyệt yêu cầu chữ ký sau khi đủ bên ký',
 };

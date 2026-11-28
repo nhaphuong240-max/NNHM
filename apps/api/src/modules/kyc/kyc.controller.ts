@@ -1,7 +1,8 @@
-import { Body, Controller, Get, HttpCode, Param, Post, Query } from '@nestjs/common';
+import { Body, Controller, ForbiddenException, Get, HttpCode, Param, Post, Query } from '@nestjs/common';
 import type { KycSubjectType } from '../../database/entities/kyc-profile.entity';
 import { CurrentUser } from '../identity/decorators/current-user.decorator';
 import type { AuthUser } from '../identity/identity.types';
+import { canApproveKyc } from '../identity/role-catalog';
 import { KycService } from './kyc.service';
 
 @Controller('kyc')
@@ -38,6 +39,9 @@ export class KycController {
     @Param('subjectId') subjectId: string,
     @Body() body: { notes?: string },
   ) {
+    if (!canApproveKyc(user?.role)) {
+      throw new ForbiddenException({ detail: 'forbidden' });
+    }
     return this.kyc.approveProfile(
       user.tenantId,
       subjectType,
@@ -55,6 +59,9 @@ export class KycController {
     @Param('subjectId') subjectId: string,
     @Body() body: { notes?: string },
   ) {
+    if (!canApproveKyc(user?.role)) {
+      throw new ForbiddenException({ detail: 'forbidden' });
+    }
     return this.kyc.rejectProfile(
       user.tenantId,
       subjectType,
@@ -81,6 +88,9 @@ export class KycController {
     @Param('subjectId') subjectId: string,
     @Body() body: { reason: string },
   ) {
+    if (!canApproveKyc(user?.role)) {
+      throw new ForbiddenException({ detail: 'forbidden' });
+    }
     return this.kyc.requestResubmit(
       user.tenantId,
       subjectType,

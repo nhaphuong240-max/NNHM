@@ -21,6 +21,7 @@ const LEGACY_ROLE_MAP: Record<string, RoleCode> = {
   AGENCY_ADMIN: 'AGENCY_ADMIN',
   SEEKER: 'BUYER',
   PROCEDURE_STAFF: 'SUPPORT_AUDITOR',
+  SALES_DIRECTOR: 'TEAM_LEAD',
 };
 
 export type Grant = {

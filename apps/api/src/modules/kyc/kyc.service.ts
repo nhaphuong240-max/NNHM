@@ -145,21 +145,12 @@ export class KycService {
   ) {
     let row = await this.profiles.findOne({ where: { tenantId, subjectType, subjectId } });
     if (!row) {
-      row = await this.profiles.save({
-        id: `kyc_${randomUUID().replace(/-/g, '').slice(0, 8)}`,
-        tenantId,
-        subjectType,
-        subjectId,
-        status: 'APPROVED',
-        verifiedAt: new Date(),
-        notes: notes?.trim() ?? null,
-      });
-    } else {
-      row.status = 'APPROVED';
-      row.verifiedAt = new Date();
-      if (notes?.trim()) row.notes = notes.trim();
-      row = await this.profiles.save(row);
+      throw new NotFoundException({ detail: 'KYC profile not found' });
     }
+    row.status = 'APPROVED';
+    row.verifiedAt = new Date();
+    if (notes?.trim()) row.notes = notes.trim();
+    row = await this.profiles.save(row);
 
     await this.audit.append({
       tenantId,

@@ -24,6 +24,7 @@ const DEFAULT_PROJECT_SCOPES: ProjectScopeRule[] = [
   { role: 'AGENT', projectIds: ['prj_sunrise'] },
   { role: 'OPS_ADMIN', projectIds: ['prj_sunrise'] },
   { role: 'PROCEDURE_STAFF', projectIds: ['prj_sunrise'] },
+  { role: 'SALES_DIRECTOR', projectIds: ['prj_sunrise'] },
 ];
 
 @Injectable()

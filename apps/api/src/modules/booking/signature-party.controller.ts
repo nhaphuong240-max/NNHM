@@ -1,10 +1,10 @@
-import { Body, Controller, ForbiddenException, Get, Headers, HttpCode, NotFoundException, Param, Post } from '@nestjs/common';
+import { BadRequestException, Body, Controller, ForbiddenException, Get, Headers, HttpCode, NotFoundException, Param, Post } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { oneLookedUpTenant } from '../../common/public-tenant-lookup';
 import { assertHeaderMatches } from '../../common/resolve-tenant-id';
 import { CurrentUser } from '../identity/decorators/current-user.decorator';
 import type { AuthUser } from '../identity/identity.types';
-import { canSendSignLink, permissionsForTenantRole } from '../identity/role-catalog';
+import { canApproveContract, canSendSignLink } from '../identity/role-catalog';
 import type { SigningMode } from './esign-multi-party';
 import { SignaturePartyService, type PartySignerInput } from './signature-party.service';
 
@@ -92,11 +92,26 @@ export class SignaturePartyController {
 
   @Post(':id/review')
   @HttpCode(200)
-  review(@CurrentUser() user: AuthUser | undefined) {
-    const allowed = user?.role ? permissionsForTenantRole(user.role).includes('contracts.approve') : false;
-    if (!allowed) {
+  async review(
+    @CurrentUser() user: AuthUser | undefined,
+    @Headers('x-tenant-id') tenantHeader: string | undefined,
+    @Param('id') id: string,
+    @Body() body: { decision?: 'APPROVED' | 'REJECTED'; notes?: string },
+  ) {
+    if (!canApproveContract(user?.role)) {
       throw new ForbiddenException({ detail: 'forbidden' });
     }
-    throw new ForbiddenException({ detail: 'forbidden' });
+    if (body.decision !== 'APPROVED' && body.decision !== 'REJECTED') {
+      throw new BadRequestException({ detail: 'decision must be APPROVED or REJECTED' });
+    }
+    if (!user?.tenantId?.trim()) {
+      throw new NotFoundException({ detail: 'not found' });
+    }
+    const tenantId = await oneLookedUpTenant(this.dataSource, 'signature_request', id, 'not-found');
+    assertHeaderMatches(tenantHeader, tenantId);
+    if (user.tenantId !== tenantId) {
+      throw new NotFoundException({ detail: 'not found' });
+    }
+    return this.parties.review(tenantId, id, { userId: user.userId, role: user.role }, body.decision, body.notes);
   }
 }

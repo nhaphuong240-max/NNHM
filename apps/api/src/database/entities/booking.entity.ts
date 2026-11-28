@@ -6,14 +6,14 @@ import {
   PrimaryColumn,
 } from 'typeorm';
 
-export type BookingStatus = 'RESERVED' | 'DEPOSITED' | 'EXPIRED' | 'CANCELLED' | 'REFUNDED';
+export type BookingStatus = 'RESERVED' | 'DEPOSITED' | 'EXPIRED' | 'CANCELLED' | 'REFUNDED' | 'CONTRACTED';
 
 @Entity({ name: 'bookings' })
 @Index(['tenantId', 'idempotencyKey'], { unique: true })
 @Index(['unitId'], {
   unique: true,
   where:
-    "((status)::text = ANY ((ARRAY['RESERVED'::character varying, 'DEPOSITED'::character varying])::text[]))",
+    "((status)::text = ANY ((ARRAY['RESERVED'::character varying, 'DEPOSITED'::character varying, 'CONTRACTED'::character varying])::text[]))",
 })
 export class BookingEntity {
   @PrimaryColumn({ type: 'varchar', length: 32 })
