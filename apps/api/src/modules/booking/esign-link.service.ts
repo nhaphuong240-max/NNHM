@@ -126,7 +126,7 @@ export class EsignLinkService {
         | LatestLink
         | undefined;
 
-      if (!input.resend && latest && (latest.status === 'SENT' || latest.status === 'DELIVERED')) {
+      if (!input.resend && latest && ['SENT', 'DELIVERED', 'QUEUED'].includes(latest.status)) {
         const age = Date.now() - new Date(latest.created_at).getTime();
         if (age > CONTRACT_SIGN_TOKEN_TTL_MS) {
           throw new UnprocessableEntityException({ detail: 'esign link already exists; resend is required' });
@@ -140,13 +140,6 @@ export class EsignLinkService {
           sandbox: await this.channelSandbox(input.tenantId, dest.channel),
           idempotentReplay: true,
         };
-      }
-      if (!input.resend && latest?.status === 'QUEUED') {
-        if (dest.channel === 'SMS') await this.sms.markFailed(input.tenantId, latest.id);
-        else await this.email.markFailed(input.tenantId, latest.id);
-        await runner.query(VOID_OPEN_TICKETS_SQL, [input.tenantId, input.contractId, buyerId]);
-        await runner.commitTransaction();
-        throw new UnprocessableEntityException({ detail: 'esign link already exists; resend is required' });
       }
       if (!input.resend && latest) {
         throw new UnprocessableEntityException({ detail: 'esign link already exists; resend is required' });
