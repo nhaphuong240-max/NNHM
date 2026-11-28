@@ -41,6 +41,16 @@ export function allSignersSigned(roster: SignerTurnRow[]): boolean {
   return roster.length > 0 && roster.every((row) => row.status === 'SIGNED');
 }
 
+export function canAdvanceBookingToContracted(input: {
+  requiresAdminReview: boolean;
+  reviewDecision: string | null;
+  roster: SignerTurnRow[];
+}): boolean {
+  if (!allSignersSigned(input.roster)) return false;
+  if (input.requiresAdminReview && input.reviewDecision !== 'APPROVED') return false;
+  return true;
+}
+
 export const ESIGN_COMPLETION_COPY_CHANNEL_ENV = 'ESIGN_COMPLETION_COPY_CHANNEL';
 export const ESIGN_DOWNLOAD_TTL_MS_ENV = 'ESIGN_DOWNLOAD_TTL_MS';
 

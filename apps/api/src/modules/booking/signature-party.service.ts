@@ -20,7 +20,7 @@ import { buildSigningUrl, ESIGN_SIGNING_BASE_URL_ENV } from './esign-link.policy
 import { VOID_TICKET_JTI_SQL } from './esign-otp-atomic';
 import { EsignLinkService } from './esign-link.service';
 import {
-  allSignersSigned,
+  canAdvanceBookingToContracted,
   hashDocumentText,
   isPartyType,
   signerTurn,
@@ -266,7 +266,13 @@ export class SignaturePartyService {
       actorId: actor.userId ?? null,
     });
     let bookingStatus: string | null = null;
-    if (decision === 'APPROVED' && allSignersSigned(roster)) {
+    if (
+      canAdvanceBookingToContracted({
+        requiresAdminReview: request.requiresAdminReview,
+        reviewDecision: request.reviewDecision,
+        roster,
+      })
+    ) {
       const booking = await this.bookings.findOne({ where: { id: request.sourceEntityId, tenantId } });
       if (booking?.status === 'DEPOSITED') {
         booking.status = 'CONTRACTED';

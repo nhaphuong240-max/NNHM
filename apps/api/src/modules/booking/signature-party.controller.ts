@@ -1,4 +1,4 @@
-import { Body, Controller, ForbiddenException, Get, Headers, HttpCode, NotFoundException, Param, Post } from '@nestjs/common';
+import { BadRequestException, Body, Controller, ForbiddenException, Get, Headers, HttpCode, NotFoundException, Param, Post } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { oneLookedUpTenant } from '../../common/public-tenant-lookup';
 import { assertHeaderMatches } from '../../common/resolve-tenant-id';
@@ -101,11 +101,17 @@ export class SignaturePartyController {
     if (!canApproveContract(user?.role)) {
       throw new ForbiddenException({ detail: 'forbidden' });
     }
-    const tenantId = tenantHeader?.trim() ?? user?.tenantId ?? '';
-    if (!tenantId) throw new NotFoundException({ detail: 'not found' });
     if (body.decision !== 'APPROVED' && body.decision !== 'REJECTED') {
-      throw new ForbiddenException({ detail: 'forbidden' });
+      throw new BadRequestException({ detail: 'decision must be APPROVED or REJECTED' });
     }
-    return this.parties.review(tenantId, id, { userId: user?.userId, role: user?.role }, body.decision, body.notes);
+    if (!user?.tenantId?.trim()) {
+      throw new NotFoundException({ detail: 'not found' });
+    }
+    const tenantId = await oneLookedUpTenant(this.dataSource, 'signature_request', id, 'not-found');
+    assertHeaderMatches(tenantHeader, tenantId);
+    if (user.tenantId !== tenantId) {
+      throw new NotFoundException({ detail: 'not found' });
+    }
+    return this.parties.review(tenantId, id, { userId: user.userId, role: user.role }, body.decision, body.notes);
   }
 }

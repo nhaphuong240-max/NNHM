@@ -1,4 +1,4 @@
-import { ForbiddenException, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
 import { ContractArtifactService } from './contract-artifact.service';
 import {
   CONTRACTS_APPROVE_PERMISSION,
@@ -9,6 +9,7 @@ import {
 } from '../identity/role-catalog';
 import { KycController } from '../kyc/kyc.controller';
 import { KycService } from '../kyc/kyc.service';
+import { canAdvanceBookingToContracted } from './esign-multi-party';
 import { SignaturePartyController } from './signature-party.controller';
 import { SignaturePartyService } from './signature-party.service';
 
@@ -84,10 +85,61 @@ describe('esign batch 4 approve and kyc', () => {
       const result = await parties.review('ten_b', 'sreq_1', { userId: 'usr_fin', role: 'FINANCE_ADMIN' }, 'APPROVED');
       expect(result.data.bookingStatus).toBe('CONTRACTED');
       expect(booking.status).toBe('CONTRACTED');
+
+      booking.status = 'DEPOSITED';
+      request.requiresAdminReview = true;
+      const unsigned = new SignaturePartyService(
+        { findOne: jest.fn(async () => request), save: jest.fn(async (row: unknown) => row) } as never,
+        { find: jest.fn(async () => [{ id: 's1', status: 'LINK_SENT' }]) } as never,
+        {} as never,
+        { findOne: jest.fn(async () => booking), save: jest.fn(async (row: { status: string }) => row) } as never,
+        {} as never,
+        { getRepository: () => ({ save: jest.fn(async (row: unknown) => row) }) } as never,
+        {} as never,
+        {} as never,
+        {} as never,
+        {} as never,
+        { get: () => undefined } as never,
+      );
+      const skipped = await unsigned.review('ten_b', 'sreq_1', { userId: 'usr_fin', role: 'FINANCE_ADMIN' }, 'APPROVED');
+      expect(skipped.data.bookingStatus).toBeNull();
+      expect(booking.status).toBe('DEPOSITED');
     } finally {
       PERMISSION_MATRIX.FINANCE_ADMIN.splice(0, PERMISSION_MATRIX.FINANCE_ADMIN.length, ...granted);
     }
     expect(canApproveContract('FINANCE_ADMIN')).toBe(false);
+  });
+
+  it('returns 400 for an invalid review decision', async () => {
+    const granted = [...PERMISSION_MATRIX.FINANCE_ADMIN];
+    PERMISSION_MATRIX.FINANCE_ADMIN.push(CONTRACTS_APPROVE_PERMISSION);
+    try {
+      const party = new SignaturePartyController({} as never, { query: jest.fn() } as never);
+      await expect(
+        party.review({ userId: 'usr_fin', role: 'FINANCE_ADMIN', tenantId: 'ten_b', email: 'a@x' }, 'ten_b', 'sreq_1', {
+          decision: 'MAYBE' as 'APPROVED',
+        }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    } finally {
+      PERMISSION_MATRIX.FINANCE_ADMIN.splice(0, PERMISSION_MATRIX.FINANCE_ADMIN.length, ...granted);
+    }
+  });
+
+  it('advances CONTRACTED on last signature when admin review is not required', () => {
+    const signed = [{ id: 's1', signOrder: 1, groupId: null, status: 'SIGNED' }];
+    expect(
+      canAdvanceBookingToContracted({ requiresAdminReview: false, reviewDecision: null, roster: signed }),
+    ).toBe(true);
+    expect(
+      canAdvanceBookingToContracted({ requiresAdminReview: true, reviewDecision: null, roster: signed }),
+    ).toBe(false);
+    expect(
+      canAdvanceBookingToContracted({
+        requiresAdminReview: true,
+        reviewDecision: 'APPROVED',
+        roster: [{ id: 's1', signOrder: 1, groupId: null, status: 'LINK_SENT' }],
+      }),
+    ).toBe(false);
   });
 
   it('keeps D08 fail-closed', () => {
