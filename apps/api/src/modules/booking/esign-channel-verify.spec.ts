@@ -274,6 +274,31 @@ describe('signer channel verification', () => {
     expect(send).not.toHaveBeenCalled();
   });
 
+  it('blocks a second start after cooldown because last_sent_at was just refreshed', async () => {
+    const saved: Array<Record<string, unknown>> = [
+      {
+        id: 'scv_pending',
+        tenantId: 'ten_b',
+        leadId: 'ld_01',
+        status: 'PENDING',
+        createdAt: new Date(Date.now() - 120_000),
+        lastSentAt: new Date(Date.now() - 31_000),
+        sendCount: 1,
+        expiresAt: new Date(Date.now() + 60_000),
+        attemptCount: 0,
+        emailDestMasked: 't***@example.com',
+        smsDestHash: hashChannelDest(PHONE, PEPPER),
+        emailDestHash: hashChannelDest(EMAIL, PEPPER),
+      },
+    ];
+    const send = jest.fn(async () => ({ status: 'SENT', deliveryId: 'eml_1', sandbox: true }));
+    const svc = service({ send, rows: memoryRows(saved) });
+    await expect(svc.start('ten_b', '0901234567')).resolves.toMatchObject({ sent: true });
+    expect(send).toHaveBeenCalledTimes(1);
+    await expect(svc.start('ten_b', '0901234567')).rejects.toMatchObject({ response: { detail: CLOSED } });
+    expect(send).toHaveBeenCalledTimes(1);
+  });
+
   it('counts a resend after cooldown toward MAX_SENDS and then blocks', async () => {
     const saved: Array<Record<string, unknown>> = [
       {
