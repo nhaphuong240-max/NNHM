@@ -2,12 +2,14 @@ export const EMAIL_TEMPLATES = {
   SIGN_LINK: 'email_esign_link_v1',
   OTP: 'email_esign_otp_v1',
   CHANNEL_VERIFY: 'email_channel_verify_v1',
+  COMPLETION: 'email_esign_completion_v1',
 } as const;
 
 export const EMAIL_TEMPLATE_COPY: Record<string, string> = {
   email_esign_link_v1: 'Open the signing page from the registered channel. This message does not include the verification code.',
   email_esign_otp_v1: 'Signing OTP: {{otp}}',
   email_channel_verify_v1: 'Channel verification code: {{otp}}',
+  email_esign_completion_v1: 'Download the signed contract. This message does not include a signing token or verification code.',
 };
 
 export type EmailTemplateId = (typeof EMAIL_TEMPLATES)[keyof typeof EMAIL_TEMPLATES];

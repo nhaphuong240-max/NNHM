@@ -18,6 +18,8 @@ import { UnitEntity } from '../../database/entities/unit.entity';
 import { SignatureEventEntity } from '../../database/entities/signature-event.entity';
 import { SignatureRequestEntity } from '../../database/entities/signature-request.entity';
 import { SignatureSignerEntity } from '../../database/entities/signature-signer.entity';
+import { SignerChannelVerificationEntity } from '../../database/entities/signer-channel-verification.entity';
+import { UserEntity } from '../../database/entities/user.entity';
 import { AuditService } from '../audit/audit.service';
 import { ConsentLedgerService } from '../compliance/consent-ledger.service';
 import { DocumentsService } from '../documents/documents.service';
@@ -46,7 +48,9 @@ import {
   returnedRows,
 } from './esign-otp-atomic';
 import { buildPlainPdf } from './esign-completion-pdf';
+import { ESIGN_SIGNING_BASE_URL_ENV } from './esign-link.policy';
 import { EsignLinkService } from './esign-link.service';
+import { hashChannelDest, readEsignOtpPepper } from './esign-otp-policy';
 import {
   allSignersSigned,
   ESIGN_COMPLETION_COPY_CHANNEL_ENV,
@@ -491,23 +495,80 @@ export class BookingContractService {
   }
 
   private async maybeSendCompletionCopy(prepared: PreparedContractSignature, documentId: string): Promise<void> {
-    const channel = this.config?.get<string>(ESIGN_COMPLETION_COPY_CHANNEL_ENV)?.trim().toUpperCase();
-    if (!channel || !this.links) return;
-    const destChannel = channel === 'EMAIL' ? 'EMAIL' : channel === 'SMS' ? 'SMS' : null;
-    if (!destChannel) return;
-    const booking = await this.bookings.findOne({ where: { id: prepared.bookingId, tenantId: prepared.tenantId } });
-    const lead = booking?.leadId
-      ? await this.leads.findOne({ where: { id: booking.leadId, tenantId: prepared.tenantId } })
-      : null;
-    const value = destChannel === 'EMAIL' ? lead?.email?.trim() ?? '' : lead?.phone?.trim() ?? '';
-    if (!value) return;
-    await this.links.deliverCompletionCopy({
-      tenantId: prepared.tenantId,
-      dest: { channel: destChannel, value },
-      buyerName: prepared.signerName,
-      contractId: prepared.contractId,
-      documentId,
+    try {
+      const channel = this.config?.get<string>(ESIGN_COMPLETION_COPY_CHANNEL_ENV)?.trim().toUpperCase();
+      if (!channel || !this.links) return;
+      const destChannel = channel === 'EMAIL' ? 'EMAIL' : channel === 'SMS' ? 'SMS' : null;
+      if (!destChannel) return;
+      const downloadUrl = this.signedCopyUrl(documentId);
+      if (!downloadUrl) return;
+      const tenantId = prepared.tenantId;
+      const request = await this.dataSource.getRepository(SignatureRequestEntity).findOne({
+        where: { id: prepared.requestId, tenantId },
+      });
+      const roster = request
+        ? await this.dataSource.getRepository(SignatureSignerEntity).find({ where: { requestId: request.id, tenantId } })
+        : [];
+      const parties = roster.length ? roster : [{ id: prepared.signerId, partyType: 'BUYER', channel: destChannel, channelDestHash: null, subjectId: null }];
+      for (const signer of parties) {
+        const value = await this.completionDest(tenantId, request, signer, destChannel);
+        if (!value) continue;
+        await this.links.deliverCompletionCopy({
+          tenantId,
+          dest: { channel: destChannel, value },
+          buyerName: prepared.signerName,
+          contractId: prepared.contractId,
+          documentId,
+          signerId: signer.id,
+          downloadUrl,
+        });
+      }
+    } catch {
+      return;
+    }
+  }
+
+  private signedCopyUrl(documentId: string): string {
+    const base = this.config?.get<string>(ESIGN_SIGNING_BASE_URL_ENV)?.trim() ?? '';
+    try {
+      const url = new URL(base);
+      url.pathname = `/documents/${encodeURIComponent(documentId)}`;
+      url.search = '';
+      url.hash = '';
+      return url.toString();
+    } catch {
+      return '';
+    }
+  }
+
+  private async completionDest(
+    tenantId: string,
+    request: SignatureRequestEntity | null,
+    signer: { id: string; partyType: string; channel: string; channelDestHash: string | null; subjectId: string | null },
+    destChannel: 'EMAIL' | 'SMS',
+  ): Promise<string> {
+    if (signer.partyType === 'BUYER') {
+      const bookingId = request?.sourceEntityId;
+      const held = bookingId ? await this.bookings.findOne({ where: { id: bookingId, tenantId } }) : null;
+      const lead = held?.leadId ? await this.leads.findOne({ where: { id: held.leadId, tenantId } }) : null;
+      return destChannel === 'EMAIL' ? lead?.email?.trim() ?? '' : lead?.phone?.trim() ?? '';
+    }
+    if (destChannel === 'EMAIL') {
+      const user = await this.dataSource.getRepository(UserEntity).findOne({
+        where: { id: signer.subjectId ?? '', tenantId },
+      });
+      return user?.email?.trim() ?? '';
+    }
+    const pepper = readEsignOtpPepper((key) => this.config?.get<string>(key));
+    if (!pepper || !signer.channelDestHash) return '';
+    const verified = await this.dataSource.getRepository(SignerChannelVerificationEntity).findOne({
+      where: { tenantId, status: 'VERIFIED', smsDestHash: signer.channelDestHash },
     });
+    if (!verified) return '';
+    const lead = await this.leads.findOne({ where: { id: verified.leadId, tenantId } });
+    const phone = lead?.phone?.trim() ?? '';
+    if (!phone || hashChannelDest(phone, pepper) !== signer.channelDestHash) return '';
+    return phone;
   }
 
   /** Rebuild a committed signature whose vault file is still missing. Does not write another SIGNED row. */

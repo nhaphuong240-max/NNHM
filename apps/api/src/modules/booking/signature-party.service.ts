@@ -289,9 +289,7 @@ export class SignaturePartyService {
       const user = await this.users.findOne({ where: { id: signer.subjectId ?? '', tenantId } });
       value = user?.email?.trim() ?? '';
     } else {
-      const user = await this.users.findOne({ where: { id: signer.subjectId ?? '', tenantId } });
-      const match = /^seeker\+(\d+)@/i.exec(user?.email ?? '');
-      value = match?.[1] ? `+84${match[1].replace(/^0/, '')}` : '';
+      value = (await this.channels.verifiedSmsPhone(tenantId, signer.channelDestHash ?? '')) ?? '';
     }
     if (!value) {
       throw new UnprocessableEntityException({ detail: 'signer channel destination is not registered' });

@@ -258,7 +258,11 @@ export class EsignLinkService {
     }
   }
 
-  private async assertChannelReady(tenantId: string, channel: ContractSignChannel): Promise<void> {
+  private async assertChannelReady(
+    tenantId: string,
+    channel: ContractSignChannel,
+    emailTemplate: string = EMAIL_TEMPLATES.SIGN_LINK,
+  ): Promise<void> {
     if (this.config.get<string>('NODE_ENV') === 'production') {
       if (channel === 'EMAIL' && this.email.isSandbox()) {
         throw new UnprocessableEntityException({ detail: 'email sandbox is not allowed in production' });
@@ -267,7 +271,7 @@ export class EsignLinkService {
         throw new UnprocessableEntityException({ detail: 'sms sandbox is not allowed in production' });
       }
     }
-    if (channel === 'EMAIL') this.email.assertReady(EMAIL_TEMPLATES.SIGN_LINK);
+    if (channel === 'EMAIL') this.email.assertReady(emailTemplate);
     if (channel === 'SMS') await this.sms.assertEsignReady(tenantId);
     if (channel === 'ZALO') {
       throw new UnprocessableEntityException({
@@ -284,14 +288,17 @@ export class EsignLinkService {
     buyerName: string;
     contractId: string;
     documentId: string;
+    signerId: string;
+    downloadUrl: string;
   }): Promise<void> {
-    await this.assertChannelReady(input.tenantId, input.dest.channel);
-    const sourceId = `ESIGN_COMPLETION:${input.contractId}`;
+    const sourceId = `ESIGN_COMPLETION:${input.contractId}:${input.signerId}`;
+    const templateId = input.dest.channel === 'EMAIL' ? EMAIL_TEMPLATES.COMPLETION : SMS_TEMPLATES.COMPLETION;
     const runner = this.dataSource.createQueryRunner();
     await runner.connect();
     await runner.startTransaction();
     let deliveryId = '';
     try {
+      await this.assertChannelReady(input.tenantId, input.dest.channel, templateId);
       const queued = await this.enqueueLink({
         tenantId: input.tenantId,
         dest: input.dest,
@@ -299,24 +306,39 @@ export class EsignLinkService {
         contractId: input.contractId,
         sourceId,
         manager: runner.manager,
+        templateId,
+        sourceType: 'ESIGN_COMPLETION',
+        extraParams: { documentUrl: input.downloadUrl },
       });
       deliveryId = queued.deliveryId;
       await runner.commitTransaction();
     } catch (error) {
       if (runner.isTransactionActive) await runner.rollbackTransaction();
-      throw error;
+      if (deliveryId) {
+        if (input.dest.channel === 'SMS') await this.sms.markFailed(input.tenantId, deliveryId);
+        else await this.email.markFailed(input.tenantId, deliveryId);
+      }
+      return;
     } finally {
       await runner.release();
     }
-    await this.completeLink({
-      tenantId: input.tenantId,
-      dest: input.dest,
-      buyerName: input.buyerName,
-      contractId: input.contractId,
-      sourceId,
-      deliveryId,
-      signingUrl: '',
-    });
+    try {
+      await this.completeLink({
+        tenantId: input.tenantId,
+        dest: input.dest,
+        buyerName: input.buyerName,
+        contractId: input.contractId,
+        sourceId,
+        deliveryId,
+        signingUrl: input.downloadUrl,
+        templateId,
+        sourceType: 'ESIGN_COMPLETION',
+        extraParams: { documentUrl: input.downloadUrl },
+      });
+    } catch {
+      if (input.dest.channel === 'SMS') await this.sms.markFailed(input.tenantId, deliveryId);
+      else await this.email.markFailed(input.tenantId, deliveryId);
+    }
   }
 
   async deliverSigningUrl(input: {
@@ -361,16 +383,20 @@ export class EsignLinkService {
     contractId: string;
     sourceId: string;
     manager: import('typeorm').EntityManager;
+    templateId?: string;
+    sourceType?: 'ESIGN_LINK' | 'ESIGN_COMPLETION';
+    extraParams?: Record<string, string>;
   }): Promise<{ deliveryId: string }> {
-    const params = { buyer_name: input.buyerName, contract_id: input.contractId };
+    const params = { buyer_name: input.buyerName, contract_id: input.contractId, ...(input.extraParams ?? {}) };
+    const sourceType = input.sourceType ?? 'ESIGN_LINK';
     if (input.dest.channel === 'EMAIL') {
       const queued = await this.email.send(
         input.tenantId,
         {
           to: input.dest.value,
-          templateId: EMAIL_TEMPLATES.SIGN_LINK,
+          templateId: input.templateId ?? EMAIL_TEMPLATES.SIGN_LINK,
           params,
-          source: { type: 'ESIGN_LINK', id: input.sourceId },
+          source: { type: sourceType, id: input.sourceId },
           persistOtp: false,
         },
         input.manager,
@@ -381,12 +407,12 @@ export class EsignLinkService {
       const queued = await this.sms.enqueueEsignLink(
         input.tenantId,
         {
-          templateId: SMS_TEMPLATES.SIGN_LINK,
+          templateId: input.templateId ?? SMS_TEMPLATES.SIGN_LINK,
           phone: input.dest.value,
           persistOtp: false,
           maskStoredDest: true,
           params,
-          source: { type: 'ESIGN_LINK', id: input.sourceId },
+          source: { type: sourceType, id: input.sourceId },
         },
         input.manager,
       );
@@ -403,17 +429,21 @@ export class EsignLinkService {
     sourceId: string;
     deliveryId: string;
     signingUrl: string;
+    templateId?: string;
+    sourceType?: 'ESIGN_LINK' | 'ESIGN_COMPLETION';
+    extraParams?: Record<string, string>;
   }): Promise<{ deliveryId: string; sandbox: boolean; idempotentReplay?: boolean }> {
-    const params = { buyer_name: input.buyerName, contract_id: input.contractId };
+    const params = { buyer_name: input.buyerName, contract_id: input.contractId, ...(input.extraParams ?? {}) };
+    const sourceType = input.sourceType ?? 'ESIGN_LINK';
     try {
       if (input.dest.channel === 'EMAIL') {
         const sent = await this.email.completeQueued(input.tenantId, input.deliveryId, {
           to: input.dest.value,
-          templateId: EMAIL_TEMPLATES.SIGN_LINK,
-          params: input.signingUrl
+          templateId: input.templateId ?? EMAIL_TEMPLATES.SIGN_LINK,
+          params: input.signingUrl && sourceType === 'ESIGN_LINK'
             ? { ...params, signingUrl: input.signingUrl }
             : params,
-          source: { type: 'ESIGN_LINK', id: input.sourceId },
+          source: { type: sourceType, id: input.sourceId },
           persistOtp: false,
         });
         if (sent.status !== 'SENT') {
@@ -423,14 +453,14 @@ export class EsignLinkService {
       }
       if (input.dest.channel === 'SMS') {
         const sent = await this.sms.completeEsignLink(input.tenantId, input.deliveryId, {
-          templateId: SMS_TEMPLATES.SIGN_LINK,
+          templateId: input.templateId ?? SMS_TEMPLATES.SIGN_LINK,
           phone: input.dest.value,
           persistOtp: false,
           maskStoredDest: true,
-          params: input.signingUrl
+          params: input.signingUrl && sourceType === 'ESIGN_LINK'
             ? { ...params, signingUrl: input.signingUrl }
             : params,
-          source: { type: 'ESIGN_LINK', id: input.sourceId },
+          source: { type: sourceType, id: input.sourceId },
         });
         if (sent.status !== 'SENT' && sent.status !== 'DELIVERED') {
           throw new UnprocessableEntityException({ detail: 'e-sign link was not sent' });
@@ -442,8 +472,8 @@ export class EsignLinkService {
       if (uniqueViolation(error)) {
         const existing =
           input.dest.channel === 'EMAIL'
-            ? await this.email.findBySource(input.tenantId, { type: 'ESIGN_LINK', id: input.sourceId })
-            : await this.sms.findBySource(input.tenantId, { type: 'ESIGN_LINK', id: input.sourceId });
+            ? await this.email.findBySource(input.tenantId, { type: sourceType, id: input.sourceId })
+            : await this.sms.findBySource(input.tenantId, { type: sourceType, id: input.sourceId });
         if (!existing || (existing.status !== 'SENT' && existing.status !== 'DELIVERED')) {
           throw new UnprocessableEntityException({ detail: 'e-sign link was not sent' });
         }

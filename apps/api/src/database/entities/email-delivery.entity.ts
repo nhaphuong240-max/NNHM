@@ -8,7 +8,7 @@ import {
 } from 'typeorm';
 
 export type EmailDeliveryStatus = 'QUEUED' | 'SENT' | 'FAILED';
-export type EmailSourceType = 'ESIGN_LINK' | 'ESIGN_OTP' | 'CHANNEL_VERIFY';
+export type EmailSourceType = 'ESIGN_LINK' | 'ESIGN_OTP' | 'CHANNEL_VERIFY' | 'ESIGN_COMPLETION';
 
 @Entity({ name: 'email_deliveries' })
 @Index(['tenantId', 'sourceType', 'sourceId'], { unique: true, where: '"source_id" IS NOT NULL' })

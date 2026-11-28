@@ -1,10 +1,14 @@
 import { ForbiddenException, UnprocessableEntityException } from '@nestjs/common';
 import { SignatureRequestEntity } from '../../database/entities/signature-request.entity';
 import { SignatureSignerEntity } from '../../database/entities/signature-signer.entity';
+import { EMAIL_TEMPLATE_COPY, EMAIL_TEMPLATES } from '../email/email.types';
+import { SMS_TEMPLATE_COPY, SMS_TEMPLATES } from '../sms/sms.types';
 import { BookingContractService } from './booking-contract.service';
 import { ContractArtifactService } from './contract-artifact.service';
 import { buildPlainPdf } from './esign-completion-pdf';
+import { EsignLinkService } from './esign-link.service';
 import { ESIGN_COMPLETION_COPY_CHANNEL_ENV, hashDocumentText, signerTurn } from './esign-multi-party';
+import { ESIGN_OTP_PEPPER_ENV } from './esign-otp-policy';
 import { SignaturePartyController } from './signature-party.controller';
 import { SignaturePartyService } from './signature-party.service';
 import { CONTRACT_TEMPLATES } from './booking-contract.util';
@@ -150,5 +154,107 @@ describe('esign batch 3', () => {
     await expect(contracts.getSignSession('ten_b', 'ctr_b', access)).rejects.toMatchObject({
       response: { detail: 'Contract already signed' },
     });
+  });
+
+  it('keeps a completion template without otp or token copy', () => {
+    expect(EMAIL_TEMPLATE_COPY[EMAIL_TEMPLATES.COMPLETION]).not.toMatch(/\{\{otp\}\}/);
+    expect(SMS_TEMPLATE_COPY[SMS_TEMPLATES.COMPLETION]).not.toMatch(/\{\{otp\}\}/);
+  });
+
+  it('does not infer a non-buyer SMS dest from a seeker+ email', async () => {
+    const parties = new SignaturePartyService(
+      {
+        findOne: jest.fn(async () => ({
+          id: 'sreq_1',
+          tenantId: 'ten_b',
+          contractId: 'ctr_b',
+          sourceEntityId: 'bk_1',
+          documentHash: hashDocumentText('body'),
+          signingMode: 'PARALLEL',
+        })),
+        save: jest.fn(),
+      } as never,
+      {
+        find: jest.fn(async () => [
+          {
+            id: 'ssgn_sales',
+            partyType: 'SALES',
+            channel: 'SMS',
+            channelDestHash: 'hash',
+            subjectId: 'usr_sales',
+            status: 'PENDING',
+            signOrder: 1,
+            groupId: null,
+          },
+        ]),
+      } as never,
+      { findOne: jest.fn(async () => ({ email: 'seeker+0901234567@nnhn.local' })) } as never,
+      { findOne: jest.fn(async () => ({ id: 'bk_1', leadId: 'ld_1' })) } as never,
+      { findOne: jest.fn() } as never,
+      {} as never,
+      {
+        getContract: jest.fn(async () => ({
+          data: { attributes: { mergedText: 'body', mergeContext: { buyerName: 'Thu' } } },
+        })),
+      } as never,
+      {} as never,
+      {} as never,
+      { verifiedSmsPhone: jest.fn(async () => null), assertVerified: jest.fn() } as never,
+      {
+        get: (key: string) =>
+          ({
+            [ESIGN_OTP_PEPPER_ENV]: 'esign-otp-pepper-16',
+            CONTRACT_SIGN_SECRET: 'contract-sign-test-secret',
+            ESIGN_SIGNING_BASE_URL: 'https://app.example.test/buyer/esign',
+          })[key],
+      } as never,
+    );
+    await expect(parties.sendDue('ten_b', 'sreq_1', 'PROCEDURE_STAFF')).rejects.toMatchObject({
+      response: { detail: 'signer channel destination is not registered' },
+    });
+  });
+
+  it('does not throw when a completion copy send fails', async () => {
+    const markFailed = jest.fn();
+    const links = new EsignLinkService(
+      {} as never,
+      {} as never,
+      {} as never,
+      {
+        createQueryRunner: () => ({
+          connect: async () => undefined,
+          startTransaction: async () => undefined,
+          commitTransaction: async () => undefined,
+          rollbackTransaction: async () => undefined,
+          release: async () => undefined,
+          isTransactionActive: false,
+          manager: {},
+        }),
+      } as never,
+      { get: () => 'test' } as never,
+      {} as never,
+      {} as never,
+      {
+        assertReady: () => {
+          throw new UnprocessableEntityException({ detail: 'email sandbox is not configured' });
+        },
+        markFailed,
+        isSandbox: () => true,
+      } as never,
+      { markFailed, assertEsignReady: jest.fn() } as never,
+      {} as never,
+      {} as never,
+    );
+    await expect(
+      links.deliverCompletionCopy({
+        tenantId: 'ten_b',
+        dest: { channel: 'EMAIL', value: 'a@b.c' },
+        buyerName: 'Thu',
+        contractId: 'ctr_b',
+        documentId: 'doc_1',
+        signerId: 'ssgn_1',
+        downloadUrl: 'https://app.example.test/documents/doc_1',
+      }),
+    ).resolves.toBeUndefined();
   });
 });

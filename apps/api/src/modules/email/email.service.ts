@@ -13,7 +13,7 @@ export type EmailDispatchInput = {
   to: string;
   templateId: string;
   params?: Record<string, unknown>;
-  source?: { type: 'ESIGN_LINK' | 'ESIGN_OTP' | 'CHANNEL_VERIFY'; id: string };
+  source?: { type: 'ESIGN_LINK' | 'ESIGN_OTP' | 'CHANNEL_VERIFY' | 'ESIGN_COMPLETION'; id: string };
   persistOtp?: boolean;
 };
 
@@ -64,7 +64,7 @@ export class EmailService {
 
   async findBySource(
     tenantId: string,
-    source: { type: 'ESIGN_LINK' | 'ESIGN_OTP' | 'CHANNEL_VERIFY'; id: string },
+    source: { type: 'ESIGN_LINK' | 'ESIGN_OTP' | 'CHANNEL_VERIFY' | 'ESIGN_COMPLETION'; id: string },
     manager?: EntityManager,
   ) {
     const deliveries = manager ? manager.getRepository(EmailDeliveryEntity) : this.deliveries;
