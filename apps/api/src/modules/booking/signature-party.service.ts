@@ -16,6 +16,7 @@ import {
   type ContractSignChannel,
 } from './contract-sign-token';
 import { buildSigningUrl, ESIGN_SIGNING_BASE_URL_ENV } from './esign-link.policy';
+import { VOID_TICKET_JTI_SQL } from './esign-otp-atomic';
 import { EsignLinkService } from './esign-link.service';
 import {
   ESIGN_COMPLETION_COPY_CHANNEL_ENV,
@@ -162,37 +163,58 @@ export class SignaturePartyService {
       });
       if (turn !== 'ok') continue;
       const destValue = await this.destFor(tenantId, request, signer);
-      const minted = await this.tickets.rotateTicket({
-        tenantId,
-        contractId: request.contractId,
-        subjectId: signer.subjectId ?? signer.id,
-        signer,
-        secret,
-      });
-      const url = buildSigningUrl(baseUrl, {
-        contractId: request.contractId,
-        tenantId,
-        token: minted.token,
-      });
       const runner = this.dataSource.createQueryRunner();
       await runner.connect();
       await runner.startTransaction();
+      let minted: { token: string; claims: { jti: string; channel: ContractSignChannel } };
+      let deliveryId = '';
+      let url = '';
+      const sourceId = `${request.contractId}:${signer.id}`;
       try {
-        await this.links.deliverSigningUrl({
+        minted = await this.tickets.rotateTicket({
+          tenantId,
+          contractId: request.contractId,
+          subjectId: signer.subjectId ?? signer.id,
+          signer,
+          secret,
+          manager: runner.manager,
+        });
+        url = buildSigningUrl(baseUrl, {
+          contractId: request.contractId,
+          tenantId,
+          token: minted.token,
+        });
+        const queued = await this.links.deliverSigningUrl({
           tenantId,
           dest: { channel: minted.claims.channel, value: destValue },
           buyerName: signer.displayName ?? loaded.data.attributes.mergeContext.buyerName,
           contractId: request.contractId,
-          sourceId: `${request.contractId}:${signer.id}`,
+          sourceId,
           signingUrl: url,
           manager: runner.manager,
+          deferComplete: true,
         });
+        deliveryId = queued.deliveryId;
         await runner.commitTransaction();
       } catch (error) {
         if (runner.isTransactionActive) await runner.rollbackTransaction();
         throw error;
       } finally {
         await runner.release();
+      }
+      try {
+        await this.links.completeQueuedSigningUrl({
+          tenantId,
+          dest: { channel: minted.claims.channel, value: destValue },
+          buyerName: signer.displayName ?? loaded.data.attributes.mergeContext.buyerName,
+          contractId: request.contractId,
+          sourceId,
+          deliveryId,
+          signingUrl: url,
+        });
+      } catch (error) {
+        await this.dataSource.query(VOID_TICKET_JTI_SQL, [minted.claims.jti, tenantId]);
+        throw error;
       }
       sent.push(signer.id);
     }
@@ -263,9 +285,13 @@ export class SignaturePartyService {
         ? await this.leads.findOne({ where: { id: booking.leadId, tenantId } })
         : null;
       value = signer.channel === 'EMAIL' ? lead?.email?.trim() ?? '' : lead?.phone?.trim() ?? '';
-    } else {
+    } else if (signer.channel === 'EMAIL') {
       const user = await this.users.findOne({ where: { id: signer.subjectId ?? '', tenantId } });
       value = user?.email?.trim() ?? '';
+    } else {
+      const user = await this.users.findOne({ where: { id: signer.subjectId ?? '', tenantId } });
+      const match = /^seeker\+(\d+)@/i.exec(user?.email ?? '');
+      value = match?.[1] ? `+84${match[1].replace(/^0/, '')}` : '';
     }
     if (!value) {
       throw new UnprocessableEntityException({ detail: 'signer channel destination is not registered' });

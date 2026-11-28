@@ -278,6 +278,47 @@ export class EsignLinkService {
     }
   }
 
+  async deliverCompletionCopy(input: {
+    tenantId: string;
+    dest: { channel: ContractSignChannel; value: string };
+    buyerName: string;
+    contractId: string;
+    documentId: string;
+  }): Promise<void> {
+    await this.assertChannelReady(input.tenantId, input.dest.channel);
+    const sourceId = `ESIGN_COMPLETION:${input.contractId}`;
+    const runner = this.dataSource.createQueryRunner();
+    await runner.connect();
+    await runner.startTransaction();
+    let deliveryId = '';
+    try {
+      const queued = await this.enqueueLink({
+        tenantId: input.tenantId,
+        dest: input.dest,
+        buyerName: input.buyerName,
+        contractId: input.contractId,
+        sourceId,
+        manager: runner.manager,
+      });
+      deliveryId = queued.deliveryId;
+      await runner.commitTransaction();
+    } catch (error) {
+      if (runner.isTransactionActive) await runner.rollbackTransaction();
+      throw error;
+    } finally {
+      await runner.release();
+    }
+    await this.completeLink({
+      tenantId: input.tenantId,
+      dest: input.dest,
+      buyerName: input.buyerName,
+      contractId: input.contractId,
+      sourceId,
+      deliveryId,
+      signingUrl: '',
+    });
+  }
+
   async deliverSigningUrl(input: {
     tenantId: string;
     dest: { channel: ContractSignChannel; value: string };
@@ -286,11 +327,29 @@ export class EsignLinkService {
     sourceId: string;
     signingUrl: string;
     manager: import('typeorm').EntityManager;
+    deferComplete?: boolean;
   }): Promise<{ deliveryId: string; sandbox: boolean }> {
     await this.assertChannelReady(input.tenantId, input.dest.channel);
     const queued = await this.enqueueLink(input);
     this.outbox.put(queued.deliveryId, input.signingUrl);
+    if (input.deferComplete) {
+      return { deliveryId: queued.deliveryId, sandbox: false };
+    }
     const delivery = await this.completeLink({ ...input, deliveryId: queued.deliveryId });
+    this.outbox.put(delivery.deliveryId, input.signingUrl);
+    return { deliveryId: delivery.deliveryId, sandbox: delivery.sandbox };
+  }
+
+  async completeQueuedSigningUrl(input: {
+    tenantId: string;
+    dest: { channel: ContractSignChannel; value: string };
+    buyerName: string;
+    contractId: string;
+    sourceId: string;
+    deliveryId: string;
+    signingUrl: string;
+  }): Promise<{ deliveryId: string; sandbox: boolean }> {
+    const delivery = await this.completeLink(input);
     this.outbox.put(delivery.deliveryId, input.signingUrl);
     return { deliveryId: delivery.deliveryId, sandbox: delivery.sandbox };
   }
@@ -351,7 +410,9 @@ export class EsignLinkService {
         const sent = await this.email.completeQueued(input.tenantId, input.deliveryId, {
           to: input.dest.value,
           templateId: EMAIL_TEMPLATES.SIGN_LINK,
-          params: input.signingUrl ? { ...params, signingUrl: input.signingUrl } : params,
+          params: input.signingUrl
+            ? { ...params, signingUrl: input.signingUrl }
+            : params,
           source: { type: 'ESIGN_LINK', id: input.sourceId },
           persistOtp: false,
         });
@@ -366,7 +427,9 @@ export class EsignLinkService {
           phone: input.dest.value,
           persistOtp: false,
           maskStoredDest: true,
-          params: input.signingUrl ? { ...params, signingUrl: input.signingUrl } : params,
+          params: input.signingUrl
+            ? { ...params, signingUrl: input.signingUrl }
+            : params,
           source: { type: 'ESIGN_LINK', id: input.sourceId },
         });
         if (sent.status !== 'SENT' && sent.status !== 'DELIVERED') {

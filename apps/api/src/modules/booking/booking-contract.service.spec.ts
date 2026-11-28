@@ -124,6 +124,11 @@ describe('BookingContractService', () => {
         {
           provide: DataSource,
           useValue: {
+            getRepository: () => ({
+              find: async () => [],
+              findOne: async () => null,
+              save: async (row: unknown) => row,
+            }),
             createQueryRunner: () => ({
               connect: async () => undefined,
               startTransaction: async () => undefined,

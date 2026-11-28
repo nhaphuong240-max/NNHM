@@ -31,9 +31,12 @@ export class SignaturePartyController {
       throw new ForbiddenException({ detail: 'forbidden' });
     }
     const contractId = body.contractId?.trim() ?? '';
+    if (!user?.tenantId?.trim()) {
+      throw new NotFoundException({ detail: 'not found' });
+    }
     const tenantId = await oneLookedUpTenant(this.dataSource, 'contract', contractId, 'not-found');
     assertHeaderMatches(tenantHeader, tenantId);
-    if (user?.tenantId && user.tenantId !== tenantId) {
+    if (user.tenantId !== tenantId) {
       throw new NotFoundException({ detail: 'not found' });
     }
     return this.parties.create({
@@ -56,9 +59,15 @@ export class SignaturePartyController {
     if (!canSendSignLink(user?.role)) {
       throw new ForbiddenException({ detail: 'forbidden' });
     }
-    const tenantId = tenantHeader?.trim() ?? user?.tenantId ?? '';
-    if (!tenantId) throw new NotFoundException({ detail: 'not found' });
-    return this.parties.sendDue(tenantId, id, user?.role);
+    if (!user?.tenantId?.trim()) {
+      throw new NotFoundException({ detail: 'not found' });
+    }
+    const tenantId = await oneLookedUpTenant(this.dataSource, 'signature_request', id, 'not-found');
+    assertHeaderMatches(tenantHeader, tenantId);
+    if (user.tenantId !== tenantId) {
+      throw new NotFoundException({ detail: 'not found' });
+    }
+    return this.parties.sendDue(tenantId, id, user.role);
   }
 
   @Get(':id')
@@ -67,8 +76,17 @@ export class SignaturePartyController {
     @Headers('x-tenant-id') tenantHeader: string | undefined,
     @Param('id') id: string,
   ) {
-    const tenantId = tenantHeader?.trim() ?? user?.tenantId ?? '';
-    if (!tenantId) throw new NotFoundException({ detail: 'not found' });
+    if (!canSendSignLink(user?.role)) {
+      throw new ForbiddenException({ detail: 'forbidden' });
+    }
+    if (!user?.tenantId?.trim()) {
+      throw new NotFoundException({ detail: 'not found' });
+    }
+    const tenantId = await oneLookedUpTenant(this.dataSource, 'signature_request', id, 'not-found');
+    assertHeaderMatches(tenantHeader, tenantId);
+    if (user.tenantId !== tenantId) {
+      throw new NotFoundException({ detail: 'not found' });
+    }
     return this.parties.view(id, tenantId);
   }
 
