@@ -8,8 +8,6 @@ import { SignatureEventEntity } from '../../database/entities/signature-event.en
 import type { ContractSignClaims } from './contract-sign-token';
 import {
   CONSUME_OTP_SQL,
-  COUNT_SENDS_SQL,
-  esignLinkSourceArgs,
   SELECT_SCOPED_CHALLENGES_SQL,
   SELECT_SIGNER_BUDGET_SQL,
   UPDATE_ATTEMPT_SQL,
@@ -25,7 +23,6 @@ import {
   safeSignatureMetadata,
   ESIGN_OTP_LOCKOUT_ENV,
   ESIGN_OTP_MAX_ATTEMPTS_ENV,
-  ESIGN_OTP_MAX_SENDS_ENV,
   ESIGN_OTP_RESEND_COOLDOWN_ENV,
   verifyStoredEsignOtp,
   type EsignOtpView,
@@ -63,24 +60,9 @@ export class EsignOtpChallengeService {
     }
   }
 
-  /** New sends share one budget per contract and signer. Empty configuration refuses the send. */
-  async assertSendBudget(claims: ContractSignClaims): Promise<void> {
-    const maxSends = readConfiguredPositiveInt((key) => this.config.get<string>(key), ESIGN_OTP_MAX_SENDS_ENV);
-    if (maxSends === null || !this.dataSource) {
-      throw new UnprocessableEntityException({ detail: 'esign otp send limit is not configured' });
-    }
-    const [exact, like] = esignLinkSourceArgs(`${claims.contractId}:${claims.buyerId}`);
-    const rows = await this.dataSource.query(COUNT_SENDS_SQL, [
-      claims.tenantId,
-      claims.contractId,
-      claims.buyerId,
-      exact,
-      like,
-    ]);
-    const count = Number((rows?.[0] as { sends?: number } | undefined)?.sends ?? 0);
-    if (count >= maxSends) {
-      throw new UnprocessableEntityException({ detail: 'esign otp send limit is exhausted' });
-    }
+  /** Owner 28/11: sends are not capped. Cooldown still gates resend. */
+  async assertSendBudget(_claims: ContractSignClaims): Promise<void> {
+    return;
   }
 
   findLatest(tenantId: string, jti: string): Promise<EsignOtpChallengeEntity | null> {

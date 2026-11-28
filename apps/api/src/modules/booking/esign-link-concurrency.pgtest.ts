@@ -9,7 +9,7 @@ import { SmsDeliveryEntity } from '../../database/entities/sms-delivery.entity';
 import { ADVISORY_LOCK_SQL } from './esign-otp-atomic';
 import { EsignLinkService } from './esign-link.service';
 import { SignerChannelVerificationService } from './signer-channel-verification.service';
-import { ESIGN_OTP_MAX_SENDS_ENV, ESIGN_OTP_PEPPER_ENV, ESIGN_OTP_RESEND_COOLDOWN_ENV } from './esign-otp-policy';
+import { ESIGN_OTP_PEPPER_ENV, ESIGN_OTP_RESEND_COOLDOWN_ENV } from './esign-otp-policy';
 import { ESIGN_LINK_CHANNEL_ENV, ESIGN_SIGNING_BASE_URL_ENV } from './esign-link.policy';
 import { SandboxEsignOutbox } from './sandbox-esign-outbox';
 import { SignatureTicketService } from './signature-ticket.service';
@@ -71,7 +71,6 @@ describe('esign link advisory lock on postgres', () => {
         ({
           CONTRACT_SIGN_SECRET: 'contract-sign-test-secret',
           [ESIGN_OTP_PEPPER_ENV]: 'esign-otp-pepper-16',
-          [ESIGN_OTP_MAX_SENDS_ENV]: '4',
           [ESIGN_OTP_RESEND_COOLDOWN_ENV]: '30',
           [ESIGN_LINK_CHANNEL_ENV]: 'SMS',
           [ESIGN_SIGNING_BASE_URL_ENV]: 'https://app.example.test/buyer/esign',
@@ -162,7 +161,6 @@ describe('esign link advisory lock on postgres', () => {
         get: (key: string) =>
           ({
             [ESIGN_OTP_PEPPER_ENV]: 'esign-otp-pepper-16',
-            [ESIGN_OTP_MAX_SENDS_ENV]: '4',
             [ESIGN_OTP_RESEND_COOLDOWN_ENV]: '30',
             EMAIL_SANDBOX: 'true',
             NODE_ENV: 'test',

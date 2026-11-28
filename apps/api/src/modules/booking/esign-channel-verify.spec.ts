@@ -1,9 +1,7 @@
 import { NotFoundException, UnprocessableEntityException } from '@nestjs/common';
 import {
-  ESIGN_OTP_LEAD_MAX_ATTEMPTS_ENV,
   ESIGN_OTP_LOCKOUT_ENV,
   ESIGN_OTP_MAX_ATTEMPTS_ENV,
-  ESIGN_OTP_MAX_SENDS_ENV,
   ESIGN_OTP_PEPPER_ENV,
   ESIGN_OTP_RESEND_COOLDOWN_ENV,
   esignOtpMatches,
@@ -20,8 +18,6 @@ function config(extra: Record<string, string | undefined> = {}) {
   const env: Record<string, string | undefined> = {
     [ESIGN_OTP_PEPPER_ENV]: PEPPER,
     [ESIGN_OTP_MAX_ATTEMPTS_ENV]: '2',
-    [ESIGN_OTP_LEAD_MAX_ATTEMPTS_ENV]: '4',
-    [ESIGN_OTP_MAX_SENDS_ENV]: '4',
     [ESIGN_OTP_LOCKOUT_ENV]: '60',
     [ESIGN_OTP_RESEND_COOLDOWN_ENV]: '30',
     EMAIL_SANDBOX: 'true',
@@ -31,7 +27,7 @@ function config(extra: Record<string, string | undefined> = {}) {
   return { get: (key: string) => env[key] };
 }
 
-function claimManager(saved: Array<Record<string, unknown>>, maxAttempts = 2, leadMax = 4) {
+function claimManager(saved: Array<Record<string, unknown>>, maxAttempts = 2) {
   return {
     query: jest.fn(async (sql: string, params: unknown[]) => {
       if (!String(sql).includes('signer_channel_verifications') || !String(sql).includes('UPDATE')) {
@@ -52,10 +48,7 @@ function claimManager(saved: Array<Record<string, unknown>>, maxAttempts = 2, le
         | undefined;
       if (!row || row.status !== 'PENDING') return [];
       if (row.expiresAt.getTime() <= Date.now()) return [];
-      const failedTotal = saved
-        .filter((item) => item.status !== 'VERIFIED')
-        .reduce((sum, item) => sum + Number(item.attemptCount ?? 0), 0);
-      if (row.attemptCount >= maxAttempts || failedTotal >= leadMax) return [];
+      if (row.attemptCount >= maxAttempts) return [];
       row.attemptCount += 1;
       const lockedUntil = row.attemptCount >= maxAttempts ? new Date() : row.lockedUntil;
       row.lockedUntil = lockedUntil;
@@ -302,11 +295,11 @@ describe('signer channel verification', () => {
     await expect(svc.confirm('ten_other', 'scv_x', '123456')).rejects.toBeInstanceOf(NotFoundException);
   });
 
-  it('refuses start when send limit env is empty', async () => {
-    const svc = service({ extraConfig: { [ESIGN_OTP_MAX_SENDS_ENV]: '' } });
-    await expect(svc.start('ten_b', '0901234567')).rejects.toMatchObject({
-      response: { detail: 'esign otp send limit is not configured' },
-    });
+  it('sends when the unused send-cap env is empty', async () => {
+    const send = jest.fn(async () => ({ status: 'SENT', deliveryId: 'eml_1', sandbox: true }));
+    const svc = service({ send, extraConfig: { ESIGN_OTP_MAX_SENDS: '' } });
+    await expect(svc.start('ten_b', '0901234567')).resolves.toMatchObject({ sent: true });
+    expect(send).toHaveBeenCalledTimes(1);
   });
 
   it('uses the closed dest detail for cooldown and does not leak that a lead exists', async () => {
@@ -389,7 +382,7 @@ describe('signer channel verification', () => {
     const started = await svc.start('ten_b', '0901234567');
     expect(started.sent).toBe(true);
     expect(sendReal).toHaveBeenCalledTimes(1);
-    expect(sendReal.mock.calls[0]?.[1]?.source?.id).toBe('scv_pending:2');
+    expect(String(sendReal.mock.calls[0]?.[1]?.source?.id)).toMatch(/^scv_pending:[0-9a-f]{16}$/);
     const fresh = captured[0]!;
     expect(fresh).toMatch(/^\d{6}$/);
     expect(esignOtpMatches(fresh, String(saved[0]?.codeHash), PEPPER, 'scv_pending')).toBe(true);
@@ -397,7 +390,7 @@ describe('signer channel verification', () => {
     expect(saved[0]?.status).toBe('VERIFIED');
   });
 
-  it('counts a resend after cooldown toward MAX_SENDS and then blocks', async () => {
+  it('keeps sending after a high send_count because sends are not capped', async () => {
     const saved: Array<Record<string, unknown>> = [
       {
         id: 'scv_pending',
@@ -416,17 +409,73 @@ describe('signer channel verification', () => {
     ];
     const send = jest.fn(async () => ({ status: 'SENT', deliveryId: 'eml_1', sandbox: true }));
     const svc = service({ send, rows: memoryRows(saved) });
-    await expect(svc.start('ten_b', '0901234567')).rejects.toMatchObject({
-      response: { detail: 'esign otp send limit is exhausted' },
-    });
-    expect(send).not.toHaveBeenCalled();
+    await expect(svc.start('ten_b', '0901234567')).resolves.toMatchObject({ sent: true });
+    expect(send).toHaveBeenCalledTimes(1);
   });
 
-  it('refuses confirm when the lead attempt cap env is empty', async () => {
-    const svc = service({ extraConfig: { [ESIGN_OTP_LEAD_MAX_ATTEMPTS_ENV]: '' } });
-    await expect(svc.confirm('ten_b', 'scv_1', '123456')).rejects.toMatchObject({
-      response: { detail: 'esign otp lead attempt cap is not configured' },
+  it('ignores an empty lead-attempt-cap env because attempts are per PENDING row', async () => {
+    const saved: Array<Record<string, unknown>> = [
+      {
+        id: 'scv_1',
+        tenantId: 'ten_b',
+        leadId: 'ld_01',
+        status: 'PENDING',
+        createdAt: new Date(),
+        expiresAt: new Date(Date.now() + 60_000),
+        attemptCount: 0,
+        codeHash: null,
+        emailDestMasked: 't***@example.com',
+      },
+    ];
+    const svc = service({
+      extraConfig: { ESIGN_OTP_LEAD_MAX_ATTEMPTS: '' },
+      rows: memoryRows(saved),
     });
+    await expect(svc.confirm('ten_b', 'scv_1', '000000')).rejects.toMatchObject({
+      response: { detail: 'signer channel verification code is invalid' },
+    });
+  });
+
+  it('mints a new CHANNEL_VERIFY source id when send succeeded and save failed', async () => {
+    const saved: Array<Record<string, unknown>> = [
+      {
+        id: 'scv_pending',
+        tenantId: 'ten_b',
+        leadId: 'ld_01',
+        status: 'PENDING',
+        createdAt: new Date(Date.now() - 120_000),
+        lastSentAt: new Date(Date.now() - 31_000),
+        sendCount: 1,
+        expiresAt: new Date(Date.now() + 60_000),
+        attemptCount: 0,
+        emailDestMasked: 't***@example.com',
+        smsDestHash: hashChannelDest(PHONE, PEPPER),
+        emailDestHash: hashChannelDest(EMAIL, PEPPER),
+      },
+    ];
+    const send = jest.fn(async () => ({ status: 'SENT', deliveryId: 'eml_1', sandbox: true }));
+    const rows = memoryRows(saved);
+    let persist = 0;
+    rows.save = jest.fn(async (row: Record<string, unknown>) => {
+      if (row.codeHash) {
+        persist += 1;
+        if (persist === 1) throw new Error('persist failed');
+        const idx = saved.findIndex((item) => item.id === row.id);
+        if (idx >= 0) saved[idx] = { ...saved[idx], ...row };
+      }
+      return row;
+    });
+    const svc = service({ send, rows });
+    await expect(svc.start('ten_b', '0901234567')).rejects.toThrow('persist failed');
+    saved[0]!.lastSentAt = new Date(Date.now() - 31_000);
+    await expect(svc.start('ten_b', '0901234567')).resolves.toMatchObject({ sent: true });
+    const ids = send.mock.calls.map(
+      (call) => (call as unknown as [string, { source: { id: string } }])[1].source.id,
+    );
+    expect(ids).toHaveLength(2);
+    expect(ids[0]).not.toBe(ids[1]);
+    expect(ids[0]).toMatch(/^scv_pending:[0-9a-f]{16}$/);
+    expect(ids[1]).toMatch(/^scv_pending:[0-9a-f]{16}$/);
   });
 
   it('hashes the same dest the send path uses', () => {

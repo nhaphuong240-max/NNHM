@@ -22,6 +22,7 @@ import {
   ADVISORY_LOCK_SQL,
   esignLinkSourceArgs,
   LATEST_LINK_SQL,
+  markQueuedDeliveryFailedSql,
   returnedRows,
   VOID_OPEN_TICKETS_SQL,
   VOID_TICKET_JTI_SQL,
@@ -131,10 +132,13 @@ export class EsignLinkService {
       if (!input.resend && latest && ['SENT', 'DELIVERED', 'QUEUED'].includes(latest.status)) {
         const age = Date.now() - new Date(latest.created_at).getTime();
         if (age > CONTRACT_SIGN_TOKEN_TTL_MS) {
+          if (latest.status === 'QUEUED') {
+            await runner.query(markQueuedDeliveryFailedSql(latest.channel), [latest.id, input.tenantId]);
+            await runner.commitTransaction();
+          }
           throw new UnprocessableEntityException({ detail: 'esign link already exists; resend is required' });
         }
         await runner.commitTransaction();
-        // QUEUED inside TTL is still in flight. Do not mark FAILED. Owner has not signed sent:true vs 422.
         const sending = latest.status === 'QUEUED';
         return {
           sent: !sending,

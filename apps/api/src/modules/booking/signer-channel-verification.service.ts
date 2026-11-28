@@ -25,10 +25,8 @@ import {
   maskChannelDest,
   readConfiguredPositiveInt,
   readEsignOtpPepper,
-  ESIGN_OTP_LEAD_MAX_ATTEMPTS_ENV,
   ESIGN_OTP_LOCKOUT_ENV,
   ESIGN_OTP_MAX_ATTEMPTS_ENV,
-  ESIGN_OTP_MAX_SENDS_ENV,
   ESIGN_OTP_RESEND_COOLDOWN_ENV,
 } from './esign-otp-policy';
 
@@ -82,12 +80,8 @@ export class SignerChannelVerificationService {
   ): Promise<{ id: string; destMasked: string; sent: boolean }> {
     const pepper = this.pepper();
     const cooldown = readConfiguredPositiveInt((key) => this.config.get<string>(key), ESIGN_OTP_RESEND_COOLDOWN_ENV);
-    const maxSends = readConfiguredPositiveInt((key) => this.config.get<string>(key), ESIGN_OTP_MAX_SENDS_ENV);
     if (cooldown === null) {
       throw new UnprocessableEntityException({ detail: 'esign otp cooldown is not configured' });
-    }
-    if (maxSends === null) {
-      throw new UnprocessableEntityException({ detail: 'esign otp send limit is not configured' });
     }
     const e164 = toE164Vn(phone);
     if (!e164) {
@@ -123,11 +117,6 @@ export class SignerChannelVerificationService {
       const lastSent = pending?.lastSentAt ?? pending?.createdAt;
       if (pending && lastSent && Date.now() < lastSent.getTime() + cooldown * 1000) {
         throw new UnprocessableEntityException({ detail: CLOSED_DEST });
-      }
-      // send_count across every row for this lead. Permanent. No reset is signed.
-      const sentTotal = latest.reduce((sum, row) => sum + Number(row.sendCount ?? 0), 0);
-      if (sentTotal >= maxSends) {
-        throw new UnprocessableEntityException({ detail: 'esign otp send limit is exhausted' });
       }
       if (pending) {
         return this.dispatchCode(repo, pending, destEmail, pepper);
@@ -165,13 +154,6 @@ export class SignerChannelVerificationService {
     if (maxAttempts === null) {
       throw new UnprocessableEntityException({ detail: 'esign otp attempt limit is not configured' });
     }
-    const leadMaxAttempts = readConfiguredPositiveInt(
-      (key) => this.config.get<string>(key),
-      ESIGN_OTP_LEAD_MAX_ATTEMPTS_ENV,
-    );
-    if (leadMaxAttempts === null) {
-      throw new UnprocessableEntityException({ detail: 'esign otp lead attempt cap is not configured' });
-    }
     if (lockoutSeconds === null) {
       throw new UnprocessableEntityException({ detail: 'esign otp lockout is not configured' });
     }
@@ -206,7 +188,6 @@ export class SignerChannelVerificationService {
         tenantId,
         maxAttempts,
         lockedUntil,
-        leadMaxAttempts,
       ]),
     )[0] as
       | {
@@ -257,12 +238,13 @@ export class SignerChannelVerificationService {
     const sandbox = this.email.isSandbox();
     const code = sandbox ? ESIGN_DEMO_OTP : String(randomInt(100000, 999999));
     const nextSend = Number(row.sendCount ?? 0) + 1;
+    const sourceId = `${row.id}:${randomBytes(8).toString('hex')}`;
     const sent = await this.email.send(row.tenantId, {
       to: email,
       templateId: EMAIL_TEMPLATES.CHANNEL_VERIFY,
       persistOtp: false,
       params: { otp: code },
-      source: { type: 'CHANNEL_VERIFY', id: `${row.id}:${nextSend}` },
+      source: { type: 'CHANNEL_VERIFY', id: sourceId },
     });
     if (sent.idempotentReplay) {
       return { id: row.id, destMasked: row.emailDestMasked, sent: false };

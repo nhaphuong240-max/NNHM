@@ -138,14 +138,13 @@ WHERE v."id" = $1 AND v."tenant_id" = $2
   AND (v."locked_until" IS NULL OR v."locked_until" <= now())
   AND v."expires_at" > now()
   AND v."attempt_count" < $3
-  AND (
-    SELECT COALESCE(SUM(c."attempt_count"), 0)
-    FROM "signer_channel_verifications" c
-    WHERE c."tenant_id" = v."tenant_id" AND c."lead_id" = v."lead_id"
-      AND c."status" <> 'VERIFIED'
-  ) < $5
 RETURNING v."id", v."attempt_count", v."code_hash", v."email_dest_masked", v."lead_id", v."locked_until"
 `;
+
+export function markQueuedDeliveryFailedSql(channel: string): string {
+  const table = channel === 'SMS' ? 'sms_deliveries' : 'email_deliveries';
+  return `UPDATE "${table}" SET "status" = 'FAILED' WHERE "id" = $1 AND "tenant_id" = $2 AND "status" = 'QUEUED'`;
+}
 
 export const SUM_CHANNEL_VERIFY_ATTEMPTS_SQL = `
 SELECT COALESCE(SUM("attempt_count"), 0)::int AS total

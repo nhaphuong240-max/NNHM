@@ -159,11 +159,12 @@ export class BookingContractController {
       resend: body.resend === true,
       actor: { userId: user.userId, role: user.role },
     });
+    const actuallySent = sent.sent && !sent.idempotentReplay && !sent.sending;
     await this.dataSource.getRepository(AuditEventEntity).save({
       tenantId,
       entityType: 'contract',
       entityId: loaded.data.id,
-      action: 'SIGN_LINK_SENT',
+      action: actuallySent ? 'SIGN_LINK_SENT' : 'SIGN_LINK_PENDING',
       payload: { role: user?.role, channel: sent.channel, destMasked: sent.destMasked },
       actorId: user?.userId ?? null,
     });

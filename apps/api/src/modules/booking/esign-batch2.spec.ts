@@ -6,11 +6,11 @@ import { SMS_TEMPLATE_COPY, SMS_TEMPLATES } from '../sms/sms.types';
 import { canSendSignLink } from '../identity/role-catalog';
 import { BookingContractController } from './booking-contract.controller';
 import {
-  ESIGN_OTP_MAX_SENDS_ENV,
   ESIGN_OTP_PEPPER_ENV,
   ESIGN_OTP_RESEND_COOLDOWN_ENV,
 } from './esign-otp-policy';
 import { VOID_OPEN_TICKETS_SQL } from './esign-otp-atomic';
+import { CONTRACT_SIGN_TOKEN_TTL_MS } from './contract-sign-token';
 import {
   ESIGN_LINK_CHANNEL_ENV,
   ESIGN_LINK_FALLBACK_CHANNELS_ENV,
@@ -34,7 +34,6 @@ function linkConfig(extra: Record<string, string | undefined> = {}) {
   const env: Record<string, string | undefined> = {
     CONTRACT_SIGN_SECRET: SECRET,
     [ESIGN_OTP_PEPPER_ENV]: PEPPER,
-    [ESIGN_OTP_MAX_SENDS_ENV]: '4',
     [ESIGN_OTP_RESEND_COOLDOWN_ENV]: '30',
     [ESIGN_LINK_CHANNEL_ENV]: 'SMS',
     [ESIGN_SIGNING_BASE_URL_ENV]: 'https://app.example.test/buyer/esign',
@@ -49,7 +48,7 @@ function harness(
     config?: { get: (key: string) => string | undefined };
     phone?: string | null;
     email?: string | null;
-    latest?: { created_at: Date; status: string; source_id: string; id: string };
+    latest?: { created_at: Date; status: string; source_id: string; id: string; channel?: string };
     sendLimit?: number;
     enqueue?: jest.Mock;
     complete?: jest.Mock;
@@ -58,6 +57,7 @@ function harness(
 ) {
   const events: Array<Record<string, unknown>> = [];
   const ticketsVoided: unknown[][] = [];
+  const failedQueued: unknown[][] = [];
   const enqueue =
     opts.enqueue ??
     jest.fn(async () => ({
@@ -115,6 +115,9 @@ function harness(
           if (String(sql).includes('VOID') || sql === VOID_OPEN_TICKETS_SQL) {
             ticketsVoided.push(params ?? []);
           }
+          if (String(sql).includes("SET \"status\" = 'FAILED'")) {
+            failedQueued.push(params ?? []);
+          }
           if (String(sql).includes('UNION')) {
             return opts.latest ? [opts.latest] : [];
           }
@@ -131,11 +134,7 @@ function harness(
     (opts.config ?? linkConfig()) as never,
     { issueBuyerAccess } as never,
     {
-      assertSendBudget: jest.fn(async () => {
-        if ((opts.sendLimit ?? 0) >= 4) {
-          throw new UnprocessableEntityException({ detail: 'esign otp send limit is exhausted' });
-        }
-      }),
+      assertSendBudget: jest.fn(async () => undefined),
     } as never,
     {
       send: jest.fn(),
@@ -166,7 +165,7 @@ function harness(
     outbox,
     { assertVerified: jest.fn(async () => undefined) } as never,
   );
-  return { service, enqueue, complete, issueBuyerAccess, events, ticketsVoided, outbox };
+  return { service, enqueue, complete, issueBuyerAccess, events, ticketsVoided, failedQueued, outbox };
 }
 
 const sendInput = {
@@ -242,7 +241,7 @@ describe('esign batch 2 send link', () => {
     expect(enqueue.mock.calls[0][1].templateId).toBe(SMS_TEMPLATES.SIGN_LINK);
   });
 
-  it('keeps cooldown and MAX_SENDS when a new ticket is minted', async () => {
+  it('keeps cooldown between sends without a send-count cap', async () => {
     const cooling = harness({
       latest: { created_at: new Date(), status: 'SENT', source_id: `${PREFIX}:ab12`, id: 'sms_old' },
     });
@@ -250,12 +249,6 @@ describe('esign batch 2 send link', () => {
       response: { detail: 'esign otp resend is cooling down' },
     });
     expect(cooling.enqueue).not.toHaveBeenCalled();
-
-    const exhausted = harness({ sendLimit: 4 });
-    await expect(exhausted.service.send(sendInput)).rejects.toMatchObject({
-      response: { detail: 'esign otp send limit is exhausted' },
-    });
-    expect(exhausted.issueBuyerAccess).not.toHaveBeenCalled();
   });
 
   it('replays an open resend source without minting a ticket or LINK_SENT', async () => {
@@ -281,8 +274,8 @@ describe('esign batch 2 send link', () => {
   });
 
   it('replays an in-flight QUEUED row without reading a token from memory', async () => {
-    const { service, issueBuyerAccess, complete, ticketsVoided } = harness({
-      latest: { created_at: new Date(), status: 'QUEUED', source_id: PREFIX, id: 'sms_q' },
+    const { service, issueBuyerAccess, complete, ticketsVoided, failedQueued } = harness({
+      latest: { created_at: new Date(), status: 'QUEUED', source_id: PREFIX, id: 'sms_q', channel: 'SMS' },
     });
     const result = await service.send(sendInput);
     expect(result.deliveryId).toBe('sms_q');
@@ -292,6 +285,24 @@ describe('esign batch 2 send link', () => {
     expect(issueBuyerAccess).not.toHaveBeenCalled();
     expect(complete).not.toHaveBeenCalled();
     expect(ticketsVoided).toHaveLength(0);
+    expect(failedQueued).toHaveLength(0);
+  });
+
+  it('marks a QUEUED row FAILED after TTL then requires resend', async () => {
+    const { service, failedQueued, issueBuyerAccess } = harness({
+      latest: {
+        created_at: new Date(Date.now() - CONTRACT_SIGN_TOKEN_TTL_MS - 1_000),
+        status: 'QUEUED',
+        source_id: PREFIX,
+        id: 'sms_stale',
+        channel: 'SMS',
+      },
+    });
+    await expect(service.send(sendInput)).rejects.toMatchObject({
+      response: { detail: 'esign link already exists; resend is required' },
+    });
+    expect(failedQueued).toEqual([['sms_stale', 'ten_b']]);
+    expect(issueBuyerAccess).not.toHaveBeenCalled();
   });
 
   it('reads an existing unique row instead of sending again without a url', async () => {
@@ -399,6 +410,56 @@ describe('esign batch 2 send link', () => {
     );
     expect(links.send).toHaveBeenCalledTimes(1);
     expect(result.data.deliveryId).toBe('sms_1');
+  });
+
+  it('audits SIGN_LINK_SENT only after a real send and SIGN_LINK_PENDING on replay', async () => {
+    const audits: Array<{ action: string }> = [];
+    const make = (sent: { sent: boolean; sending?: boolean; idempotentReplay?: boolean }) =>
+      new BookingContractController(
+        {
+          getContract: jest.fn(async () => ({
+            data: { id: 'ctr_b', attributes: { bookingId: 'bk_owned', mergeContext: { buyerName: 'Thu' } } },
+          })),
+        } as never,
+        { get: () => SECRET } as never,
+        {
+          query: jest.fn(async () => [{ tenant_id: 'ten_b' }]),
+          createQueryRunner: () => ({
+            connect: async () => undefined,
+            release: async () => undefined,
+            query: jest.fn(async () => [{ tenant_id: 'ten_b' }]),
+          }),
+          getRepository: () => ({
+            save: jest.fn(async (row: { action: string }) => {
+              audits.push(row);
+              return row;
+            }),
+          }),
+        } as never,
+        undefined,
+        {
+          send: jest.fn(async () => ({
+            ...sent,
+            channel: 'SMS',
+            destMasked: '09****01',
+            deliveryId: 'sms_1',
+            sandbox: true,
+          })),
+        } as never,
+      );
+    await make({ sent: true }).sendSignLink(
+      { userId: 'usr_staff', role: 'PROCEDURE_STAFF', tenantId: 'ten_b', email: 'staff@x' },
+      'ten_b',
+      'ctr_b',
+      {},
+    );
+    await make({ sent: false, sending: true, idempotentReplay: true }).sendSignLink(
+      { userId: 'usr_staff', role: 'PROCEDURE_STAFF', tenantId: 'ten_b', email: 'staff@x' },
+      'ten_b',
+      'ctr_b',
+      {},
+    );
+    expect(audits.map((row) => row.action)).toEqual(['SIGN_LINK_SENT', 'SIGN_LINK_PENDING']);
   });
 
   it('404s send-link when the caller has no tenant', async () => {

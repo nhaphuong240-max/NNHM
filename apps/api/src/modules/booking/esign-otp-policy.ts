@@ -5,11 +5,11 @@ import { ESIGN_DEMO_OTP } from './booking-contract.util';
 /** Names only. Empty means refuse. None of these numbers are a signed business limit. */
 export const ESIGN_OTP_PEPPER_ENV = 'ESIGN_OTP_PEPPER';
 export const ESIGN_OTP_MAX_ATTEMPTS_ENV = 'ESIGN_OTP_MAX_ATTEMPTS';
-/** Channel-verify send_count is summed per lead and is permanent. No reset is signed. Empty → 422. Not a product default. */
+/** Owner 28/11: unlimited sends. Kept as a name only so leftover env keys are ignored. */
 export const ESIGN_OTP_MAX_SENDS_ENV = 'ESIGN_OTP_MAX_SENDS';
 export const ESIGN_OTP_RESEND_COOLDOWN_ENV = 'ESIGN_OTP_RESEND_COOLDOWN_SECONDS';
 export const ESIGN_OTP_LOCKOUT_ENV = 'ESIGN_OTP_LOCKOUT_SECONDS';
-/** Failed-attempt cap per lead. Empty → 422. VERIFIED rows are excluded. No reset until the owner signs one. */
+/** Owner 28/11: attempts are counted on the current PENDING row only. */
 export const ESIGN_OTP_LEAD_MAX_ATTEMPTS_ENV = 'ESIGN_OTP_LEAD_MAX_ATTEMPTS';
 
 const BLOCKED_METADATA_KEYS = new Set([

@@ -1,6 +1,6 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-/** Cooldown is last_sent_at. Resends increment send_count toward ESIGN_OTP_MAX_SENDS. */
+/** Cooldown is last_sent_at. send_count is telemetry only; sends are not capped. */
 export class ChannelVerifySendMeta1758225000000 implements MigrationInterface {
   name = 'ChannelVerifySendMeta1758225000000';
 
