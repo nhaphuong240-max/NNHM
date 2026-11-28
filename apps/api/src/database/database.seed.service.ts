@@ -122,6 +122,12 @@ const DEMO_USERS = [
     role: 'PROCEDURE_STAFF',
     password: 'Procedure123!',
   },
+  {
+    id: 'usr_sales_director_01',
+    email: 'gdkd@sunrise-dev.vn',
+    role: 'SALES_DIRECTOR',
+    password: 'SalesDirector123!',
+  },
 ] as const;
 
 const AGENCY_DEMO_USERS = [

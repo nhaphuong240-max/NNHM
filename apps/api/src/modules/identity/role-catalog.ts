@@ -6,10 +6,10 @@ export const TENANT_ROLES = [
   'AGENT',
   'FINANCE_ADMIN',
   'PROCEDURE_STAFF',
+  'SALES_DIRECTOR',
 ] as const;
 
 export const SEND_SIGN_LINK_PERMISSION = 'contracts.send_sign_link';
-/** Catalog only. Not assigned to any TENANT_ROLES entry (fail-closed until the owner signs 9.1). */
 export const CONTRACTS_APPROVE_PERMISSION = 'contracts.approve';
 export const KYC_APPROVE_PERMISSION = 'kyc.approve';
 
@@ -60,13 +60,13 @@ export const PERMISSION_CATALOG: PermissionDefinition[] = [
     id: CONTRACTS_APPROVE_PERMISSION,
     label: 'Duyệt yêu cầu chữ ký',
     group: 'Contracts',
-    description: 'Chưa gán role. Fail-closed cho tới khi chủ dự án chốt GDKD hoặc FINANCE_ADMIN.',
+    description: 'Gán Giám đốc kinh doanh (SALES_DIRECTOR / GDKD).',
   },
   {
     id: KYC_APPROVE_PERMISSION,
     label: 'Duyệt KYC',
     group: 'KYC',
-    description: 'Chưa gán role. Fail-closed cho tới khi chủ dự án chốt người duyệt.',
+    description: 'Gán FINANCE_ADMIN.',
   },
 ];
 
@@ -111,8 +111,10 @@ export const PERMISSION_MATRIX: Record<TenantRole, string[]> = {
     'reconciliation.run',
     'refunds.write',
     'commission.export',
+    KYC_APPROVE_PERMISSION,
   ],
   PROCEDURE_STAFF: ['portal.read', SEND_SIGN_LINK_PERMISSION],
+  SALES_DIRECTOR: ['portal.read', CONTRACTS_APPROVE_PERMISSION],
 };
 
 export function permissionCatalog(): PermissionDefinition[] {
@@ -166,6 +168,7 @@ const ROLE_LABELS: Record<TenantRole, string> = {
   AGENT: 'Môi giới / Sales',
   FINANCE_ADMIN: 'Tài chính',
   PROCEDURE_STAFF: 'Nhân viên thủ tục',
+  SALES_DIRECTOR: 'Giám đốc kinh doanh (GDKD)',
 };
 
 const ROLE_DESCRIPTIONS: Record<TenantRole, string> = {
@@ -173,6 +176,7 @@ const ROLE_DESCRIPTIONS: Record<TenantRole, string> = {
   OPS_ADMIN: 'Moderation · tranh chấp · replay booking',
   DEVELOPER_ADMIN: 'Golden Record · dự án · hoa hồng · analytics',
   AGENT: 'Listing · giữ chỗ · CRM pipeline',
-  FINANCE_ADMIN: 'Sổ cái · đối soát · hoàn tiền · xuất commission',
+  FINANCE_ADMIN: 'Sổ cái · đối soát · hoàn tiền · xuất commission · duyệt KYC',
   PROCEDURE_STAFF: 'Gửi link ký trên kênh buyer đã xác minh',
+  SALES_DIRECTOR: 'Duyệt yêu cầu chữ ký sau khi đủ bên ký',
 };
