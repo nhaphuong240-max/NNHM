@@ -132,8 +132,13 @@ describe('SmsService', () => {
 
   it('lets payment OTP send when SMS_SANDBOX is empty', async () => {
     (service as unknown as { config: { get: jest.Mock } }).config.get.mockImplementation(() => '');
-    const sent = await service.sendSms(TENANT, { templateId: SMS_TEMPLATES.OTP, phone: '+84901234567' });
+    const sent = await service.sendSms(TENANT, {
+      templateId: SMS_TEMPLATES.OTP,
+      phone: '+84901234567',
+      source: { type: 'PAYMENT_OTP', id: 'pi_empty_sandbox' },
+    });
     expect(sent.status).toBeDefined();
+    expect(sent.sandbox).toBe(true);
   });
 
   it('refuses e-sign send when SMS_SANDBOX is empty', async () => {

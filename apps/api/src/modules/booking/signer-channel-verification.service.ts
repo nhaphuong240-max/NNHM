@@ -256,22 +256,26 @@ export class SignerChannelVerificationService {
     }
     const sandbox = this.email.isSandbox();
     const code = sandbox ? ESIGN_DEMO_OTP : String(randomInt(100000, 999999));
+    const nextSend = Number(row.sendCount ?? 0) + 1;
     const sent = await this.email.send(row.tenantId, {
       to: email,
       templateId: EMAIL_TEMPLATES.CHANNEL_VERIFY,
       persistOtp: false,
       params: { otp: code },
-      source: { type: 'CHANNEL_VERIFY', id: row.id },
+      source: { type: 'CHANNEL_VERIFY', id: `${row.id}:${nextSend}` },
     });
+    if (sent.idempotentReplay) {
+      return { id: row.id, destMasked: row.emailDestMasked, sent: false };
+    }
     if (sent.status !== 'SENT' && sent.status !== 'QUEUED') {
       throw new UnprocessableEntityException({ detail: 'signer channel verification was not sent' });
     }
     row.codeHash = hashEsignOtp(code, pepper, row.id);
     row.expiresAt = esignOtpExpiresAt(Date.now());
     row.lastSentAt = new Date();
-    row.sendCount = Number(row.sendCount ?? 0) + 1;
+    row.sendCount = nextSend;
     await repo.save(row);
-    return { id: row.id, destMasked: row.emailDestMasked, sent: true };
+    return { id: row.id, destMasked: row.emailDestMasked, sent: sent.status === 'SENT' };
   }
 
   private async revokeRow(

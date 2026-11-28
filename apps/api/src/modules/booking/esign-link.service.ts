@@ -61,6 +61,8 @@ export type SendSignLinkInput = {
 
 export type SendSignLinkResult = {
   sent: boolean;
+  /** QUEUED still inside TTL. Owner has not signed whether clients treat this as 422. */
+  sending?: boolean;
   channel: ContractSignChannel;
   destMasked: string;
   deliveryId: string;
@@ -132,8 +134,11 @@ export class EsignLinkService {
           throw new UnprocessableEntityException({ detail: 'esign link already exists; resend is required' });
         }
         await runner.commitTransaction();
+        // QUEUED inside TTL is still in flight. Do not mark FAILED. Owner has not signed sent:true vs 422.
+        const sending = latest.status === 'QUEUED';
         return {
-          sent: true,
+          sent: !sending,
+          sending: sending || undefined,
           channel: dest.channel,
           destMasked: maskChannelDest(dest.value),
           deliveryId: latest.id,

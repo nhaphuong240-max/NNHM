@@ -6,6 +6,7 @@ import {
   ESIGN_OTP_MAX_SENDS_ENV,
   ESIGN_OTP_PEPPER_ENV,
   ESIGN_OTP_RESEND_COOLDOWN_ENV,
+  esignOtpMatches,
   hashChannelDest,
 } from './esign-otp-policy';
 import { SignerChannelVerificationService } from './signer-channel-verification.service';
@@ -84,7 +85,13 @@ function withTransaction(rows: {
   return rows;
 }
 
-function service(opts: { leads?: unknown; rows?: unknown; send?: jest.Mock; extraConfig?: Record<string, string | undefined> }) {
+function service(opts: {
+  leads?: unknown;
+  rows?: unknown;
+  send?: jest.Mock;
+  extraConfig?: Record<string, string | undefined>;
+  isSandbox?: boolean;
+}) {
   const fallbackSaved: Array<Record<string, unknown>> = [];
   return new SignerChannelVerificationService(
     (opts.leads ?? {
@@ -105,7 +112,7 @@ function service(opts: { leads?: unknown; rows?: unknown; send?: jest.Mock; extr
     {
       send: opts.send ?? jest.fn(async () => ({ status: 'SENT', deliveryId: 'eml_1', sandbox: true })),
       assertReady: jest.fn(),
-      isSandbox: jest.fn(() => true),
+      isSandbox: jest.fn(() => opts.isSandbox !== false),
     } as never,
     config(opts.extraConfig) as never,
   );
@@ -348,6 +355,46 @@ describe('signer channel verification', () => {
     expect(send).toHaveBeenCalledTimes(1);
     await expect(svc.start('ten_b', '0901234567')).rejects.toMatchObject({ response: { detail: CLOSED } });
     expect(send).toHaveBeenCalledTimes(1);
+  });
+
+  it('sends a new email code after cooldown and confirms that code', async () => {
+    const saved: Array<Record<string, unknown>> = [
+      {
+        id: 'scv_pending',
+        tenantId: 'ten_b',
+        leadId: 'ld_01',
+        status: 'PENDING',
+        createdAt: new Date(Date.now() - 120_000),
+        lastSentAt: new Date(Date.now() - 31_000),
+        sendCount: 1,
+        expiresAt: new Date(Date.now() + 60_000),
+        attemptCount: 0,
+        emailDestMasked: 't***@example.com',
+        smsDestHash: hashChannelDest(PHONE, PEPPER),
+        emailDestHash: hashChannelDest(EMAIL, PEPPER),
+        codeHash: 'stale',
+      },
+    ];
+    const captured: string[] = [];
+    const sendReal = jest.fn(async (_tenant: string, input: { params?: { otp?: string }; source?: { id?: string } }) => {
+      captured.push(String(input.params?.otp ?? ''));
+      return { status: 'SENT' as const, deliveryId: `eml_${captured.length}`, sandbox: false };
+    });
+    const svc = service({
+      send: sendReal,
+      rows: memoryRows(saved),
+      isSandbox: false,
+      extraConfig: { EMAIL_SANDBOX: 'false', NODE_ENV: 'test' },
+    });
+    const started = await svc.start('ten_b', '0901234567');
+    expect(started.sent).toBe(true);
+    expect(sendReal).toHaveBeenCalledTimes(1);
+    expect(sendReal.mock.calls[0]?.[1]?.source?.id).toBe('scv_pending:2');
+    const fresh = captured[0]!;
+    expect(fresh).toMatch(/^\d{6}$/);
+    expect(esignOtpMatches(fresh, String(saved[0]?.codeHash), PEPPER, 'scv_pending')).toBe(true);
+    await svc.confirm('ten_b', started.id, fresh);
+    expect(saved[0]?.status).toBe('VERIFIED');
   });
 
   it('counts a resend after cooldown toward MAX_SENDS and then blocks', async () => {

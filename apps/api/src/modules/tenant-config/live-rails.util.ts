@@ -54,7 +54,7 @@ export function liveRailsFromEnv(config: EnvReader): LiveRails {
     paymentMethod: flag('PAYMENT_DEFAULT_METHOD', 'MOCK') === 'VNPAY' ? 'VNPAY' : 'MOCK',
     vnpaySandbox: flag('VNPAY_SANDBOX', 'true') !== 'false',
     mfaSandbox: flag('MFA_SANDBOX', 'true') !== 'false',
-    smsSandbox: (config.get('SMS_SANDBOX') ?? '').trim() === 'true',
+    smsSandbox: flag('SMS_SANDBOX', 'true') !== 'false',
     znsSandbox: flag('ZALO_ZNS_SANDBOX', 'true') !== 'false',
     esignSandbox: flag('ESIGN_SANDBOX', 'true') !== 'false',
     ekycSandbox: flag('EKYC_SANDBOX', 'true') !== 'false',

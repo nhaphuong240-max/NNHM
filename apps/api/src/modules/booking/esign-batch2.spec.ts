@@ -286,6 +286,8 @@ describe('esign batch 2 send link', () => {
     });
     const result = await service.send(sendInput);
     expect(result.deliveryId).toBe('sms_q');
+    expect(result.sent).toBe(false);
+    expect(result.sending).toBe(true);
     expect(result.idempotentReplay).toBe(true);
     expect(issueBuyerAccess).not.toHaveBeenCalled();
     expect(complete).not.toHaveBeenCalled();

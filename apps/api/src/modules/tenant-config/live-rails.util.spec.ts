@@ -12,12 +12,13 @@ describe('live-rails.util', () => {
     expect(rails.simulateEndpoints).toBe(true);
     expect(rails.escrowEnabled).toBe(false);
     expect(rails.bnplEnabled).toBe(false);
-    expect(rails.smsSandbox).toBe(false);
+    expect(rails.smsSandbox).toBe(true);
   });
 
-  it('does not treat an empty SMS_SANDBOX as sandbox', () => {
-    expect(liveRailsFromEnv(env()).smsSandbox).toBe(false);
-    expect(liveRailsFromEnv(env({ SMS_SANDBOX: '' })).smsSandbox).toBe(false);
+  it('treats an unset SMS_SANDBOX as sandbox for non-e-sign rails', () => {
+    expect(liveRailsFromEnv(env()).smsSandbox).toBe(true);
+    expect(liveRailsFromEnv(env({ SMS_SANDBOX: '' })).smsSandbox).toBe(true);
+    expect(liveRailsFromEnv(env({ SMS_SANDBOX: 'false' })).smsSandbox).toBe(false);
     expect(liveRailsFromEnv(env({ SMS_SANDBOX: 'true' })).smsSandbox).toBe(true);
   });
 
