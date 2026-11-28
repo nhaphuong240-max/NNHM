@@ -38,6 +38,10 @@ describe('jwt auth guard contract sign bypass', () => {
       tenantId: 'ten_b',
       contractId: 'ctr_b',
       buyerId: 'usr_1',
+      signerId: 'ssgn_1',
+      requestId: 'sreq_1',
+      jti: 'jti_1',
+      channel: 'SMS',
       secret,
     });
     expect(guard({ CONTRACT_SIGN_SECRET: secret }).canActivate(context(token))).toBe(true);

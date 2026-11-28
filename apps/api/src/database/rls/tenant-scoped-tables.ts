@@ -87,6 +87,14 @@ export const REMAINING_TENANT_ID_TABLES = [
   'walk_in_galleries',
 ] as const;
 
+/** Signing tables from 1758180000000. Kept out of the earlier RLS lists. */
+export const ESIGN_TENANT_TABLES = [
+  'signature_requests',
+  'signature_signers',
+  'otp_challenges',
+  'signature_events',
+] as const;
+
 /** Tables introduced by the spec-target migration. Compared for RLS with the two lists above. */
 export const SPEC_TENANT_TABLES = [
   'org_memberships',

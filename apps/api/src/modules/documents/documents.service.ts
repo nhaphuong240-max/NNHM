@@ -6,7 +6,8 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { createHash, randomUUID } from 'crypto';
-import { Repository } from 'typeorm';
+import { EntityManager, Repository } from 'typeorm';
+import { AuditEventEntity } from '../../database/entities/audit-event.entity';
 import { DocumentAccessLogEntity } from '../../database/entities/document-access-log.entity';
 import { DocumentEntity } from '../../database/entities/document.entity';
 import { AuditService } from '../audit/audit.service';
@@ -240,6 +241,74 @@ export class DocumentsService {
     });
 
     return { data: mapDocument(row), meta: { contentHash } };
+  }
+
+  /**
+   * One object key per contract and signer. A second call reuses the stored row.
+   * The caller runs this on the transaction that records the vault id.
+   */
+  async putSignedCopy(
+    manager: EntityManager,
+    input: {
+      tenantId: string;
+      bookingId: string;
+      contractId: string;
+      signerId: string;
+      buffer: Buffer;
+      fileName: string;
+    },
+  ): Promise<{ id: string }> {
+    if (input.buffer.length > MAX_BYTES) {
+      throw new UnprocessableEntityException({ detail: `File exceeds ${MAX_BYTES} bytes pilot limit` });
+    }
+    const storageKey = `booking/${input.bookingId}/esign/${input.contractId}/${input.signerId}_signed.txt`;
+    const documents = manager.getRepository(DocumentEntity);
+    const existing = await documents.findOne({ where: { tenantId: input.tenantId, storageKey } });
+    if (existing) return { id: existing.id };
+
+    const stored = await this.storage.putObject({
+      tenantId: input.tenantId,
+      storageKey,
+      buffer: input.buffer,
+      mimeType: 'text/plain',
+    });
+    const documentId = `doc_${randomUUID().replace(/-/g, '').slice(0, 10)}`;
+    const row = await documents.save({
+      id: documentId,
+      tenantId: input.tenantId,
+      entityType: 'BOOKING',
+      entityId: input.bookingId.trim(),
+      folder: 'CONTRACT',
+      docType: 'SIGNED_CONTRACT',
+      fileName: sanitizeFileName(input.fileName),
+      mimeType: 'text/plain',
+      sizeBytes: stored.sizeBytes,
+      contentHash: createHash('sha256').update(input.buffer).digest('hex'),
+      storageKey: stored.storageKey,
+      storageProvider: stored.provider,
+      watermarkEnabled: true,
+      scanStatus: 'CLEAN',
+      retentionClass: '10Y',
+      version: 1,
+      createdBy: null,
+    });
+    await manager.getRepository(DocumentAccessLogEntity).save({
+      id: `dal_${randomUUID().replace(/-/g, '').slice(0, 8)}`,
+      tenantId: input.tenantId,
+      documentId: row.id,
+      action: 'UPLOAD',
+      actorId: null,
+      metadata: { fileName: row.fileName, sizeBytes: row.sizeBytes },
+    });
+    await manager.getRepository(AuditEventEntity).save({
+      tenantId: input.tenantId,
+      entityType: 'document',
+      entityId: row.id,
+      action: 'DOCUMENT_UPLOADED',
+      payload: { entityType: row.entityType, entityId: row.entityId, folder: row.folder, storageKey },
+      actorId: null,
+    });
+    return { id: row.id };
   }
 
   async openDownloadStream(

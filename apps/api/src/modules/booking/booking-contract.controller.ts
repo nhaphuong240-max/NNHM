@@ -5,7 +5,8 @@ import { oneLookedUpTenant } from '../../common/public-tenant-lookup';
 import { assertHeaderMatches, resolveTenantId } from '../../common/resolve-tenant-id';
 import { Public } from '../identity/decorators/public.decorator';
 import { AllowContractSignToken } from './allow-contract-sign-token.decorator';
-import { contractSignSecret, readContractSignToken } from './contract-sign-token';
+import { contractSignSecret, readContractSignToken, type ContractSignClaims } from './contract-sign-token';
+import { SignatureTicketService } from './signature-ticket.service';
 import { CurrentUser } from '../identity/decorators/current-user.decorator';
 import type { AuthUser } from '../identity/identity.types';
 import { BookingContractService } from './booking-contract.service';
@@ -17,6 +18,7 @@ export class BookingContractController {
     private readonly contracts: BookingContractService,
     private readonly config: ConfigService,
     private readonly dataSource: DataSource,
+    private readonly tickets?: SignatureTicketService,
   ) {}
 
   private signSecret(): string {
@@ -33,17 +35,30 @@ export class BookingContractController {
     return tenantId;
   }
 
-  private async signedContractTenant(
+  private async readSignedClaims(
     contractId: string,
     header: string | undefined,
     signToken: string | undefined,
-  ) {
+  ): Promise<{ tenantId: string; claims: ContractSignClaims }> {
     const tenantId = await this.contractTenant(contractId, header);
     const claims = readContractSignToken(signToken, this.signSecret());
     if (!claims || claims.contractId !== contractId || claims.tenantId !== tenantId || !claims.buyerId) {
       throw new UnauthorizedException({ detail: 'contract sign token is missing, expired, or for another contract' });
     }
-    return tenantId;
+    if (!this.tickets) {
+      throw new UnauthorizedException({ detail: 'contract sign token is missing, expired, or for another contract' });
+    }
+    return { tenantId, claims };
+  }
+
+  private async signedContractTenant(
+    contractId: string,
+    header: string | undefined,
+    signToken: string | undefined,
+  ): Promise<{ tenantId: string; claims: ContractSignClaims }> {
+    const access = await this.readSignedClaims(contractId, header, signToken);
+    await this.tickets?.assertUsable(access.claims);
+    return access;
   }
 
   /** UC-BK-06 — template catalog */
@@ -113,10 +128,8 @@ export class BookingContractController {
     @Headers('x-contract-sign-token') signToken: string | undefined,
     @Param('contractId') contractId: string,
   ) {
-    return this.contracts.getSignSession(
-      await this.signedContractTenant(contractId, tenantHeader, signToken),
-      contractId,
-    );
+    const access = await this.signedContractTenant(contractId, tenantHeader, signToken);
+    return this.contracts.getSignSession(access.tenantId, contractId, access.claims);
   }
 
   /** UC-BK-07 — contract detail for buyer e-sign */
@@ -127,10 +140,8 @@ export class BookingContractController {
     @Headers('x-contract-sign-token') signToken: string | undefined,
     @Param('contractId') contractId: string,
   ) {
-    return this.contracts.getContract(
-      await this.signedContractTenant(contractId, tenantHeader, signToken),
-      contractId,
-    );
+    const access = await this.signedContractTenant(contractId, tenantHeader, signToken);
+    return this.contracts.getContract(access.tenantId, contractId);
   }
 
   /** UC-BK-07 — submit e-sign (OTP stub). The token is access control, not a legal signature. */
@@ -143,10 +154,24 @@ export class BookingContractController {
     @Param('contractId') contractId: string,
     @Body() body: ContractSignInput,
   ) {
-    return this.contracts.signContract(
-      await this.signedContractTenant(contractId, tenantHeader, signToken),
-      contractId,
-      body,
+    const access = await this.readSignedClaims(contractId, tenantHeader, signToken);
+    if (!this.tickets) {
+      throw new UnauthorizedException({ detail: 'sign access ticket is required' });
+    }
+    const vault = await this.tickets.pendingVault(access.claims);
+    if (vault === 'used') {
+      throw new UnauthorizedException({ detail: 'contract sign token was already used' });
+    }
+    if (vault === 'pending') {
+      return this.contracts.finishSignedVault(await this.contracts.rebuildPendingSignature(access.claims));
+    }
+    await this.tickets.assertUsable(access.claims);
+    const providerName = await this.contracts.signingProviderName(access.tenantId);
+    return this.tickets.completeSign(
+      access.claims,
+      body.otp,
+      (manager) => this.contracts.signContract(access.tenantId, contractId, body, access.claims, true, manager, providerName),
+      (prepared) => this.contracts.finishSignedVault(prepared),
     );
   }
 }

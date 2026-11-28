@@ -219,15 +219,21 @@ describe('tenant fallback is closed', () => {
     } as ConfigService;
     const contractMissing = new BookingContractController(contracts as never, signConfig, dataSourceReturning([]));
     await expect(contractMissing.signSession(undefined, undefined, 'ctr_missing')).rejects.toBeInstanceOf(NotFoundException);
+    const tickets = { assertUsable: jest.fn(async () => undefined), consume: jest.fn(async () => undefined) };
     const contractFound = new BookingContractController(
       contracts as never,
       signConfig,
       dataSourceReturning([{ tenant_id: TENANT_B }]),
+      tickets as never,
     );
     const signToken = mintContractSignToken({
       tenantId: TENANT_B,
       contractId: 'ctr_b',
       buyerId: 'usr_buyer',
+      signerId: 'ssgn_1',
+      requestId: 'sreq_1',
+      jti: 'jti_1',
+      channel: 'SMS',
       secret: signSecret,
     });
     const jwtOnly = new BookingContractController(

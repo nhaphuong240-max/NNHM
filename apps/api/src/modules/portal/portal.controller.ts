@@ -127,7 +127,14 @@ export class PortalController {
     const tenantId = await oneLookedUpTenant(this.dataSource, 'booking', bookingId, 'not-found');
     assertHeaderMatches(tenantHeader, tenantId);
     await this.portal.requireOwnedBuyerBooking(tenantId, bookingId, user);
-    return this.portal.getBuyerSignSession(tenantId, bookingId);
+    const secret = contractSignSecret((key) => this.config.get<string>(key));
+    if (!secret) {
+      throw new UnprocessableEntityException({ detail: 'contract sign secret is not configured' });
+    }
+    if (!user?.userId?.trim()) {
+      throw new ForbiddenException({ detail: 'Seeker OTP verification required' });
+    }
+    return this.portal.getBuyerSignSession(tenantId, bookingId, user.userId, secret);
   }
 
   @Post('buyer/contracts/:contractId/sign-token')

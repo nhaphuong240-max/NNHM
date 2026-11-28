@@ -47,8 +47,8 @@ export function BuyerEsignPage() {
     setError(null);
     try {
       const issued = await issueContractSignToken(contractId, tenantId);
-      setSignToken(issued.data.token);
       const res = await fetchContractSignSession(contractId, tenantId, issued.data.token);
+      setSignToken(issued.data.token);
       setSession(res.data);
       setSignerName(res.data.buyerName);
     } catch (e) {
@@ -94,8 +94,6 @@ export function BuyerEsignPage() {
       setSubmitting(false);
     }
   }
-
-  const isDemoOtp = session?.otpHint?.includes('123456');
 
   return (
     <BuyerShell
@@ -188,12 +186,12 @@ export function BuyerEsignPage() {
                 style={{ borderColor: brand.border }}
                 value={otp}
                 onChange={(e) => setOtp(e.target.value)}
-                placeholder={isDemoOtp ? '123456' : 'Mã OTP từ SMS'}
+                placeholder="Mã OTP từ SMS"
                 inputMode="numeric"
                 required
               />
               <p className="text-xs mt-1" style={{ color: brand.muted }}>
-                {session.otpHint ?? (isDemoOtp ? undefined : 'OTP gửi qua SMS — không dùng mã demo trên tenant LIVE')}
+                OTP gửi qua SMS tới số đã đăng ký
               </p>
             </div>
 

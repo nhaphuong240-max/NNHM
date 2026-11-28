@@ -42,6 +42,10 @@ describe('step 1 access checks', () => {
       tenantId: 'ten_b',
       contractId: 'ctr_b',
       buyerId: 'usr_buyer',
+      signerId: 'ssgn_1',
+      requestId: 'sreq_1',
+      jti: 'jti_1',
+      channel: 'SMS',
       secret: SECRET,
       now: 1_000,
     });
@@ -119,10 +123,25 @@ describe('step 1 access checks', () => {
       findOne: jest.fn(async () => ({ id: 'bk_1', leadId: 'ld_1', tenantId: 'ten_b' })),
     };
     const leads = { findOne: jest.fn(async () => ({ id: 'ld_1', phone: '0900000001' })) };
+    const tickets = {
+      issueBuyerAccess: jest.fn(async (input: { tenantId: string; contractId: string; buyerId: string; secret: string }) => ({
+        token: mintContractSignToken({
+          tenantId: input.tenantId,
+          contractId: input.contractId,
+          buyerId: input.buyerId,
+          signerId: 'ssgn_1',
+          requestId: 'sreq_1',
+          jti: 'jti_1',
+          channel: 'SMS',
+          secret: input.secret,
+        }),
+      })),
+    };
     const service = Object.assign(Object.create(PortalService.prototype), {
       bookings,
       leads,
       contracts,
+      tickets,
     }) as PortalService;
     const owner = { role: 'SEEKER', email: 'seeker+0900000001@nnhn.local', userId: 'usr_1', tenantId: 'ten_b' };
     const other = { ...owner, userId: 'usr_2', email: 'seeker+0900000002@nnhn.local' };
@@ -175,6 +194,10 @@ describe('step 1 access checks', () => {
       tenantId: 'ten_b',
       contractId: 'ctr_a',
       buyerId: 'usr_buyer',
+      signerId: 'ssgn_1',
+      requestId: 'sreq_1',
+      jti: 'jti_1',
+      channel: 'SMS',
       secret: SECRET,
     });
     await expect(controller.signSession('ten_b', token, 'ctr_b')).rejects.toBeInstanceOf(UnauthorizedException);

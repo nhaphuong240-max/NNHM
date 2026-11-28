@@ -14,6 +14,12 @@ function normalizePhone(phone: string): string {
   return phone.trim().replace(/\s+/g, '');
 }
 
+function maskStoredPhone(phone: string): string {
+  const compact = phone.replace(/\s+/g, '');
+  if (compact.length <= 4) return '****';
+  return `${compact.slice(0, 2)}****${compact.slice(-2)}`;
+}
+
 function generateOtp(sandbox: boolean): string {
   if (sandbox) return '123456';
   return String(randomInt(100000, 999999));
@@ -113,18 +119,6 @@ export class SmsService {
     return typeof otp === 'string' ? otp : null;
   }
 
-  async getEsignOtp(tenantId: string, contractId: string): Promise<string | null> {
-    const row = await this.deliveries.findOne({
-      where: {
-        tenantId,
-        sourceType: 'ESIGN_OTP',
-        sourceId: contractId,
-      },
-    });
-    const otp = row?.params?.otp;
-    return typeof otp === 'string' ? otp : null;
-  }
-
   async sendSms(tenantId: string, input: SmsSendInput): Promise<SmsSendResult> {
     if (input.source) {
       const existing = await this.deliveries.findOne({
@@ -145,7 +139,11 @@ export class SmsService {
           graphMode: await this.provider.graphMode(tenantId, binding),
           idempotentReplay: true,
           otp:
-            sandbox && typeof existing.params?.otp === 'string' ? existing.params.otp : undefined,
+            input.persistOtp === false
+              ? undefined
+              : sandbox && typeof existing.params?.otp === 'string'
+                ? existing.params.otp
+                : undefined,
         };
       }
     }
@@ -163,6 +161,11 @@ export class SmsService {
     if (input.templateId === SMS_TEMPLATES.OTP && !params.otp) {
       params.otp = generateOtp(sandbox);
     }
+    const revealOtp = typeof params.otp === 'string' ? params.otp : undefined;
+    const persistOtp = input.persistOtp !== false;
+    const storedParams = persistOtp
+      ? params
+      : Object.fromEntries(Object.entries(params).filter(([key]) => key !== 'otp'));
 
     if (sandbox) {
       const row = await this.deliveries.save({
@@ -170,7 +173,7 @@ export class SmsService {
         tenantId,
         templateId: input.templateId,
         phone,
-        params,
+        params: storedParams,
         status: 'SENT',
         providerRef: `sandbox_${deliveryId}`,
         lastError: null,
@@ -185,7 +188,7 @@ export class SmsService {
         action: 'SMS_SENT',
         payload: {
           templateId: row.templateId,
-          phone: row.phone,
+          phone: persistOtp ? row.phone : maskStoredPhone(row.phone),
           sandbox: true,
           providerRef: row.providerRef,
           sourceType: row.sourceType,
@@ -194,7 +197,7 @@ export class SmsService {
         actorId: null,
       });
 
-      this.logger.log(`UC-NW-03 SMS sandbox ${row.id} → ${phone}`);
+      this.logger.log(persistOtp ? `UC-NW-03 SMS sandbox ${row.id} → ${phone}` : `UC-NW-03 SMS sandbox ${row.id}`);
 
       return {
         deliveryId: row.id,
@@ -202,7 +205,7 @@ export class SmsService {
         providerRef: row.providerRef,
         sandbox: true,
         graphMode: 'SANDBOX',
-        otp: typeof params.otp === 'string' ? params.otp : undefined,
+        otp: revealOtp,
       };
     }
 
@@ -210,8 +213,8 @@ export class SmsService {
       id: deliveryId,
       tenantId,
       templateId: input.templateId,
-      phone,
-      params,
+        phone,
+        params: storedParams,
       status: 'QUEUED',
       providerRef: null,
       lastError: null,
@@ -239,7 +242,7 @@ export class SmsService {
         action: 'SMS_SENT',
         payload: {
           templateId: row.templateId,
-          phone: row.phone,
+          phone: persistOtp ? row.phone : maskStoredPhone(row.phone),
           providerRef: row.providerRef,
         },
         actorId: null,
@@ -251,7 +254,7 @@ export class SmsService {
         providerRef: row.providerRef,
         sandbox: false,
         graphMode: 'LIVE',
-        otp: undefined,
+        otp: persistOtp ? undefined : revealOtp,
       };
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);

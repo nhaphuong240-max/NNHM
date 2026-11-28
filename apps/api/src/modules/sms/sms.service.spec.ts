@@ -111,6 +111,19 @@ describe('SmsService', () => {
     expect(replay.deliveryId).toBe(first.deliveryId);
   });
 
+  it('stores an e-sign delivery without the otp when persistOtp is false', async () => {
+    const sent = await service.sendSms(TENANT, {
+      templateId: SMS_TEMPLATES.OTP,
+      phone: '+84901234567',
+      persistOtp: false,
+      source: { type: 'ESIGN_OTP', id: 'ctr_demo:jti_demo' },
+    });
+    expect(sent.otp).toEqual(expect.any(String));
+    expect(deliveries).toHaveLength(1);
+    expect(deliveries[0]?.params).not.toHaveProperty('otp');
+    expect(JSON.stringify(deliveries[0]?.params)).not.toContain(String(sent.otp));
+  });
+
   it('rejects demo OTP 123456 when tenant smsSandbox=false (OPS-S4-04)', async () => {
     railsResolve.mockResolvedValueOnce({ smsSandbox: false });
     await expect(service.assertNotDemoOtp(TENANT, '123456')).rejects.toThrow();

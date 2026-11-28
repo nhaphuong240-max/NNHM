@@ -75,7 +75,7 @@ export function formatVnd(amount: number): string {
   return `${Math.round(amount).toLocaleString('vi-VN')} đ`;
 }
 
-/** UC-BK-07 demo OTP — production would integrate SMS gateway (UC-NW-03) */
+/** UC-BK-07 demo OTP constant. Production verification does not accept this value. */
 export const ESIGN_DEMO_OTP = '123456';
 
 export function validateEsignOtp(otp: string): boolean {
