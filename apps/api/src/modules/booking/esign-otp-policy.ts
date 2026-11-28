@@ -5,6 +5,7 @@ import { ESIGN_DEMO_OTP } from './booking-contract.util';
 /** Names only. Empty means refuse. None of these numbers are a signed business limit. */
 export const ESIGN_OTP_PEPPER_ENV = 'ESIGN_OTP_PEPPER';
 export const ESIGN_OTP_MAX_ATTEMPTS_ENV = 'ESIGN_OTP_MAX_ATTEMPTS';
+/** Channel-verify send_count is summed per lead and is permanent. No reset is signed. Empty → 422. Not a product default. */
 export const ESIGN_OTP_MAX_SENDS_ENV = 'ESIGN_OTP_MAX_SENDS';
 export const ESIGN_OTP_RESEND_COOLDOWN_ENV = 'ESIGN_OTP_RESEND_COOLDOWN_SECONDS';
 export const ESIGN_OTP_LOCKOUT_ENV = 'ESIGN_OTP_LOCKOUT_SECONDS';

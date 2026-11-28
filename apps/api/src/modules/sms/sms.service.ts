@@ -252,6 +252,7 @@ export class SmsService {
     await this.deliveries.save(row);
   }
 
+  /** Empty SMS_SANDBOX → 422 on e-sign send only. Payment/seeker OTP uses sendSms without this gate. */
   assertSmsSandboxConfigured(): string {
     const flag = this.config.get<string>('SMS_SANDBOX')?.trim() ?? '';
     if (!flag) {
@@ -275,7 +276,6 @@ export class SmsService {
   }
 
   async sendSms(tenantId: string, input: SmsSendInput): Promise<SmsSendResult> {
-    this.assertSmsSandboxConfigured();
     if (input.source) {
       const existing = await this.deliveries.findOne({
         where: {

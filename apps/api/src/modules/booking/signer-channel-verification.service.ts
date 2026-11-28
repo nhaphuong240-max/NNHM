@@ -11,7 +11,9 @@ import { EMAIL_TEMPLATES } from '../email/email.types';
 import { ESIGN_DEMO_OTP } from './booking-contract.util';
 import type { ContractSignChannel } from './contract-sign-token';
 import {
+  ADVISORY_LOCK_SQL,
   CLAIM_CHANNEL_VERIFY_ATTEMPT_SQL,
+  channelVerifySendLockKey,
   returnedRows,
 } from './esign-otp-atomic';
 import {
@@ -101,53 +103,59 @@ export class SignerChannelVerificationService {
         throw new UnprocessableEntityException({ detail: CLOSED_DEST });
       }
     }
+    const destEmail = lead.email?.trim() ?? '';
     const smsHash = hashChannelDest(lead.phone, pepper);
-    const emailHash = hashChannelDest(lead.email.trim(), pepper);
-    const latest = await this.rows.find({
-      where: { tenantId, leadId: lead.id },
-      order: { createdAt: 'DESC' },
-    });
-    for (const row of latest.filter((item) => item.status === 'VERIFIED')) {
-      if (row.smsDestHash === smsHash && row.emailDestHash === emailHash) {
-        return { id: row.id, destMasked: row.emailDestMasked, sent: false };
+    const emailHash = hashChannelDest(destEmail, pepper);
+    return this.rows.manager.transaction(async (manager) => {
+      await manager.query(ADVISORY_LOCK_SQL, [channelVerifySendLockKey(tenantId, lead.id)]);
+      const repo = manager.getRepository(SignerChannelVerificationEntity);
+      const latest = await repo.find({
+        where: { tenantId, leadId: lead.id },
+        order: { createdAt: 'DESC' },
+      });
+      for (const row of latest.filter((item) => item.status === 'VERIFIED')) {
+        if (row.smsDestHash === smsHash && row.emailDestHash === emailHash) {
+          return { id: row.id, destMasked: row.emailDestMasked, sent: false };
+        }
+        await this.revokeRow(row, repo);
       }
-      await this.revokeRow(row);
-    }
-    const pending = latest.find((row) => row.status === 'PENDING' && row.expiresAt.getTime() > Date.now());
-    const lastSent = pending?.lastSentAt ?? pending?.createdAt;
-    if (pending && lastSent && Date.now() < lastSent.getTime() + cooldown * 1000) {
-      throw new UnprocessableEntityException({ detail: CLOSED_DEST });
-    }
-    const sentTotal = latest.reduce((sum, row) => sum + Number(row.sendCount ?? 0), 0);
-    if (sentTotal >= maxSends) {
-      throw new UnprocessableEntityException({ detail: 'esign otp send limit is exhausted' });
-    }
-    if (pending) {
-      return this.dispatchCode(pending, lead.email.trim(), pepper, false);
-    }
-    const id = `scv_${randomBytes(8).toString('hex')}`;
-    const created = this.rows.create({
-      id,
-      tenantId,
-      leadId: lead.id,
-      smsDestHash: smsHash,
-      emailDestHash: emailHash,
-      emailDestMasked: maskChannelDest(lead.email.trim()),
-      codeHash: null,
-      status: 'PENDING',
-      expiresAt: esignOtpExpiresAt(Date.now()),
-      lastSentAt: null,
-      sendCount: 0,
-      attemptCount: 0,
-      lockedUntil: null,
-      lockedIndefinitely: false,
-      verifiedAt: null,
-      verifiedBy: actor?.actorId ?? null,
-      method: 'EMAIL_CODE',
-      createdAt: new Date(),
+      const pending = latest.find((row) => row.status === 'PENDING' && row.expiresAt.getTime() > Date.now());
+      const lastSent = pending?.lastSentAt ?? pending?.createdAt;
+      if (pending && lastSent && Date.now() < lastSent.getTime() + cooldown * 1000) {
+        throw new UnprocessableEntityException({ detail: CLOSED_DEST });
+      }
+      // send_count across every row for this lead. Permanent. No reset is signed.
+      const sentTotal = latest.reduce((sum, row) => sum + Number(row.sendCount ?? 0), 0);
+      if (sentTotal >= maxSends) {
+        throw new UnprocessableEntityException({ detail: 'esign otp send limit is exhausted' });
+      }
+      if (pending) {
+        return this.dispatchCode(repo, pending, destEmail, pepper);
+      }
+      const id = `scv_${randomBytes(8).toString('hex')}`;
+      const created = repo.create({
+        id,
+        tenantId,
+        leadId: lead.id,
+        smsDestHash: smsHash,
+        emailDestHash: emailHash,
+        emailDestMasked: maskChannelDest(destEmail),
+        codeHash: null,
+        status: 'PENDING',
+        expiresAt: esignOtpExpiresAt(Date.now()),
+        lastSentAt: null,
+        sendCount: 0,
+        attemptCount: 0,
+        lockedUntil: null,
+        lockedIndefinitely: false,
+        verifiedAt: null,
+        verifiedBy: actor?.actorId ?? null,
+        method: 'EMAIL_CODE',
+        createdAt: new Date(),
+      });
+      const saved = await repo.save(created);
+      return this.dispatchCode(repo, saved, destEmail, pepper);
     });
-    const saved = await this.rows.save(created);
-    return this.dispatchCode(saved, lead.email.trim(), pepper, true);
   }
 
   async confirm(tenantId: string, id: string, code: string): Promise<{ verified: true; destMasked: string }> {
@@ -237,10 +245,10 @@ export class SignerChannelVerificationService {
   }
 
   private async dispatchCode(
+    repo: Repository<SignerChannelVerificationEntity>,
     row: SignerChannelVerificationEntity,
     email: string,
     pepper: string,
-    created: boolean,
   ): Promise<{ id: string; destMasked: string; sent: boolean }> {
     this.email.assertReady(EMAIL_TEMPLATES.CHANNEL_VERIFY);
     if (this.config.get<string>('NODE_ENV') === 'production' && this.email.isSandbox()) {
@@ -262,14 +270,16 @@ export class SignerChannelVerificationService {
     row.expiresAt = esignOtpExpiresAt(Date.now());
     row.lastSentAt = new Date();
     row.sendCount = Number(row.sendCount ?? 0) + 1;
-    await this.rows.save(row);
-    void created;
+    await repo.save(row);
     return { id: row.id, destMasked: row.emailDestMasked, sent: true };
   }
 
-  private async revokeRow(row: SignerChannelVerificationEntity): Promise<void> {
+  private async revokeRow(
+    row: SignerChannelVerificationEntity,
+    repo: Repository<SignerChannelVerificationEntity> = this.rows,
+  ): Promise<void> {
     row.status = 'REVOKED';
-    await this.rows.save(row);
+    await repo.save(row);
   }
 
   private pepper(): string {

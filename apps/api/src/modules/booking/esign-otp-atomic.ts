@@ -121,6 +121,10 @@ LIMIT 1
 
 export const ADVISORY_LOCK_SQL = `SELECT pg_advisory_xact_lock(hashtext($1))`;
 
+export function channelVerifySendLockKey(tenantId: string, leadId: string): string {
+  return `esign-channel-verify:${tenantId}:${leadId}`;
+}
+
 export const CLAIM_CHANNEL_VERIFY_ATTEMPT_SQL = `
 UPDATE "signer_channel_verifications" AS v
 SET "attempt_count" = v."attempt_count" + 1,

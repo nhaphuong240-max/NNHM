@@ -160,7 +160,7 @@ export class EsignOtpChallengeService {
       demoEsignOtpRejected({
         otp,
         nodeEnv,
-        smsSandbox: this.config.get<string>('SMS_SANDBOX') !== 'false',
+        smsSandbox: (this.config.get<string>('SMS_SANDBOX') ?? '').trim() === 'true',
         emailSandbox: this.config.get<string>('EMAIL_SANDBOX')?.trim() === 'true',
         channel: claims.channel,
       })

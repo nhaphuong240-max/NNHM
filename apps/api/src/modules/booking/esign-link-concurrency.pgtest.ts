@@ -1,11 +1,14 @@
 import { Client } from 'pg';
 import { DataSource } from 'typeorm';
+import { LeadEntity } from '../../database/entities/lead.entity';
 import { SignatureEventEntity } from '../../database/entities/signature-event.entity';
 import { SignatureRequestEntity } from '../../database/entities/signature-request.entity';
 import { SignatureSignerEntity } from '../../database/entities/signature-signer.entity';
+import { SignerChannelVerificationEntity } from '../../database/entities/signer-channel-verification.entity';
 import { SmsDeliveryEntity } from '../../database/entities/sms-delivery.entity';
 import { ADVISORY_LOCK_SQL } from './esign-otp-atomic';
 import { EsignLinkService } from './esign-link.service';
+import { SignerChannelVerificationService } from './signer-channel-verification.service';
 import { ESIGN_OTP_MAX_SENDS_ENV, ESIGN_OTP_PEPPER_ENV, ESIGN_OTP_RESEND_COOLDOWN_ENV } from './esign-otp-policy';
 import { ESIGN_LINK_CHANNEL_ENV, ESIGN_SIGNING_BASE_URL_ENV } from './esign-link.policy';
 import { SandboxEsignOutbox } from './sandbox-esign-outbox';
@@ -123,6 +126,64 @@ describe('esign link advisory lock on postgres', () => {
       await ds.query(`DELETE FROM signature_signers WHERE tenant_id = $1`, [tenantId]);
       await ds.query(`DELETE FROM signature_requests WHERE tenant_id = $1`, [tenantId]);
       await ds.query(`DELETE FROM sms_deliveries WHERE tenant_id = $1`, [tenantId]);
+      await ds.destroy();
+    }
+  }, 20_000);
+
+  it('lets only one of two parallel channel-verify starts send', async () => {
+    if (!url) {
+      throw new Error('DATABASE_URL is required for the advisory lock proof');
+    }
+    const stamp = `${Date.now().toString(36)}${Math.floor(Math.random() * 1e4).toString(36)}`;
+    const tenantId = `ten_${stamp}`.slice(0, 32);
+    const leadId = `ld_${stamp}`.slice(0, 32);
+    const ds = new DataSource({
+      type: 'postgres',
+      url,
+      entities: [LeadEntity, SignerChannelVerificationEntity],
+      extra: { max: 4 },
+    });
+    await ds.initialize();
+    await ds.query(`SELECT set_config('app.is_platform_admin', 'true', false)`);
+    await ds.query(
+      `INSERT INTO leads (id, tenant_id, full_name, phone, email, source, tier)
+       VALUES ($1, $2, 'Thu', '+84901234567', 'a@b.c', 'WEB', 'NEW')`,
+      [leadId, tenantId],
+    );
+    const send = jest.fn(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 80));
+      return { status: 'SENT', deliveryId: 'eml_1', sandbox: true };
+    });
+    const svc = new SignerChannelVerificationService(
+      ds.getRepository(LeadEntity),
+      ds.getRepository(SignerChannelVerificationEntity),
+      { send, assertReady: jest.fn(), isSandbox: jest.fn(() => true) } as never,
+      {
+        get: (key: string) =>
+          ({
+            [ESIGN_OTP_PEPPER_ENV]: 'esign-otp-pepper-16',
+            [ESIGN_OTP_MAX_SENDS_ENV]: '4',
+            [ESIGN_OTP_RESEND_COOLDOWN_ENV]: '30',
+            EMAIL_SANDBOX: 'true',
+            NODE_ENV: 'test',
+          })[key],
+      } as never,
+    );
+    try {
+      const settled = await Promise.allSettled([svc.start(tenantId, '0901234567'), svc.start(tenantId, '0901234567')]);
+      const sent = settled.filter((item) => item.status === 'fulfilled');
+      const closed = settled.filter(
+        (item) =>
+          item.status === 'rejected' &&
+          (item.reason as { response?: { detail?: string } })?.response?.detail ===
+            'signer channel destination is not registered',
+      );
+      expect(sent).toHaveLength(1);
+      expect(closed).toHaveLength(1);
+      expect(send).toHaveBeenCalledTimes(1);
+    } finally {
+      await ds.query(`DELETE FROM signer_channel_verifications WHERE tenant_id = $1`, [tenantId]);
+      await ds.query(`DELETE FROM leads WHERE tenant_id = $1`, [tenantId]);
       await ds.destroy();
     }
   }, 20_000);

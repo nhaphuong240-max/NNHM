@@ -72,19 +72,36 @@ function claimManager(saved: Array<Record<string, unknown>>, maxAttempts = 2, le
   };
 }
 
+function withTransaction(rows: {
+  findOne: unknown;
+  find: unknown;
+  save: unknown;
+  create: unknown;
+  manager: { query: unknown; transaction?: unknown };
+}) {
+  rows.manager.transaction = async (work: (manager: { query: unknown; getRepository: () => typeof rows }) => Promise<unknown>) =>
+    work({ query: jest.fn(async () => []), getRepository: () => rows });
+  return rows;
+}
+
 function service(opts: { leads?: unknown; rows?: unknown; send?: jest.Mock; extraConfig?: Record<string, string | undefined> }) {
+  const fallbackSaved: Array<Record<string, unknown>> = [];
   return new SignerChannelVerificationService(
     (opts.leads ?? {
       findOne: jest.fn(async () => ({ id: 'ld_01', phone: PHONE, email: EMAIL })),
       find: jest.fn(async () => [{ id: 'ld_01', phone: PHONE, email: EMAIL }]),
     }) as never,
-    (opts.rows ?? {
-      findOne: jest.fn(async () => null),
-      find: jest.fn(async () => []),
-      save: jest.fn(),
-      create: (row: Record<string, unknown>) => row,
-      manager: { query: jest.fn(async () => []) },
-    }) as never,
+    (opts.rows ??
+      withTransaction({
+        findOne: jest.fn(async () => null),
+        find: jest.fn(async () => fallbackSaved),
+        save: jest.fn(async (row: Record<string, unknown>) => {
+          fallbackSaved.push(row);
+          return row;
+        }),
+        create: (row: Record<string, unknown>) => row,
+        manager: { query: jest.fn(async () => []) },
+      })) as never,
     {
       send: opts.send ?? jest.fn(async () => ({ status: 'SENT', deliveryId: 'eml_1', sandbox: true })),
       assertReady: jest.fn(),
@@ -95,7 +112,7 @@ function service(opts: { leads?: unknown; rows?: unknown; send?: jest.Mock; extr
 }
 
 function memoryRows(saved: Array<Record<string, unknown>>, maxAttempts = 2) {
-  return {
+  const rows = {
     findOne: jest.fn(async (opts?: { where?: { status?: string; id?: string } }) => {
       if (opts?.where?.status === 'VERIFIED') return saved.find((row) => row.status === 'VERIFIED') ?? null;
       if (opts?.where?.id) return saved.find((row) => row.id === opts.where?.id) ?? null;
@@ -111,6 +128,7 @@ function memoryRows(saved: Array<Record<string, unknown>>, maxAttempts = 2) {
     }),
     manager: claimManager(saved, maxAttempts),
   };
+  return withTransaction(rows);
 }
 
 describe('signer channel verification', () => {
@@ -231,15 +249,48 @@ describe('signer channel verification', () => {
     expect(parallel.every((item) => item.status === 'rejected')).toBe(true);
   });
 
+  it('lets only one of two parallel starts send', async () => {
+    const saved: Array<Record<string, unknown>> = [];
+    const rows = memoryRows(saved);
+    let chain = Promise.resolve();
+    const inner = rows.manager.transaction as (work: (manager: unknown) => Promise<unknown>) => Promise<unknown>;
+    rows.manager.transaction = async (work: (manager: unknown) => Promise<unknown>) => {
+      const prev = chain;
+      let release!: () => void;
+      chain = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      await prev;
+      try {
+        return await inner(work);
+      } finally {
+        release();
+      }
+    };
+    const send = jest.fn(async () => {
+      await new Promise((resolve) => setImmediate(resolve));
+      return { status: 'SENT', deliveryId: 'eml_1', sandbox: true };
+    });
+    const svc = service({ send, rows });
+    const settled = await Promise.allSettled([svc.start('ten_b', '0901234567'), svc.start('ten_b', '0901234567')]);
+    const sent = settled.filter((item) => item.status === 'fulfilled');
+    const closed = settled.filter(
+      (item) => item.status === 'rejected' && (item.reason as { response?: { detail?: string } })?.response?.detail === CLOSED,
+    );
+    expect(sent).toHaveLength(1);
+    expect(closed).toHaveLength(1);
+    expect(send).toHaveBeenCalledTimes(1);
+  });
+
   it('404s confirm for another tenant', async () => {
     const svc = service({
-      rows: {
+      rows: withTransaction({
         findOne: jest.fn(async () => null),
         find: jest.fn(async () => []),
         save: jest.fn(),
         create: (row: Record<string, unknown>) => row,
         manager: { query: jest.fn(async () => []) },
-      },
+      }),
     });
     await expect(svc.confirm('ten_other', 'scv_x', '123456')).rejects.toBeInstanceOf(NotFoundException);
   });

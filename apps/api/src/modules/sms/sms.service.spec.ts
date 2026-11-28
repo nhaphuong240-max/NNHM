@@ -130,10 +130,14 @@ describe('SmsService', () => {
     await expect(service.assertNotDemoOtp(TENANT, '123456')).rejects.toThrow();
   });
 
-  it('refuses every send when SMS_SANDBOX is empty', async () => {
+  it('lets payment OTP send when SMS_SANDBOX is empty', async () => {
     (service as unknown as { config: { get: jest.Mock } }).config.get.mockImplementation(() => '');
-    await expect(
-      service.sendSms(TENANT, { templateId: SMS_TEMPLATES.OTP, phone: '+84901234567' }),
-    ).rejects.toBeInstanceOf(UnprocessableEntityException);
+    const sent = await service.sendSms(TENANT, { templateId: SMS_TEMPLATES.OTP, phone: '+84901234567' });
+    expect(sent.status).toBeDefined();
+  });
+
+  it('refuses e-sign send when SMS_SANDBOX is empty', async () => {
+    (service as unknown as { config: { get: jest.Mock } }).config.get.mockImplementation(() => '');
+    await expect(service.assertEsignReady(TENANT)).rejects.toBeInstanceOf(UnprocessableEntityException);
   });
 });
