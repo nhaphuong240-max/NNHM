@@ -61,8 +61,8 @@ export class EsignOtpChallengeService {
   }
 
   /** Owner 28/11: sends are not capped. Cooldown still gates resend. */
-  async assertSendBudget(_claims: ContractSignClaims): Promise<void> {
-    return;
+  async assertSendBudget(claims: ContractSignClaims): Promise<void> {
+    void claims;
   }
 
   findLatest(tenantId: string, jti: string): Promise<EsignOtpChallengeEntity | null> {
