@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { randomUUID } from 'crypto';
-import { DataSource, EntityManager, Repository } from 'typeorm';
+import { DataSource, EntityManager, QueryRunner, Repository } from 'typeorm';
 import { AuditEventEntity } from '../../database/entities/audit-event.entity';
 import { BookingEntity } from '../../database/entities/booking.entity';
 import { LeadEntity } from '../../database/entities/lead.entity';
@@ -363,20 +363,23 @@ export class BookingContractService {
   }
 
   /** Store the signed file after the signature transaction has committed. The key is the contract and signer. */
-  async finishSignedVault(prepared: PreparedContractSignature) {
-    const runner = this.dataSource.createQueryRunner();
-    await runner.connect();
-    await runner.startTransaction();
+  async finishSignedVault(prepared: PreparedContractSignature, runner?: QueryRunner) {
+    const owned = !runner;
+    const active = runner ?? this.dataSource.createQueryRunner();
+    if (owned) {
+      await active.connect();
+      await active.startTransaction();
+    }
     try {
       const locked = returnedRows(
-        await runner.query(LOCK_REQUEST_DOCUMENT_SQL, [prepared.requestId, prepared.tenantId]),
+        await active.query(LOCK_REQUEST_DOCUMENT_SQL, [prepared.requestId, prepared.tenantId]),
       );
       const existingId = documentIdOf(locked[0]);
       if (existingId) {
-        await runner.commitTransaction();
+        if (owned) await active.commitTransaction();
         return this.signedResponse(prepared, existingId);
       }
-      const stored = await this.documents.putSignedCopy(runner.manager, {
+      const stored = await this.documents.putSignedCopy(active.manager, {
         tenantId: prepared.tenantId,
         bookingId: prepared.bookingId,
         contractId: prepared.contractId,
@@ -385,18 +388,18 @@ export class BookingContractService {
         fileName: prepared.fileName,
       });
       const attached = returnedRows(
-        await runner.query(SET_REQUEST_DOCUMENT_SQL, [prepared.requestId, prepared.tenantId, stored.id]),
+        await active.query(SET_REQUEST_DOCUMENT_SQL, [prepared.requestId, prepared.tenantId, stored.id]),
       );
       if (attached.length !== 1) {
         const again = returnedRows(
-          await runner.query(LOCK_REQUEST_DOCUMENT_SQL, [prepared.requestId, prepared.tenantId]),
+          await active.query(LOCK_REQUEST_DOCUMENT_SQL, [prepared.requestId, prepared.tenantId]),
         );
         const winner = documentIdOf(again[0]);
         if (!winner) throw new UnprocessableEntityException({ detail: 'signed document was not stored' });
-        await runner.commitTransaction();
+        if (owned) await active.commitTransaction();
         return this.signedResponse(prepared, winner);
       }
-      const audits = runner.manager.getRepository(AuditEventEntity);
+      const audits = active.manager.getRepository(AuditEventEntity);
       const row = await audits.findOne({ where: { id: prepared.auditId } });
       if (row) {
         row.payload = {
@@ -407,13 +410,13 @@ export class BookingContractService {
         };
         await audits.save(row);
       }
-      await runner.commitTransaction();
+      if (owned) await active.commitTransaction();
       return this.signedResponse(prepared, stored.id);
     } catch (error) {
-      await runner.rollbackTransaction();
+      if (owned) await active.rollbackTransaction();
       throw error;
     } finally {
-      await runner.release();
+      if (owned) await active.release();
     }
   }
 
