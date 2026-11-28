@@ -312,7 +312,7 @@ export class EsignLinkService {
       });
       deliveryId = queued.deliveryId;
       await runner.commitTransaction();
-    } catch (error) {
+    } catch {
       if (runner.isTransactionActive) await runner.rollbackTransaction();
       if (deliveryId) {
         if (input.dest.channel === 'SMS') await this.sms.markFailed(input.tenantId, deliveryId);
